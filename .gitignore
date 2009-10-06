@@ -1,0 +1,300 @@
+
+# /
+/glob.dump
+/coqtop.byte
+/TAGS
+/revision
+
+# /bin/
+/bin/coqc
+/bin/coqc.opt
+/bin/coqc.byte
+/bin/coqmktop
+/bin/coqmktop.opt
+/bin/coqmktop.byte
+/bin/coqtop
+/bin/coqtop.byte
+/bin/coqtop.opt
+/bin/coqchk
+/bin/coqchk.byte
+/bin/coqchk.opt
+/bin/minicoq
+/bin/coqdep
+/bin/coqdep_boot
+/bin/coq_makefile
+/bin/gallina
+/bin/coq-tex
+/bin/coq-extraction
+/bin/coq-interface
+/bin/coq-parser
+/bin/coq-parser.opt
+/bin/coq_vo2xml
+/bin/coq-interface.opt
+/bin/coqide
+/bin/coqide.byte
+/bin/coqide.opt
+/bin/coqtopnew.opt
+/bin/coqtopnew.byte
+/bin/coqwc
+/bin/coqdoc
+/bin/csdpcert
+
+# /config/
+/config/Makefile
+/config/coq_config.ml
+/config/revision.ml
+
+# /dev/
+/dev/other
+/dev/ocamldebug-coq
+/dev/ocamldebug-v7
+/dev/debug_*
+
+# /dev/doc/
+/dev/doc/coq.tex
+
+# /dev/ocamlweb-doc/
+/dev/ocamlweb-doc/lex.ml
+/dev/ocamlweb-doc/syntax.ml
+/dev/ocamlweb-doc/syntax.mli
+
+# /doc/RecTutorial/
+/doc/RecTutorial/*.log
+/doc/RecTutorial/*.dvi
+/doc/RecTutorial/*.ps
+/doc/RecTutorial/*.idx
+/doc/RecTutorial/*.toc
+/doc/RecTutorial/*.aux
+/doc/RecTutorial/*.bbl
+/doc/RecTutorial/*.v.tex
+/doc/RecTutorial/*.blg
+/doc/RecTutorial/*.v.html
+/doc/RecTutorial/*.haux
+/doc/RecTutorial/*.pdf
+
+# /doc/common/
+/doc/common/version.tex
+
+# /doc/faq/
+/doc/faq/*.aux
+/doc/faq/*.blg
+/doc/faq/*.ind
+/doc/faq/*.ilg
+/doc/faq/*.v.tex
+/doc/faq/*.v.html
+/doc/faq/*.pdf
+/doc/faq/*.ps
+/doc/faq/*.bbl
+/doc/faq/*.htoc
+/doc/faq/*.haux
+/doc/faq/*.hind
+/doc/faq/*.dvi
+/doc/faq/*.toc
+/doc/faq/*.log
+/doc/faq/html
+
+# /doc/refman/
+/doc/refman/*.aux
+/doc/refman/*.blg
+/doc/refman/*.ind
+/doc/refman/*.ilg
+/doc/refman/*.v.tex
+/doc/refman/*.pdf
+/doc/refman/*.ps
+/doc/refman/*.bbl
+/doc/refman/*.gz
+/doc/refman/*.atoc
+/doc/refman/*.tacidx
+/doc/refman/*.tacind
+/doc/refman/*.comind
+/doc/refman/*.comidx
+/doc/refman/*.errind
+/doc/refman/*.erridx
+/doc/refman/*.htoc
+/doc/refman/*.hidx
+/doc/refman/*.haux
+/doc/refman/*.hind
+/doc/refman/*.hcomind
+/doc/refman/*.htacind
+/doc/refman/*.herrind
+/doc/refman/*.dvi
+/doc/refman/*.toc
+/doc/refman/*.log
+/doc/refman/*.idx
+/doc/refman/*.lof
+/doc/refman/Reference-Manual.html
+/doc/refman/html
+/doc/refman/euclid.ml*
+/doc/refman/heapsort.ml*
+/doc/refman/coqide.eps
+/doc/refman/coqide-queries.eps
+/doc/refman/Reference-Manual.sh
+
+# /doc/stdlib/
+/doc/stdlib/*.aux
+/doc/stdlib/*.blg
+/doc/stdlib/*.ind
+/doc/stdlib/*.ilg
+/doc/stdlib/*.v.tex
+/doc/stdlib/*.v.html
+/doc/stdlib/*.pdf
+/doc/stdlib/*.ps
+/doc/stdlib/*.bbl
+/doc/stdlib/*.htoc
+/doc/stdlib/*.haux
+/doc/stdlib/*.hind
+/doc/stdlib/*.dvi
+/doc/stdlib/*.toc
+/doc/stdlib/*.log
+/doc/stdlib/library.files
+/doc/stdlib/library.files.ls
+/doc/stdlib/library.files.ls.tmp
+/doc/stdlib/index-list.html
+/doc/stdlib/index-body.html
+/doc/stdlib/Library.coqdoc.tex
+/doc/stdlib/html
+/doc/stdlib/Library.out
+
+# /doc/tutorial/
+/doc/tutorial/*.aux
+/doc/tutorial/*.blg
+/doc/tutorial/*.ind
+/doc/tutorial/*.ilg
+/doc/tutorial/*.v.tex
+/doc/tutorial/*.v.html
+/doc/tutorial/*.pdf
+/doc/tutorial/*.ps
+/doc/tutorial/*.bbl
+/doc/tutorial/*.htoc
+/doc/tutorial/*.haux
+/doc/tutorial/*.hind
+/doc/tutorial/*.dvi
+/doc/tutorial/*.toc
+/doc/tutorial/*.log
+
+# /ide/
+/ide/lexer.ml
+/ide/why_viewer
+/ide/.depend
+/ide/find_phrase.ml
+/ide/highlight.ml
+/ide/coqide
+/ide/Makefile
+/ide/test
+/ide/config_lexer.ml
+/ide/*.crashcoqide
+/ide/config_parser.mli
+/ide/config_parser.ml
+/ide/utf8_convert.ml
+/ide/*.v8
+/ide/undo.mli
+/ide/extract_index.ml
+
+# /ide/utils/
+/ide/utils/example.ml
+
+# /kernel/
+/kernel/copcodes.ml
+
+# /kernel/byterun/
+/kernel/byterun/coq_jumptbl.h
+/kernel/byterun/dllcoqrun.so
+
+# /parsing/
+/parsing/lexer.ml
+/parsing/*.ppo
+/parsing/pcoq.ml
+/parsing/g_prim.ml
+/parsing/q_coqast.ml
+/parsing/g_basevernac.ml
+/parsing/g_vernac.ml
+/parsing/g_tactic.ml
+/parsing/g_constr.ml
+/parsing/g_cases.ml
+/parsing/g_proofs.ml
+/parsing/g_minicoq.ml
+
+# /plugins/dp/
+/plugins/dp/dp_zenon.ml
+
+# /scripts/
+/scripts/coqmktop
+/scripts/tolink.ml
+/scripts/coqc
+
+# /states/
+/states/initial.coq
+
+# /tactics/
+/tactics/tauto.ml
+
+# /test-suite/
+/test-suite/check.log
+/test-suite/zarith.ml
+/test-suite/zarith.mli
+
+# /test-suite/failure/
+/test-suite/failure/*.v8
+
+# /test-suite/success/
+/test-suite/success/
+
+# /theories/Arith/
+/theories/Arith/*.v8
+
+# /theories/Bool/
+/theories/Bool/*.v8
+
+# /theories/Init/
+/theories/Init/*.v8
+
+# /theories/Lists/
+/theories/Lists/*.v8
+
+# /theories/Logic/
+/theories/Logic/*.v8
+
+# /theories/NArith/
+/theories/NArith/*.v8
+
+# /theories/Numbers/Natural/BigN/
+/theories/Numbers/Natural/BigN/NMake.v
+
+# /theories/Reals/
+/theories/Reals/*.v8
+
+# /theories/Relations/
+/theories/Relations/*.v8
+
+# /theories/Setoids/
+/theories/Setoids/*.v8
+
+# /theories/Sets/
+/theories/Sets/*.v8
+
+# /theories/Sorting/
+/theories/Sorting/*.v8
+
+# /theories/Wellfounded/
+/theories/Wellfounded/*.v8
+
+# /theories/ZArith/
+/theories/ZArith/*.v8
+
+# /tools/
+/tools/coqdep_lexer.ml
+/tools/gallina_lexer.ml
+/tools/coqdep
+/tools/coq_makefile
+/tools/gallina
+/tools/coq-tex
+/tools/coqwc.ml
+
+# /tools/coqdoc/
+/tools/coqdoc/index.ml
+/tools/coqdoc/cpretty.ml
+
+# /toplevel/
+/toplevel/mltop.ml
+/toplevel/mltop.byteml
+/toplevel/mltop.optml
