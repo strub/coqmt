@@ -825,5 +825,15 @@ let safe_infer senv = infer (env_of_senv senv)
     
 let typing senv = Typeops.typing (env_of_senv senv)
 
+(* Decision procedures *)
+module DP =
+struct
+  open Decproc
 
+  let bindings = fun senv ->
+    Environ.DP.bindings senv.env
 
+  let add_binding = fun senv binding ->
+    (* Check typing *)
+    { senv with env = Environ.DP.addbinding senv.env binding }
+end

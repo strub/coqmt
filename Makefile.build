@@ -63,8 +63,8 @@ else
 endif
 
 LOCALINCLUDES=-I config -I tools -I tools/coqdoc \
-	      -I scripts -I lib -I kernel -I kernel/byterun -I library \
-              -I proofs -I tactics -I pretyping \
+	      -I scripts -I lib -I kernel -I kernel/byterun -I kernel/simplex \
+              -I library -I proofs -I tactics -I pretyping \
               -I interp -I toplevel -I parsing -I ide/utils -I ide \
               -I contrib/omega -I contrib/romega -I contrib/micromega \
 	      -I contrib/ring -I contrib/dp -I contrib/setoid_ring \
@@ -82,7 +82,7 @@ BYTEFLAGS=$(MLINCLUDES) $(CAMLDEBUG) $(USERFLAGS)
 OPTFLAGS=$(MLINCLUDES) $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS)
 DEPFLAGS= -slash $(LOCALINCLUDES)
 
-CAMLP4EXTENDFLAGS=-I . #grammar dependencies are now in camlp4use statements 
+CAMLP4EXTENDFLAGS=-I . -I $(shell ocamlc -where) #grammar dependencies are now in camlp4use statements 
 CAMLP4DEPS=sed -n -e 's@^(\*.*camlp4deps: "\(.*\)".*\*)@\1@p'
 CAMLP4USE=sed -n -e 's/pa_macro.cmo/pa_macro.cmo -D$(CAMLVERSION)/' -e 's@^(\*.*camlp4use: "\(.*\)".*\*)@\1@p'
 
@@ -773,18 +773,18 @@ source-doc:
 
 dev/printers.cma: $(PRINTERSCMO)
 	$(SHOW)'Testing $@'
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) gramlib.cma $(PRINTERSCMO) -o test-printer
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) nums.cma gramlib.cma $(PRINTERSCMO) -o test-printer
 	@rm -f test-printer
 	$(SHOW)'OCAMLC -a $@'   
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) $(PRINTERSCMO) -linkall -a -o $@
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) nums.cma $(PRINTERSCMO) -linkall -a -o $@
 
 parsing/grammar.cma: $(GRAMMARCMO)
 	$(SHOW)'Testing $@'
 	@touch test.ml4
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) -pp "$(CAMLP4O) $(CAMLP4EXTENDFLAGS) $(GRAMMARCMO) -impl" -impl test.ml4 -o test-grammar
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) -pp "$(CAMLP4O) $(CAMLP4EXTENDFLAGS) nums.cma $(GRAMMARCMO) -impl" -impl test.ml4 -o test-grammar
 	@rm -f test-grammar test.*
 	$(SHOW)'OCAMLC -a $@'   
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) $(GRAMMARCMO) -linkall -a -o $@
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) nums.cma $(GRAMMARCMO) -linkall -a -o $@
 
 # toplevel/mltop.ml4 (ifdef Byte)
 

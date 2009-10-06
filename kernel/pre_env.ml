@@ -50,6 +50,7 @@ type env = {
   env_rel_val       : lazy_val list;
   env_nb_rel        : int;
   env_stratification : stratification;
+  env_decproc       : Decproc.Bindings.t;
   retroknowledge : Retroknowledge.retroknowledge }
 
 type named_context_val = named_context * named_vals
@@ -71,6 +72,7 @@ let empty_env = {
   env_stratification = {
     env_universes = initial_universes;
     env_engagement = None };
+  env_decproc = Decproc.Bindings.empty;
   retroknowledge = Retroknowledge.initial_retroknowledge }
 
 

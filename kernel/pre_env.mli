@@ -49,7 +49,8 @@ type env = {
     env_rel_context   : rel_context;
     env_rel_val       : lazy_val list;
     env_nb_rel        : int;
-    env_stratification : stratification; 
+    env_stratification : stratification;
+    env_decproc       : Decproc.Bindings.t;
     retroknowledge : Retroknowledge.retroknowledge }
 
 type named_context_val = named_context * named_vals

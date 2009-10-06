@@ -161,3 +161,14 @@ let register field value by_clause =
   let entry = kind_of_term value in
   let senv = Safe_typing.register !global_env field entry by_clause in
   global_env := senv
+
+(* Decision procedures *)
+module DP =
+struct
+  let bindings = fun () ->
+    Safe_typing.DP.bindings !global_env
+
+  let add_binding = fun binding ->
+    global_env :=
+      Safe_typing.DP.add_binding !global_env binding
+end

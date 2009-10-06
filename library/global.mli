@@ -97,3 +97,9 @@ val env_of_context : Environ.named_context_val -> Environ.env
 
 (* spiwack: register/unregister function for retroknowledge *)
 val register : Retroknowledge.field -> constr -> constr -> unit
+
+(* Decision procedures *)
+module DP : sig
+  val bindings    : unit -> Decproc.Bindings.t
+  val add_binding : Decproc.binding -> unit
+end

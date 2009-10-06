@@ -683,4 +683,14 @@ let assumptions ?(add_opaque=false) st (* t env *) =
 (* /spiwack *)
 
 
+(******************************************************************)
+module DP =
+struct
+  open Decproc
 
+  let bindings = fun env -> env.env_decproc
+
+  let addbinding = fun env binding  ->
+    let bindings = Bindings.add env.env_decproc binding in
+      { env with env_decproc = bindings }
+end

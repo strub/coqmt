@@ -17,11 +17,18 @@ open Environ
 open Closure
 open Esubst
 
-let unfold_reference ((ids, csts), infos) k =
+type infos_t = {
+  if_ids      : Names.Idpred.t;
+  if_csts     : Names.Cpred.t;
+  if_closure  : Closure.clos_infos;
+  if_bindings : Decproc.Bindings.t;
+}
+
+let unfold_reference = fun infos k ->
   match k with
-    | VarKey id when not (Idpred.mem id ids) -> None
-    | ConstKey cst when not (Cpred.mem cst csts) -> None
-    | _ -> unfold_reference infos k
+  | VarKey   id  when not (Idpred.mem id  infos.if_ids ) -> None
+  | ConstKey cst when not (Cpred.mem  cst infos.if_csts) -> None
+  | _ -> unfold_reference infos.if_closure k
 	  
 let rec is_empty_stack = function
     [] -> true
@@ -217,25 +224,204 @@ let in_whnf (t,stk) =
     | (FFlex _ | FProd _ | FEvar _ | FInd _ | FAtom _ | FRel _) -> true
     | FLOCKED -> assert false
 
+(* Head reduce a couple of terms. This is not equivalent to reducing
+ * the first, and then the second term since we have terms sharing.
+ *)
+let whd_both infos =
+  let rec whd_both = fun (t1, stk1) (t2, stk2) ->
+    let st1 = whd_stack infos.if_closure t1 stk1 in
+    let st2 = whd_stack infos.if_closure t2 stk2 in
+      (* Now, whd_stack on second term might have modified st1 (due to
+       * sharing), and st1 might not be in whnf anymore.
+       *)
+      if in_whnf st1 then (st1, st2) else whd_both st1 st2
+  in
+    whd_both
+
+(* Decision procedures conversion module *)
+module DP : sig
+  open Decproc
+
+  type state_t
+
+  type xfconstr_t = lift * fconstr * stack
+  type xcnv_t     = xfconstr_t -> xfconstr_t -> Univ.constraints -> Univ.constraints
+
+  exception ExtractFailure
+
+  val create   : Bindings.t -> state_t
+  val extract  : state_t -> clos_infos -> xfconstr_t -> state_t
+
+  val finalize
+    :  xcnv_t
+    -> Univ.constraints
+    -> state_t
+    -> FOTerm.term array * dpinfos * Univ.constraints
+end
+  =
+struct
+  open Decproc
+
+  type xfconstr_t = lift * fconstr * stack
+  type xcnv_t     = xfconstr_t -> xfconstr_t -> Univ.constraints -> Univ.constraints
+
+  type prefoterm =
+    | PFO_Var   of identifier
+    | PFO_Rel   of int
+    | PFO_Alien of xfconstr_t
+    | PFO_Symb  of FOTerm.symbol * prefoterm array
+
+  type state_t = {
+    st_bindings : Bindings.t;
+    st_theory   : dpinfos option;
+    st_terms    : prefoterm list;
+  }
+
+  exception ExtractFailure
+
+  let create = fun bindings -> {
+    st_bindings = bindings;
+    st_theory   = None;
+    st_terms    = [];
+  }
+
+  exception AlienNotMerged
+
+  let finalize = fun cnv ->
+    let rec to_foterm_fold = fun term (aliens, foterms) ->
+      let aliens, foterm = to_foterm aliens term in
+        (aliens, foterm :: foterms)
+
+    and to_foterm = fun ((cuniv, aliens) as infos) term ->
+      match term with
+      | PFO_Var x -> (infos, FOTerm.FVar (`Out x))
+      | PFO_Rel n -> (infos, FOTerm.FVar (`In n))
+      | PFO_Symb (f, ts) ->
+          let infos, foterms =
+            Array.fold_right to_foterm_fold ts (infos, [])
+          in
+            (infos, FOTerm.FSymb (f, foterms))
+
+      | PFO_Alien term ->               (* FIXME *)
+          let rec merge = fun i aliens ->
+            match aliens with
+            | [] -> raise AlienNotMerged
+            | alien :: aliens ->
+                try
+                  let cuniv = cnv term alien cuniv in
+                    ((cuniv, aliens), FOTerm.FVar (`Alien i))
+                with NotConvertible ->
+                  merge (i+1) aliens
+          in
+            try  merge 0 aliens
+            with AlienNotMerged ->
+              let naliens = List.length aliens in
+                ((cuniv, aliens @ [term]), FOTerm.FVar (`Alien naliens))
+
+    in
+      fun cuniv state ->
+        match state.st_theory with
+        | None        -> raise ExtractFailure
+        | Some theory ->
+            let (cuniv, _), foterms =
+              List.fold_right to_foterm_fold state.st_terms ((cuniv, []), [])
+            in
+              (Array.of_list foterms, theory, cuniv)
+  
+  let extract = fun state ->
+    let entry_of_fterm = function
+      | FFlex (ConstKey x) -> Some (Decproc.DPE_Constant    x)
+      | FConstruct x       -> Some (Decproc.DPE_Constructor x)
+      | FInd x             -> Some (Decproc.DPE_Inductive   x)
+      | _                  -> None
+  
+    and merge_theory = fun th1 th2 ->
+      match th1 with
+      | None                             -> th2
+      | Some th1 when th1 ==(*\phi*) th2 -> th1
+      | _                                -> raise ExtractFailure
+    in
+  
+    let rec extract_r = fun theory closure (lift, term, stack) ->
+      let (term, stack) = whd_stack closure term stack in
+      let el_lift       = el_stack lift stack in
+        match entry_of_fterm (fterm_of term) with
+        | None -> begin
+            match fterm_of term with
+            | FFlex (VarKey x) -> (PFO_Var x, theory)
+            | FRel n           -> (PFO_Rel (reloc_rel n el_lift), theory) (* ?? *)
+            | _                -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+          end
+  
+        | Some entry -> begin
+            match Bindings.revbinding_symbol state.st_bindings entry with
+            | None            -> (PFO_Alien (lift, term, stack), theory)
+            | Some (bd, symb) ->
+                let theory = merge_theory theory bd.dpb_theory in
+                  match pure_stack lift stack with
+                  | [ Zlapp args ] -> begin
+                      if Array.length args <> symb.FOTerm.s_arity then
+                        raise ExtractFailure;
+                      let foargs =
+                        Array.map
+                          (fun (alift, arg) ->
+                             (fst (extract_r (Some theory) closure (alift, arg, []))))
+                          args
+                      in
+                        (PFO_Symb (symb, foargs), Some theory)
+                    end
+                  | _ -> assert false
+          end
+    in
+      fun closure xfconstr ->
+        let foterm, theory = extract_r state.st_theory closure xfconstr in
+          { state with
+              st_terms  = foterm :: state.st_terms;
+              st_theory = theory; }
+end
+  
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
 let rec ccnv cv_pb infos lft1 lft2 term1 term2 cuniv = 
   eqappr cv_pb infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
 
+(* Conversion between [lft1](hd1 st1) and [lft2](hd2 st2),
+ * possibly using first-order decision procedures. *)
+and eqappr cv_pb infos ((lft1, st1) as t1) ((lft2, st2) as t2) cuniv =
+  try
+    let foterms, theory, cuniv =
+      try
+        let state =
+          List.fold_left
+            (fun state (lft, st) ->
+               DP.extract state infos.if_closure (lft, fst st, snd st))
+            (DP.create infos.if_bindings)
+            [ t1; t2 ]
+        in
+          DP.finalize
+            (fun (lft1, t1, st1) (lft2, t2, st2) c ->
+               eqappr CONV infos (lft1, (t1, st2)) (lft2, (t2, st2)) c)
+            cuniv state
+      with DP.ExtractFailure ->
+        raise NotConvertible
+    in
+      if not (theory.Decproc.dpi_blackbox (foterms.(0), foterms.(1))) then
+        raise NotConvertible;
+      cuniv
+  with NotConvertible ->
+    eqappr_noalg cv_pb infos (lft1, st1) (lft2, st2) cuniv
+
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
-and eqappr cv_pb infos (lft1,st1) (lft2,st2) cuniv =
+and eqappr_noalg cv_pb infos (lft1,st1) (lft2,st2) cuniv =
   Util.check_for_interrupt ();
+
   (* First head reduce both terms *)
-  let rec  whd_both (t1,stk1) (t2,stk2) =
-    let st1' = whd_stack (snd infos) t1 stk1 in
-    let st2' = whd_stack (snd infos) t2 stk2 in
-    (* Now, whd_stack on term2 might have modified st1 (due to sharing),
-       and st1 might not be in whnf anymore. If so, we iterate ccnv. *)
-    if in_whnf st1' then (st1',st2') else whd_both st1' st2' in
-  let ((hd1,v1),(hd2,v2)) = whd_both st1 st2 in
-  let appr1 = (lft1,(hd1,v1)) and appr2 = (lft2,(hd2,v2)) in
+  let ((hd1, v1), (hd2, v2)) = whd_both infos st1 st2 in
+  let appr1 = (lft1, (hd1, v1)) and appr2 = (lft2, (hd2, v2)) in
+
   (* compute the lifts that apply to the head of the term (hd1 and hd2) *)
   let el1 = el_stack lft1 v1 in
   let el2 = el_stack lft2 v2 in
+
   match (fterm_of hd1, fterm_of hd2) with
     (* case of leaves *)
     | (FAtom a1, FAtom a2) ->
@@ -273,17 +459,17 @@ and eqappr cv_pb infos (lft1,st1) (lft2,st2) cuniv =
           let (app1,app2) =
             if Conv_oracle.oracle_order fl1 fl2 then
               match unfold_reference infos fl1 with
-                | Some def1 -> ((lft1, whd_stack (snd infos) def1 v1), appr2)
+                | Some def1 -> ((lft1, whd_stack infos.if_closure def1 v1), appr2)
                 | None ->
                     (match unfold_reference infos fl2 with
-                      | Some def2 -> (appr1, (lft2, whd_stack (snd infos) def2 v2))
+                      | Some def2 -> (appr1, (lft2, whd_stack infos.if_closure def2 v2))
 		      | None -> raise NotConvertible)
             else
 	      match unfold_reference infos fl2 with
-                | Some def2 -> (appr1, (lft2, whd_stack (snd infos) def2 v2))
+                | Some def2 -> (appr1, (lft2, whd_stack infos.if_closure def2 v2))
                 | None ->
                     (match unfold_reference infos fl1 with
-                    | Some def1 -> ((lft1, whd_stack (snd infos) def1 v1), appr2)
+                    | Some def1 -> ((lft1, whd_stack infos.if_closure def1 v1), appr2)
 		    | None -> raise NotConvertible) in
           eqappr cv_pb infos app1 app2 cuniv)
 
@@ -291,12 +477,12 @@ and eqappr cv_pb infos (lft1,st1) (lft2,st2) cuniv =
     | (FFlex fl1, _)      ->
         (match unfold_reference infos fl1 with
            | Some def1 -> 
-	       eqappr cv_pb infos (lft1, whd_stack (snd infos) def1 v1) appr2 cuniv
+	       eqappr cv_pb infos (lft1, whd_stack infos.if_closure def1 v1) appr2 cuniv
            | None -> raise NotConvertible)
     | (_, FFlex fl2)      ->
         (match unfold_reference infos fl2 with
            | Some def2 ->
-	       eqappr cv_pb infos appr1 (lft2, whd_stack (snd infos) def2 v2) cuniv
+	       eqappr cv_pb infos appr1 (lft2, whd_stack infos.if_closure def2 v2) cuniv
            | None -> raise NotConvertible)
 	
     (* other constructors *)
@@ -316,13 +502,13 @@ and eqappr cv_pb infos (lft1,st1) (lft2,st2) cuniv =
     (* Inductive types:  MutInd MutConstruct Fix Cofix *)
 
      | (FInd ind1, FInd ind2) ->
-         if mind_equiv_infos (snd infos) ind1 ind2
+         if mind_equiv_infos infos.if_closure ind1 ind2
 	 then
            convert_stacks infos lft1 lft2 v1 v2 cuniv
          else raise NotConvertible
 
      | (FConstruct (ind1,j1), FConstruct (ind2,j2)) ->
-	 if j1 = j2 && mind_equiv_infos (snd infos) ind1 ind2
+	 if j1 = j2 && mind_equiv_infos infos.if_closure ind1 ind2
 	 then
            convert_stacks infos lft1 lft2 v1 v2 cuniv
          else raise NotConvertible
@@ -368,7 +554,7 @@ and eqappr cv_pb infos (lft1,st1) (lft2,st2) cuniv =
 and convert_stacks infos lft1 lft2 stk1 stk2 cuniv =
   compare_stacks
     (fun (l1,t1) (l2,t2) c -> ccnv CONV infos l1 l2 t1 t2 c)
-    (mind_equiv_infos (snd infos))
+    (mind_equiv_infos infos.if_closure)
     lft1 stk1 lft2 stk2 cuniv
 
 and convert_vect infos lft1 lft2 v1 v2 cuniv =
@@ -385,8 +571,13 @@ and convert_vect infos lft1 lft2 v1 v2 cuniv =
   else raise NotConvertible
 
 let clos_fconv trans cv_pb evars env t1 t2 =
-  let infos = trans, create_clos_infos ~evars betaiotazeta env in
-  ccnv cv_pb infos ELID ELID (inject t1) (inject t2) Constraint.empty
+  let infos = {
+    if_ids      = fst trans;
+    if_csts     = snd trans;
+    if_closure  = create_clos_infos ~evars betaiotazeta env;
+    if_bindings = Environ.DP.bindings env;
+  }
+  in ccnv cv_pb infos ELID ELID (inject t1) (inject t2) Constraint.empty
 
 let trans_fconv reds cv_pb evars env t1 t2 =
   if eq_constr t1 t2 then Constraint.empty
@@ -505,4 +696,3 @@ let is_arity env c =
     let _ = dest_arity env c in
     true
   with UserError _ -> false
-

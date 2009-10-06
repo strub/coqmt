@@ -140,3 +140,14 @@ val retroknowledge : (retroknowledge-> 'a) -> safe_environment -> 'a
 
 val register : safe_environment -> field -> Retroknowledge.entry -> constr
                                          -> safe_environment
+
+(* Decision procedures *)
+module DP : sig
+  val bindings : safe_environment -> Decproc.Bindings.t
+
+  val add_binding
+    :  safe_environment
+    -> Decproc.binding
+    -> safe_environment
+end
+

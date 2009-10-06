@@ -47,7 +47,6 @@ val rel_context   : env -> rel_context
 val named_context : env -> named_context
 val named_context_val : env -> named_context_val
 
-
 val engagement    : env -> engagement option
 
 (* is the local context empty *)
@@ -254,4 +253,8 @@ module ContextObjectMap : Map.S with type key = context_object
    on which a term relies (together with their type) *)
 val assumptions : ?add_opaque:bool -> transparent_state -> constr -> env -> Term.types ContextObjectMap.t
 
-
+(******************************************************************)
+module DP : sig
+  val bindings   : env -> Decproc.Bindings.t
+  val addbinding : env -> Decproc.binding -> env
+end
