@@ -347,18 +347,27 @@ struct
       let el_lift       = el_stack lift stack in
         match entry_of_fterm (fterm_of term) with
         | None -> begin
-            match fterm_of term with
-            | FFlex (VarKey x) -> (PFO_Var x, theory)
-            | FRel n           -> (PFO_Rel (reloc_rel n el_lift), theory) (* ?? *)
-            | _                -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+            match pure_stack lift stack with (* FIXME (STRUB): no need of pure_stack *)
+            | [] -> begin
+                match fterm_of term with
+                | FFlex (VarKey x) -> (PFO_Var x, theory)
+                | FRel n           -> (PFO_Rel (reloc_rel n el_lift), theory) (* ?? *)
+                | _                -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+              end
+            | _ -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
           end
   
         | Some entry -> begin
             match Bindings.revbinding_symbol state.st_bindings entry with
-            | None            -> (PFO_Alien (lift, term, stack), theory)
+            | None            -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
             | Some (bd, symb) ->
                 let theory = merge_theory theory bd.dpb_theory in
                   match pure_stack lift stack with
+                  | [] -> begin
+                      if symb.FOTerm.s_arity <> 0 then
+                        raise ExtractFailure;
+                      (PFO_Symb (symb, [| |]), Some theory)
+                    end
                   | [ Zlapp args ] -> begin
                       if Array.length args <> symb.FOTerm.s_arity then
                         raise ExtractFailure;
