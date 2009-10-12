@@ -297,7 +297,6 @@ let mkbinding = fun theory name bsort bsymbols ->
 module Bindings =
 struct
   open Term
-  open Closure
 
   let _e_DuplicatedBindingName = fun name ->
     let name = Names.string_of_id name in
