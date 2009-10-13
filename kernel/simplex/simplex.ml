@@ -482,8 +482,10 @@ struct
       in
         if vmin <> vmax then
           raise (InvalidProblem "# of variables is inconsistent");
+(*
         if vmax <= 0 then
           raise (InvalidProblem "problem contains empty equations");
+*)
         vmax
     in
       { spc_nvars   = nvars;
