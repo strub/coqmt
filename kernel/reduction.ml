@@ -303,21 +303,18 @@ struct
             (infos, FOTerm.FSymb (f, foterms))
 
       | PFO_Alien term ->               (* FIXME *)
-          let rec merge = fun i aliens ->
-            match aliens with
-            | [] -> raise AlienNotMerged
-            | alien :: aliens ->
+          let rec merge = fun i subaliens ->
+            match subaliens with
+            | [] ->
+                ((cuniv, aliens @ [term]), FOTerm.FVar (`Alien i))
+            | alien :: subaliens ->
                 try
                   let cuniv = cnv term alien cuniv in
                     ((cuniv, aliens), FOTerm.FVar (`Alien i))
                 with NotConvertible ->
-                  merge (i+1) aliens
+                  merge (i+1) subaliens
           in
-            try  merge 0 aliens
-            with AlienNotMerged ->
-              let naliens = List.length aliens in
-                ((cuniv, aliens @ [term]), FOTerm.FVar (`Alien naliens))
-
+            merge 0 aliens
     in
       fun cuniv state ->
         match state.st_theory with
@@ -379,7 +376,7 @@ struct
                       in
                         (PFO_Symb (symb, foargs), Some theory)
                     end
-                  | _ -> assert false
+                  | _ -> raise ExtractFailure
           end
     in
       fun closure xfconstr ->
