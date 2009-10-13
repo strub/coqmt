@@ -55,7 +55,7 @@ Section DList .
     Qed .
   End AppArith .
 
-  Goal
+  Lemma apprev :
     forall n₁ n₂ (xs : dlist n₁) (ys : dlist n₂),
       (reverse ys) ++ (reverse xs) = reverse (xs ++ ys) .
   Proof .
@@ -65,9 +65,10 @@ Section DList .
          rewrite (appA (reverse ys) (reverse xs) _) . (* PB: unification failure *)
          reflexivity .
   Qed .
+End DList .
 
 (**
  ** Local Variables:
- ** coq-prog-name: "bin/coqtop.byte"
+ ** coq-prog-name: "../../bin/coqtop.byte"
  ** End:
  **)

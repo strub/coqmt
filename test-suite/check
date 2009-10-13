@@ -250,6 +250,8 @@ echo "Interactive tests"
 test_interactive interactive
 echo "Micromega tests"
 test_success micromega
+echo "DP tests"
+test_success dp
 
 # We give a chance to disable the complexity tests which may cause
 # random build failures on build farms
