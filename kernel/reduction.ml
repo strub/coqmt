@@ -256,7 +256,7 @@ module DP : sig
     :  xcnv_t
     -> Univ.constraints
     -> state_t
-    -> FOTerm.term array * dpinfos * Univ.constraints
+    -> FOTerm.exterm array * dpinfos * Univ.constraints
 end
   =
 struct
@@ -294,8 +294,8 @@ struct
 
     and to_foterm = fun ((cuniv, aliens) as infos) term ->
       match term with
-      | PFO_Var x -> (infos, FOTerm.FVar (`Out x))
-      | PFO_Rel n -> (infos, FOTerm.FVar (`In n))
+      | PFO_Var x -> (infos, FOTerm.FVar (`Named x))
+      | PFO_Rel n -> (infos, FOTerm.FVar (`DeBruijn n))
       | PFO_Symb (f, ts) ->
           let infos, foterms =
             Array.fold_right to_foterm_fold ts (infos, [])

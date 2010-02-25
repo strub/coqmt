@@ -27,7 +27,8 @@ type globals = {
   env_inductives : mutual_inductive_body KNmap.t;
   env_modules : module_body MPmap.t;
   env_modtypes : module_type_body MPmap.t;
-  env_alias : module_path MPmap.t }
+  env_alias : module_path MPmap.t;
+  env_theories : Decproc.dpinfos list }
 
 type stratification = {
   env_universes : universes;
@@ -50,7 +51,7 @@ type env = {
     env_rel_val       : lazy_val list;
     env_nb_rel        : int;
     env_stratification : stratification;
-    env_decproc       : Decproc.Bindings.t;
+    env_decbinds      : Decproc.Bindings.t;
     retroknowledge : Retroknowledge.retroknowledge }
 
 type named_context_val = named_context * named_vals

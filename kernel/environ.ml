@@ -688,9 +688,21 @@ module DP =
 struct
   open Decproc
 
-  let bindings = fun env -> env.env_decproc
+  let bindings = fun env -> env.env_decbinds
+  let theories = fun env -> env.env_globals.env_theories
 
-  let addbinding = fun env binding  ->
-    let bindings = Bindings.add env.env_decproc binding in
-      { env with env_decproc = bindings }
+  let add_binding = fun env binding  ->
+    let bindings = Bindings.add (bindings env) binding in
+      { env with env_decbinds = bindings }
+
+  let add_theory = fun env theory ->
+    let theories = theory :: (theories env) in
+      { env with env_globals =
+          { env.env_globals with env_theories = theories } }
+
+  let find_theory = fun env name ->
+    try  Some (List.find
+                 (fun x -> (uncname x.dpi_name) = name)
+                 (theories env))
+    with Not_found -> None
 end

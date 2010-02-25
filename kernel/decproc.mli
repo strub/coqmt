@@ -18,11 +18,11 @@ val mkcname : string -> cname    (* Raise Invalid_argument on error *)
 val uncname : cname  -> string
 
 (** Variables canonical type, either
-  * - an external variable (Out of Names.identifier), or
-  * - an internal variable (Int of int)
+  * - a named variable (Named of Names.identifier), or
+  * - a DeBruijn variable (DeBruijn of int), or
+  * - an abstraction variable (Alien of int)
   *)
-type var_t =
-  [ `Out of identifier | `In  of int | `Alien of int ]
+type var_t = [ `Named of identifier | `DeBruijn  of int | `Alien of int ]
 
 module Var : Set.OrderedType with type t = var_t
 
@@ -43,22 +43,27 @@ module Varmap : Map.S with type key = var_t
   *  iv) the solver function
   *
   * Axioms of the theory are given using the following concrete syntax
-  *   φ, ψ ::= ⊤                 (true)
-  *          | ⊥                 (false)
-  *          | ¬ φ               (negation)
-  *          | t₁ ○ t₂           (○ ∈ { ∧, ∨, → }, and/or/implies connectors)
-  *          | ∀ (x₁ ... xn) . φ (universal quantication)
-  *          | ∃ (x₁ ... xn) . φ (existential quantification)
+  *   φ, ψ ::= true                 (true)
+  *          | false                (false)
+  *          | not φ                (negation)
+  *          | t₁ = t₂              (equation)
+  *          | φ₁ ? φ₂              (? \in { /\, \/, -> }, and/or/implies connectors)
+  *          | forall x₁ ... xn , φ (universal quantication)
+  *          | exists x₁ ... xn , φ (existential quantification)
   *
   * where t ::= x                (variable name, x ∈ [a-z]+)
   *           | \f(t₁,...,t_n)   (function symbol)
   *
   * Notations:
-  *  - φ₁ ≠ φ₂ stands for ¬ (φ₁ = φ₂)
+  *  - φ₁ <> φ₂ stands for \not (φ₁ = φ₂)
   *
-  * For pairs of constructor symbols (c₁, c₂), the axiom
-  *   ∀ (x₁ ... xn y₁ ... yk) . c₁(x₁,...,xn) ≠ c₂(y₁,...,yk)
+  * For any pair of constructor symbols (c₁, c₂), the axiom
+  *   forall x₁ ... xn y₁ ... yk, c₁(x₁,...,xn) <> c₂(y₁,...,yk)
   * is added at load time.
+  *
+  * For any constructor symbol c, the axioms (for i \in {1..n})
+  *   forall x₁ ... xn y₁ ... yn, c(x₁,...,xn) = c(y₁,...,yn) -> xi = yi
+  * are added at load time.
   *)
 module FOTerm : sig
   type status = FConstructor | FDefined
@@ -86,44 +91,65 @@ module FOTerm : sig
   val findsymbol : signature -> cname  -> symbol option
 
   (* Concrete syntax for terms and formulas. *)
-  type term =
-    | FVar  of var_t
-    | FSymb of symbol * term list
+  type ('var, 'symbol) term =
+    | FVar  of 'var
+    | FSymb of 'symbol * (('var, 'symbol) term) list
 
-  val string_of_term : term -> string
+  type foterm = (cname, cname ) term
+  type sfterm = (cname, symbol) term
+  type exterm = (var_t, symbol) term
 
-  type formula =
+  val string_of_var_t : var_t -> string
+
+  val string_of_term
+    :  ppvar:('var    -> string)
+    -> ppsmb:('symbol -> string)
+    -> ('var, 'symbol) term
+    -> string
+
+  val string_of_foterm : foterm -> string
+  val string_of_exterm : exterm -> string
+
+  type 'term formula =
     | FTrue
     | FFalse
-    | FNeg   of formula
-    | FAnd   of formula * formula
-    | FOr    of formula * formula
-    | FImply of formula * formula
-    | FAll   of cname list * formula
-    | FExist of cname list * formula
+    | FEq    of 'term * 'term
+    | FNeg   of 'term formula
+    | FAnd   of 'term formula * 'term formula
+    | FOr    of 'term formula * 'term formula
+    | FImply of 'term formula * 'term formula
+    | FAll   of cname list * 'term formula
+    | FExist of cname list * 'term formula
+
+  type foformula = foterm formula
+  type sfformula = sfterm formula
 
   (* Safe formulas, i.e. formulas where terms respect signature *)
   type safe_formula
 
-  val formula_of_safe   : safe_formula -> formula
+  val formula_of_safe   : safe_formula -> sfformula
   val signature_of_safe : safe_formula -> signature
 
   type safe_formula_error =
-    [ `UnknownSymbol   of string
-    | `NWAppliedSymbol of string
+    [ `SymbolNotInSig  of cname
+    | `NWAppliedSymbol of symbol
+    | `FreeVariable    of cname
     ]
 
-  exception InvalidFormula of formula * safe_formula_error
+  exception InvalidFormula of safe_formula_error
 
-  val formula_to_safe : signature -> formula -> safe_formula
-
-  (* Parsing functions *)
-  exception ParseError of string
-
-  val ofstring : string -> formula
+  val formula_to_safe : signature -> foformula -> safe_formula
 end
 
-type blackbox_t = FOTerm.term * FOTerm.term -> bool
+(** Parsing of first-order formulas *)
+module Parsing : sig
+  exception ParseError of Ploc.t * exn
+
+  val ofstring : string -> FOTerm.foformula
+  val tostring : FOTerm.foformula -> string
+end
+
+type blackbox_t = FOTerm.exterm * FOTerm.exterm -> bool
 
 type dpinfos = private {
   dpi_name     : cname;
@@ -133,25 +159,21 @@ type dpinfos = private {
   dpi_blackbox : blackbox_t;
 }
 
-(* Create a [dpinfos] structure. If formulas are given as safe formulas,
- * their signatures must be _physically_ equal to the given signature.
- * Otherwise, formulas are checked w.r.t. the given signature.
- *
- * Raise:
- *  - [Invalid_argument] if a safe formula signature is invalid
- *  - [FOTerm.InvalidFormula] if an unsafe formula check failed
- *)
+(** Create a [dpinfos] structure. If formulas are given as safe formulas,
+    their signatures must be _physically_ equal to the given signature.
+    Otherwise, formulas are checked w.r.t. the given signature.
+   
+    Raise:
+     - [Invalid_argument] if a safe formula signature is invalid
+     - [FOTerm.InvalidFormula] if an unsafe formula check failed *)
 val mkdpinfos
   :  name:cname
   -> sort:cname
   -> FOTerm.signature
   -> [ `Checked   of FOTerm.safe_formula list
-     | `Unchecked of FOTerm.formula      list
-     ]
+     | `Unchecked of FOTerm.foformula    list ]
   -> blackbox_t
   -> dpinfos
-
-val presburger : dpinfos
 
 (** FO theory binding to Coq symbols. A binding is:
     - a name, only used for later referencing a Coq script,
@@ -161,8 +183,8 @@ val presburger : dpinfos
     - a set of Coq proof terms, proving that given symbols respect the
       axioms of the theory (FIXME: TODO)
 
-    Provided symbols can only be inductive types and constants. The
-    type [entry] represent such symbols.
+    Provided symbols can only be inductive types, constructors and
+    constants. The type [entry] represent such symbols.
 
     [binding] type is private and can only be constructed from the
     soft constructor [mkbinding]. *)
@@ -205,9 +227,10 @@ module Bindings : sig
   val revbinding        : t -> entry -> revbinding option
   val revbinding_symbol : t -> entry -> (binding * FOTerm.symbol) option
   val revbinding_sort   : t -> entry -> binding option
-
-(*
-  val add_theory   : t -> dpinfos -> t
-  val find_theory  : t -> identifier -> dpinfos option
- *)
 end
+
+(** Peano natural numbers + blackbox *)
+val peano : dpinfos
+
+(** Global theories registry *)
+val global_find_theory : string -> dpinfos option

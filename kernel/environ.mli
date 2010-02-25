@@ -255,6 +255,9 @@ val assumptions : ?add_opaque:bool -> transparent_state -> constr -> env -> Term
 
 (******************************************************************)
 module DP : sig
-  val bindings   : env -> Decproc.Bindings.t
-  val addbinding : env -> Decproc.binding -> env
+  val bindings    : env -> Decproc.Bindings.t
+  val theories    : env -> Decproc.dpinfos list
+  val add_binding : env -> Decproc.binding -> env
+  val add_theory  : env -> Decproc.dpinfos -> env
+  val find_theory : env -> string -> Decproc.dpinfos option
 end

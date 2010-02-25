@@ -781,10 +781,10 @@ dev/printers.cma: $(PRINTERSCMO)
 parsing/grammar.cma: $(GRAMMARCMO)
 	$(SHOW)'Testing $@'
 	@touch test.ml4
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) -pp "$(CAMLP4O) $(CAMLP4EXTENDFLAGS) nums.cma $(GRAMMARCMO) -impl" -impl test.ml4 -o test-grammar
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) -pp "$(CAMLP4O) $(CAMLP4EXTENDFLAGS) nums.cma str.cma $(GRAMMARCMO) -impl" -impl test.ml4 -o test-grammar
 	@rm -f test-grammar test.*
 	$(SHOW)'OCAMLC -a $@'   
-	$(HIDE)$(OCAMLC) $(BYTEFLAGS) nums.cma $(GRAMMARCMO) -linkall -a -o $@
+	$(HIDE)$(OCAMLC) $(BYTEFLAGS) nums.cma str.cma $(GRAMMARCMO) -linkall -a -o $@
 
 # toplevel/mltop.ml4 (ifdef Byte)
 
@@ -960,7 +960,9 @@ else
 endif
 %.ml4.d: $(D_DEPEND_BEFORE_SRC) %.ml4
 	$(SHOW)'CAMLP4DEPS $<'
-	$(HIDE)( printf "%s" '$*.cmo $*.cmx $*.ml4.ml.d $*.ml4-preprocessed: $(SEP)' && $(CAMLP4DEPS) "$<" ) > "$@" \
+	$(HIDE)( printf "%s" '$*.cmo $*.cmx $*.ml4.ml.d $*.ml4-preprocessed: $(SEP)' \
+                   && ( [ \! -f $*.mli ] || printf "%s " $*.cmi ) \
+                   && $(CAMLP4DEPS) "$<" ) > "$@" \
 	  || ( RV=$$?; rm -f "$@"; exit $${RV} )
 
 %.ml4.ml.d: $(D_DEPEND_BEFORE_SRC) %.ml4 $(D_DEPEND_AFTER_SRC) $(GENFILES) $(ML4FILES:.ml4=.ml) %.ml4.d

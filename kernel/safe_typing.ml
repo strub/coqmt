@@ -833,7 +833,16 @@ struct
   let bindings = fun senv ->
     Environ.DP.bindings senv.env
 
+  let theories = fun senv ->
+    Environ.DP.theories senv.env
+
   let add_binding = fun senv binding ->
     (* Check typing *)
-    { senv with env = Environ.DP.addbinding senv.env binding }
+    { senv with env = Environ.DP.add_binding senv.env binding }
+
+  let add_theory = fun senv theory ->
+    { senv with env = Environ.DP.add_theory senv.env theory }
+
+  let find_theory = fun senv name ->
+    Environ.DP.find_theory senv.env name
 end

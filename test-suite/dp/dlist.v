@@ -1,12 +1,18 @@
-Bind Presburger As presbuger
+(* -------------------------------------------------------------------- *)
+Load Theory peano .
+
+Bind Theory peano As peano
   Sort    Binded By nat
   Symbols Binded By
     O    for zero ,
     S    for succ ,
-    plus for plus .
+    plus for plus ,
+    mult for mult .
 
+(* -------------------------------------------------------------------- *)
 Set Implicit Arguments .
 
+(* -------------------------------------------------------------------- *)
 Section DList .
   Variable T : Type .
 
@@ -14,8 +20,12 @@ Section DList .
   | nil  : dlist 0
   | cons : forall n, T -> dlist n -> dlist (S n) .
 
-  Notation "[::]"    := nil .
-  Notation "[:: x ]" := (cons x nil) .
+  Notation "[ :: ]" := nil (at level 0, format "[ :: ]") .
+
+  Notation "x :: s" := (@cons _ x s)
+    (at level 60, right associativity, format "x  ::  s") .
+
+  Notation "[:: a ; .. ; b ]" := (a :: .. (b :: [::]) ..) .
 
   Fixpoint append n₁ n₂ (xs₁ : dlist n₁) (xs₂ : dlist n₂) : dlist (n₁ + n₂) :=
   match xs₁ in dlist n₁ return dlist (n₁ + n₂) with

@@ -14,6 +14,101 @@ open Genarg
 open Term
 open Decproc
 
+(* -------------------------------------------------------------------- *)
+module Conversion : sig
+  open FOTerm
+
+  exception ConversionError of string
+
+  val coqentry   : entry -> constr
+  val coqsymbol  : binding -> symbol -> constr
+  val coqterm    : binding -> string list -> sfterm -> constr
+  val coqformula : binding -> types -> sfformula -> types
+end = struct
+  open FOTerm
+
+  exception ConversionError of string
+
+  let _e_UnboundSymbol = fun f ->
+    Printf.sprintf "Unbounded symbol: [%s]" f
+  let _e_UnboundVariable = fun x ->
+    Printf.sprintf "Unbounded variable: [%s]" x
+
+  let coqentry = function
+    | DPE_Constructor c -> Term.mkConstruct c
+    | DPE_Constant    c -> Term.mkConst     c
+    | DPE_Inductive   i -> Term.mkInd       i
+
+  let coqsymbol = fun binding f ->
+      try  coqentry (List.assoc f binding.dpb_bsymbols)
+      with Not_found ->
+        raise (ConversionError (_e_UnboundSymbol (uncname f.s_name)))
+
+  let coqterm = fun binding varbinds ->
+    let rec coqterm = function
+      | FVar (CName x) -> begin
+          try  Term.mkRel (Util.list_index x varbinds)
+          with Not_found -> raise (ConversionError (_e_UnboundVariable x))
+        end
+
+      | FSymb (f, ts) ->
+          let f  = coqsymbol binding f
+          and ts = Array.of_list (List.map coqterm ts) in
+            Term.mkApp (f, ts)
+    in
+      fun (t : sfterm) -> coqterm t
+
+  let coqformula = fun binding btype ->
+    let rec coqformula = fun varbinds -> function
+      | FTrue  -> Coqlib.build_coq_True  ()
+      | FFalse -> Coqlib.build_coq_False ()
+
+      | FEq (left, right) ->
+          let left  = coqterm binding varbinds left
+          and right = coqterm binding varbinds right in
+            Term.mkApp (Coqlib.build_coq_eq (), [|btype; left; right|])
+
+      | FNeg phi ->
+          let phi = coqformula varbinds phi in
+            Term.mkApp (Coqlib.build_coq_not (), [|phi|])
+
+      | FAnd (left, right) ->
+          let left  = coqformula varbinds left
+          and right = coqformula varbinds right in
+            Term.mkApp (Coqlib.build_coq_and (), [|left; right|])
+
+      | FOr (left, right) ->
+          let left  = coqformula varbinds left
+          and right = coqformula varbinds right in
+            Term.mkApp (Coqlib.build_coq_or (), [|left; right|])
+
+      | FImply (left, right) ->
+          let left  = coqformula varbinds left
+          and right = coqformula varbinds right in
+            Term.mkProd (Names.Anonymous, left, right)
+
+      | FAll (vars, phi) ->
+          let vars = List.map uncname (List.rev vars) in
+            List.fold_left
+              (fun coqphi var ->
+                 let var = Names.Name (Names.id_of_string var) in
+                   Term.mkProd (var, btype, coqphi))
+              (coqformula (vars @ varbinds) phi) vars
+
+      | FExist (vars, phi) ->
+          let vars = List.map uncname (List.rev vars) in
+            List.fold_left
+              (fun coqphi var ->
+                 let var    = Names.Name (Names.id_of_string var) in
+                 let expred = Term.mkLambda (var, btype, coqphi)  in
+                   Term.mkApp (Coqlib.build_coq_ex (), [|btype; expred|]))
+              (coqformula (vars @ varbinds) phi) vars
+
+    in
+      fun t -> coqformula [] t
+end
+
+(* -------------------------------------------------------------------- *)
 type pid_ctr_map = string * Topconstr.constr_expr
 
 type 'a pid_ctr_map_argtype =
@@ -49,10 +144,22 @@ ARGUMENT EXTEND nelist_pid_ctr_map
 END
 
 VERNAC COMMAND EXTEND DecProcBind
-| [ "Bind" "Presburger" "As" preident(name)
+| [ "Load" "Theory" preident(theory) ] -> [
+    match Decproc.global_find_theory theory with
+    | None -> failwith "theory not found"
+    | Some theory -> Global.DP.add_theory theory
+  ]
+
+| [ "Bind" "Theory" preident(theory) "As" preident(name)
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
   ] -> [
+    let theory =
+      match Global.DP.find_theory theory with
+      | None ->
+          failwith (Printf.sprintf "cannot find theory [%s]" theory) (* FIXME *)
+      | Some theory -> theory
+    in
     let entry_of_topconstr = fun tc ->
       match kind_of_term (constr_of_topconstr tc) with
       | Const     const       -> DPE_Constant    const
@@ -67,14 +174,28 @@ VERNAC COMMAND EXTEND DecProcBind
     and bsort = entry_of_topconstr bsort
     and name  = Names.id_of_string name
     in
-    let binding = mkbinding presburger name bsort symbols in
+    let binding = mkbinding theory name bsort symbols in
       Global.DP.add_binding binding 
   ]
+END
 
-| [ "Print" "Presburger" "Bindings" ] -> [
-    List.iter
-      (fun binding ->
-         Printf.printf "%s\n%!" (Names.string_of_id binding.dpb_name))
-      (Bindings.all (Global.DP.bindings ()))
+VERNAC COMMAND EXTEND DecProcAdmin
+| [ "Parse" "Formula" string(formula) ] -> [
+    let formula = Decproc.Parsing.ofstring formula in
+      Printf.fprintf stderr "%s\n%!" (Decproc.Parsing.tostring formula)
+  ]
+
+| [ "DP" preident(command) ] -> [
+    match command with
+    | "theories" -> 
+        Printf.printf "%s\n%!"
+          (String.concat ", "
+             (List.map (fun x -> uncname x.dpi_name) (Global.DP.theories ())))
+    | "bindings" ->
+        List.iter
+          (fun binding ->
+             Printf.printf "%s\n%!" (Names.string_of_id binding.dpb_name))
+          (Bindings.all (Global.DP.bindings ()))
+    | _ -> failwith (Printf.sprintf "Unknown DP command: %s" command)
   ]
 END

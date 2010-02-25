@@ -144,10 +144,14 @@ val register : safe_environment -> field -> Retroknowledge.entry -> constr
 (* Decision procedures *)
 module DP : sig
   val bindings : safe_environment -> Decproc.Bindings.t
+  val theories : safe_environment -> Decproc.dpinfos list
 
   val add_binding
     :  safe_environment
     -> Decproc.binding
     -> safe_environment
+
+  val add_theory  : safe_environment -> Decproc.dpinfos -> safe_environment
+  val find_theory : safe_environment -> string -> Decproc.dpinfos option
 end
 
