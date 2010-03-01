@@ -818,6 +818,9 @@ let lighten_library (dp,mb,depends,s) = (dp,lighten_module mb,depends,s)
 
 type judgment = unsafe_judgment
 
+let unsafe_judgment_of_safe =
+  fun (x : judgment) -> (x : unsafe_judgment)
+
 let j_val j = j.uj_val
 let j_type j = j.uj_type
 

@@ -132,8 +132,10 @@ val list_unique_index : 'a -> 'a list -> int
 val list_index0 : 'a -> 'a list -> int
 val list_iter3 : ('a -> 'b -> 'c -> unit) -> 'a list -> 'b list -> 'c list -> unit
 val list_iter_i :  (int -> 'a -> unit) -> 'a list -> unit
+val list_iter2_i : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
 val list_fold_right_i :  (int -> 'a -> 'b -> 'b) -> int -> 'a list -> 'b -> 'b
 val list_fold_left_i :  (int -> 'a -> 'b -> 'a) -> int -> 'a -> 'b list -> 'a
+val list_fold_left2_i :  (int -> 'a -> 'b -> 'c -> 'a) -> int -> 'a -> 'b list -> 'c list -> 'a
 val list_fold_right_and_left :
     ('a -> 'b -> 'b list -> 'a) -> 'b list -> 'a -> 'a
 val list_fold_left3 : ('a -> 'b -> 'c -> 'd -> 'a) -> 'a -> 'b list -> 'c list -> 'd list -> 'a

@@ -119,6 +119,8 @@ val lighten_library : compiled_library -> compiled_library
 
 type judgment
 
+val unsafe_judgment_of_safe : judgment -> Environ.unsafe_judgment
+
 val j_val : judgment -> constr
 val j_type : judgment -> constr
 

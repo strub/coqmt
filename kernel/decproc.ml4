@@ -16,11 +16,13 @@ open Names
 type cname = CName of string
 
 let _e_InvalidId = fun id ->
-  Printf.sprintf "invalid identifier: [%s]" id
-let _e_DuplicatedId = fun id ->
-  Printf.sprintf "duplicated identifier: [%s]" id
-let _e_MissingId = fun id ->
-  Printf.sprintf "missing identifier: [%s]" id
+  Printf.sprintf "invalid id: [%s]" id
+let _e_UnknownBoundSymbol = fun id ->
+  Printf.sprintf "unknown bound symbol: [%s]" id
+let _e_SymbolBoundTwice = fun id ->
+  Printf.sprintf "symbol [%s] is bound at least twice" id
+let _e_SymbolUnbound = fun id ->
+  Printf.sprintf "symbol [%s] not bound" id
 
 let mkcname = fun name ->
   String.iter
@@ -356,9 +358,9 @@ let mkbinding = fun theory name bsort bsymbols ->
     (List.fold_left
        (fun names ((CName id) as name, _) ->
           if CNameSet.mem name names then
-            raise (InvalidBinding (_e_DuplicatedId id));
+            raise (InvalidBinding (_e_SymbolBoundTwice id));
           if not (CNameMap.mem name theory.dpi_symbols) then
-            raise (InvalidBinding (_e_InvalidId id));
+            raise (InvalidBinding (_e_UnknownBoundSymbol id));
           CNameSet.add name names)
        CNameSet.empty bsymbols);
   in
@@ -366,7 +368,7 @@ let mkbinding = fun theory name bsort bsymbols ->
     CNameMap.iter
       (fun _ ({ s_name = ((CName id) as symbol) }) ->
          if not (CNameSet.mem symbol symbols) then
-           raise (InvalidBinding (_e_MissingId id)))
+           raise (InvalidBinding (_e_SymbolUnbound id)))
       theory.dpi_symbols;
     (* Create structure *)
     { dpb_theory   = theory;
@@ -520,7 +522,7 @@ let peano =
   and axioms    = [ "forall x  , @plus(x, @zero)    = x"                     ;
                     "forall x y, @plus(x, @succ(y)) = @succ(@plus(x, y))"    ;
                     "forall x  , @mult(x, @zero)    = @zero"                 ;
-                    "forall x y, @mult(x, @succ(y)) = @plus(x, @mult(x, y))" ]
+                    "forall x y, @mult(x, @succ(y)) = @plus(@mult(x, y), x)" ]
   in
     mkdpinfos ~name ~sort
       (mksig [sb_0; sb_S; sb_P; sb_M])

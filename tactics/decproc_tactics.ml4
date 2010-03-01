@@ -13,6 +13,7 @@ open Pcoq
 open Genarg
 open Term
 open Decproc
+open Decproc.FOTerm
 
 (* -------------------------------------------------------------------- *)
 module Conversion : sig
@@ -21,6 +22,7 @@ module Conversion : sig
   exception ConversionError of string
 
   val coqentry   : entry -> constr
+  val coqarity   : types -> int -> types
   val coqsymbol  : binding -> symbol -> constr
   val coqterm    : binding -> string list -> sfterm -> constr
   val coqformula : binding -> types -> sfformula -> types
@@ -38,6 +40,17 @@ end = struct
     | DPE_Constructor c -> Term.mkConstruct c
     | DPE_Constant    c -> Term.mkConst     c
     | DPE_Inductive   i -> Term.mkInd       i
+
+  let coqarity = fun ty ->
+    let rec coqarity = fun i acc ->
+      if   i = 0
+      then acc
+      else coqarity (i-1) (mkProd (Names.Anonymous, ty, acc))
+    in
+      fun i ->
+        if i < 0 then
+          raise (Invalid_argument "[coqarity _ ty] with i < 0");
+        coqarity i ty
 
   let coqsymbol = fun binding f ->
       try  coqentry (List.assoc f binding.dpb_bsymbols)
@@ -124,10 +137,16 @@ let
   Genarg.create_arg "r_pid_ctr_map"
 
 let pr_pid_ctr_map = fun _ _ _ (x, c) ->
-  (Ppconstr.pr_constr_expr c) ++ (str "for") ++ (str x)
+  (Ppconstr.pr_constr_expr c) ++ (str " for ") ++ (str x)
 
-let pr_ne_pid_ctr_map = fun prc prlc prt xs ->
-  Util.prlist (pr_pid_ctr_map prc prlc prt) xs
+let pr_ne_pid_ctr_map =
+  fun prc prlc prt xs ->
+    Util.prlist_with_sep
+      Util.pr_coma (pr_pid_ctr_map prc prlc prt) xs
+
+let pr_nelist_constr =
+  fun prc _prlc _prt xs ->
+    Util.prlist_with_sep Util.pr_coma prc xs
 
 ARGUMENT EXTEND pid_ctr_map
     TYPED AS pid_ctr_map
@@ -143,21 +162,30 @@ ARGUMENT EXTEND nelist_pid_ctr_map
 | [ pid_ctr_map(x) ]                           -> [ [x] ]
 END
 
+ARGUMENT EXTEND nelist_constr
+    TYPED AS constr list
+    PRINTED BY pr_nelist_constr
+
+| [ constr(x) "," nelist_constr(xs) ] -> [ x :: xs ]
+| [ constr(x) ]                       -> [ [x] ]
+END
+
 VERNAC COMMAND EXTEND DecProcBind
 | [ "Load" "Theory" preident(theory) ] -> [
     match Decproc.global_find_theory theory with
-    | None -> failwith "theory not found"
+    | None -> Util.error (Printf.sprintf "theory not found: %s" theory)
     | Some theory -> Global.DP.add_theory theory
   ]
 
 | [ "Bind" "Theory" preident(theory) "As" preident(name)
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
+      "Axioms"  "Proved" "By" nelist_constr(axioms)
   ] -> [
     let theory =
       match Global.DP.find_theory theory with
       | None ->
-          failwith (Printf.sprintf "cannot find theory [%s]" theory) (* FIXME *)
+          Util.error (Printf.sprintf "cannot find theory: %s" theory)
       | Some theory -> theory
     in
     let entry_of_topconstr = fun tc ->
@@ -165,7 +193,9 @@ VERNAC COMMAND EXTEND DecProcBind
       | Const     const       -> DPE_Constant    const
       | Construct constructor -> DPE_Constructor constructor
       | Ind       inductive   -> DPE_Inductive   inductive
-      | _                     -> failwith "invalid symbol" (* FIXME *)
+      | _                     ->
+          Util.error
+            "can only bind constant, constructor and inductive types"
     in
     let symbols =
       List.map
@@ -174,7 +204,79 @@ VERNAC COMMAND EXTEND DecProcBind
     and bsort = entry_of_topconstr bsort
     and name  = Names.id_of_string name
     in
-    let binding = mkbinding theory name bsort symbols in
+    let binding =
+      try
+        mkbinding theory name bsort symbols
+      with
+        | Decproc.InvalidBinding s ->
+            let message = Printf.sprintf "Invalid binding: %s" s in
+              Util.error message
+    in
+      (* Check that fo-constructors are mapped to CIC constructors *)
+      List.iter
+        (fun (symbol, entry) ->
+           if symbol.s_status = FConstructor then begin
+             match entry with
+             | DPE_Constructor _ -> ()
+             | _ ->
+                 Util.error "theory constructors must be mapped to Coq constructors"
+           end)
+        binding.dpb_bsymbols;
+
+      (* Check arities *)
+      List.iter
+        (fun (symbol, entry) ->
+           let coqarity =
+             Conversion.coqarity (Conversion.coqentry bsort) symbol.s_arity
+           in let entryT =
+             Safe_typing.j_type
+               (Safe_typing.typing
+                  (Global.safe_env ()) (Conversion.coqentry entry))
+           in
+             try
+               ignore (Reduction.conv_leq (Global.env ()) entryT coqarity);
+             with
+               | Reduction.NotConvertible ->
+                   let message =
+                     Printf.sprintf
+                       "invalid bound symbol arity for symbol [%s]"
+                       (uncname symbol.s_name)
+                   in
+                     Util.error message)
+        binding.dpb_bsymbols;
+
+      (* Check axioms witnesses *)
+      if List.length axioms <> List.length theory.dpi_axioms then begin
+        let message =
+          Printf.sprintf
+            "not the right numbers of axioms proofs (%d <> %d)"
+            (List.length axioms) (List.length theory.dpi_axioms)
+        in
+          Util.error message
+      end;
+      Util.list_iter2_i
+        (fun i witness axiom ->
+           let coqtype =
+             Conversion.coqformula binding (Conversion.coqentry bsort)
+               (FOTerm.formula_of_safe axiom)
+           in let witness =
+               Constrintern.interp_constr Evd.empty (Global.env ()) witness
+           in let witnessT =
+               Safe_typing.typing (Global.safe_env ()) witness
+           in
+             try
+               ignore
+                 (Reduction.conv_leq
+                    (Global.env ()) (Safe_typing.j_type witnessT) coqtype)
+             with
+               | Reduction.NotConvertible ->
+                   let message =
+                     Himsg.explain_type_error (Global.env ())
+                       (Type_errors.ActualType
+                          (Safe_typing.unsafe_judgment_of_safe witnessT, coqtype))
+                   in
+                     Util.errorlabstrm "" message)
+        axioms theory.dpi_axioms;
       Global.DP.add_binding binding 
   ]
 END
@@ -196,6 +298,7 @@ VERNAC COMMAND EXTEND DecProcAdmin
           (fun binding ->
              Printf.printf "%s\n%!" (Names.string_of_id binding.dpb_name))
           (Bindings.all (Global.DP.bindings ()))
-    | _ -> failwith (Printf.sprintf "Unknown DP command: %s" command)
+
+    | _ -> Util.error (Printf.sprintf "Unknown DP command: %s" command)
   ]
 END

@@ -616,6 +616,15 @@ let list_fold_left_i f =
   in 
   it_list_f 
 
+let list_fold_left2_i f = 
+  let rec it_list_f i a l1 l2 =
+    match l1, l2 with
+    | [], [] -> a 
+    | x1::l1, x2::l2 -> it_list_f (i+1) (f i a x1 x2) l1 l2
+    | _, _ -> invalid_arg "list_fold_left2_i"
+  in 
+  it_list_f 
+
 let rec list_fold_left3 f accu l1 l2 l3 =
   match (l1, l2, l3) with
     ([], [], []) -> accu
@@ -649,6 +658,9 @@ let list_iter3 f l1 l2 l3 =
   iter (l1,l2,l3)
 
 let list_iter_i f l = list_fold_left_i (fun i _ x -> f i x) 0 () l
+
+let list_iter2_i f l1 l2 =
+  list_fold_left2_i (fun i _ x1 x2 -> f i x1 x2) 0 () l1 l2
 
 let list_for_all_i p = 
   let rec for_all_p i = function
