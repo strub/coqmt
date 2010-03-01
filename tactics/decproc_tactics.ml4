@@ -123,13 +123,120 @@ end = struct
 end
 
 (* -------------------------------------------------------------------- *)
+let _dp_constr_of_topconstr = fun tc ->
+  Constrintern.interp_constr Evd.empty (Global.env ()) tc
+
+module DPTactics : sig
+  val prebinding :
+       theory:string -> bname:string
+    -> Topconstr.constr_expr
+    -> (string * Topconstr.constr_expr) list
+    -> Decproc.binding
+
+  val hasaxioms : Environ.env -> constr -> bool
+end = struct
+  (* ---------------------------------------------------------------- *)
+  let prebinding = fun ~theory ~bname bsort symbols ->
+    let theory =
+      match Global.DP.find_theory theory with
+      | None ->
+          Util.error (Printf.sprintf "cannot find theory: %s" theory)
+      | Some theory -> theory
+    in
+    let entry_of_topconstr = fun tc ->
+      match kind_of_term (_dp_constr_of_topconstr tc) with
+      | Const     const       -> DPE_Constant    const
+      | Construct constructor -> DPE_Constructor constructor
+      | Ind       inductive   -> DPE_Inductive   inductive
+      | _                     ->
+          Util.error
+            "can only bind constant, constructor and inductive types"
+    in
+    let symbols =
+      List.map
+        (fun (x, c) -> (mkcname x, entry_of_topconstr c))
+        symbols
+    and bsort = entry_of_topconstr bsort
+    and bname = Names.id_of_string bname
+    in
+      try
+        mkbinding theory bname bsort symbols
+      with
+        | Decproc.InvalidBinding s ->
+            let message = Printf.sprintf "Invalid binding: %s" s in
+              Util.error message
+  
+  (* ---------------------------------------------------------------- *)
+  exception HasAxioms
+  
+  type bag_t = {
+    bg_ids    : Names.Idset.t;
+    bg_consts : Names.Cset.t;
+  }
+  
+  let hasaxioms = fun env ->
+    let rec noaxioms = fun bag t ->
+      match Term.kind_of_term t with
+      | Rel _                    -> bag
+      | Var x                    -> noaxioms_var bag x
+      | Const c                  -> noaxioms_const bag c
+      | Sort _                   -> bag
+      | Cast   (t1, _, t2)       -> fold bag [|t1; t2|]
+      | Prod   (_, t1, t2)       -> fold bag [|t1; t2|]
+      | Lambda (_, t1, t2)       -> fold bag [|t1; t2|]
+      | LetIn  (_, t1, t2, t3)   -> fold bag [|t1; t2; t3|]
+      | App    (t1, t2)          -> fold (noaxioms bag t1) t2
+      | Ind    _                 -> bag
+      | Construct _              -> bag
+      | Case (_, t1, t2, ts)     -> fold (fold bag [|t1; t2|]) ts
+      | Fix   (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
+      | CoFix (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
+  
+      | Meta _ -> Util.anomaly "noaxioms: unexpected [Meta]"
+      | Evar _ -> Util.anomaly "noaxioms: unexpetedt [Evar]"
+  
+    and fold = fun bag array ->
+      Array.fold_left noaxioms bag array
+  
+    and noaxioms_var = fun bag x ->
+      if   Names.Idset.mem x bag.bg_ids
+      then bag
+      else begin
+        match Environ.lookup_named x env with
+          | (_, None   , _) -> raise HasAxioms
+          | (_, Some bd, _) ->
+              let bag = { bag with bg_ids = Names.Idset.add x bag.bg_ids } in
+                noaxioms bag bd
+      end
+  
+    and noaxioms_const = fun bag c ->
+      if   Names.Cset.mem c bag.bg_consts
+      then bag
+      else begin
+        let cb = Environ.lookup_constant c env in
+          match cb.Declarations.const_body with
+            | None    -> raise HasAxioms
+            | Some bd ->
+                let bag = { bag with bg_consts = Names.Cset.add c bag.bg_consts } in
+                  noaxioms bag (Declarations.force bd)
+      end
+    in
+      fun t ->
+        let emptybag =
+          { bg_ids    = Names.Idset.empty;
+            bg_consts = Names.Cset.empty }
+        in
+          try
+            (ignore : bag_t -> unit) (noaxioms emptybag t);
+            false
+          with HasAxioms -> true
+end
+
+(* -------------------------------------------------------------------- *)
 type pid_ctr_map = string * Topconstr.constr_expr
 
 type 'a pid_ctr_map_argtype =
     (pid_ctr_map, 'a) Genarg.abstract_argument_type
-
-let constr_of_topconstr = fun tc ->
-  Constrintern.interp_constr Evd.empty (Global.env ()) tc
 
 let
   (wit_pid_ctr_map     : Genarg.tlevel pid_ctr_map_argtype) ,
@@ -171,36 +278,6 @@ ARGUMENT EXTEND nelist_constr
 | [ constr(x) ]                       -> [ [x] ]
 END
 
-let prebinding = fun theory bname bsort symbols ->
-  let theory =
-    match Global.DP.find_theory theory with
-    | None ->
-        Util.error (Printf.sprintf "cannot find theory: %s" theory)
-    | Some theory -> theory
-  in
-  let entry_of_topconstr = fun tc ->
-    match kind_of_term (constr_of_topconstr tc) with
-    | Const     const       -> DPE_Constant    const
-    | Construct constructor -> DPE_Constructor constructor
-    | Ind       inductive   -> DPE_Inductive   inductive
-    | _                     ->
-        Util.error
-          "can only bind constant, constructor and inductive types"
-  in
-  let symbols =
-    List.map
-      (fun (x, c) -> (mkcname x, entry_of_topconstr c))
-      symbols
-  and bsort = entry_of_topconstr bsort
-  and bname = Names.id_of_string bname
-  in
-    try
-      mkbinding theory bname bsort symbols
-    with
-      | Decproc.InvalidBinding s ->
-          let message = Printf.sprintf "Invalid binding: %s" s in
-            Util.error message
-
 VERNAC COMMAND EXTEND DecProcBind
 | [ "Load" "Theory" preident(theory) ] -> [
     match Decproc.global_find_theory theory with
@@ -213,7 +290,7 @@ VERNAC COMMAND EXTEND DecProcBind
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
       "Axioms"  "Proved" "By" nelist_constr(axioms)
   ] -> [
-    let binding = prebinding theory bname bsort symbols in
+    let binding = DPTactics.prebinding theory bname bsort symbols in
       (* Check that fo-constructors are mapped to CIC constructors *)
       List.iter
         (fun (symbol, entry) ->
@@ -257,26 +334,29 @@ VERNAC COMMAND EXTEND DecProcBind
         in
           Util.error message
       end;
+
       Util.list_iter2_i
         (fun i witness axiom ->
-           let coqtype =
-             Conversion.coqformula binding (FOTerm.formula_of_safe axiom)
-           in let witness =
-               Constrintern.interp_constr Evd.empty (Global.env ()) witness
-           in let witnessT =
-               Safe_typing.typing (Global.safe_env ()) witness
-           in
-             try
-               ignore
-                 (Reduction.conv_leq
-                    (Global.env ()) (Safe_typing.j_type witnessT) coqtype)
-             with
+           let witness = _dp_constr_of_topconstr witness in
+             if DPTactics.hasaxioms (Global.env ()) witness then
+               Util.error
+                 (Printf.sprintf "witness #%d depends on assumptions" (i+1));
+             let coqtype =
+               Conversion.coqformula binding (FOTerm.formula_of_safe axiom)
+             in let witnessT =
+                 Safe_typing.typing (Global.safe_env ()) witness
+             in
+               try
+                 ignore
+                   (Reduction.conv_leq
+                      (Global.env ()) (Safe_typing.j_type witnessT) coqtype)
+               with
                | Reduction.NotConvertible ->
                    let error =
                      Type_errors.ActualType
                        (Safe_typing.unsafe_judgment_of_safe witnessT, coqtype)
                    in
-                   raise (Type_errors.TypeError (Global.env (), error)))
+                     raise (Type_errors.TypeError (Global.env (), error)))
         axioms binding.dpb_theory.dpi_axioms;
       Global.DP.add_binding binding 
   ]
@@ -287,7 +367,7 @@ VERNAC COMMAND EXTEND DecProdAxioms
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
   ] -> [
-    let binding = prebinding theory "none" bsort symbols in
+    let binding = DPTactics.prebinding theory "none" bsort symbols in
     let axioms  =
       List.map
         (fun x -> Conversion.coqformula binding (FOTerm.formula_of_safe x))
