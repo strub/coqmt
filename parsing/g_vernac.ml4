@@ -704,7 +704,10 @@ GEXTEND Gram
       | IDENT "Implicit"; qid = global -> PrintImplicit qid
       | IDENT "Universes"; fopt = OPT ne_string -> PrintUniverses fopt
       | IDENT "Assumptions"; qid = global -> PrintAssumptions (false, qid)
-      | IDENT "Opaque"; IDENT "Dependencies"; qid = global -> PrintAssumptions (true, qid) ] ]
+      | IDENT "Opaque"; IDENT "Dependencies"; qid = global -> PrintAssumptions (true, qid)
+      | IDENT "DP"; IDENT "Theories" -> PrintDPTheories
+      | IDENT "DP"; IDENT "Bindings" -> PrintDPBindings None
+      | IDENT "DP"; IDENT "Bindings"; IDENT "For"; id = IDENT -> PrintDPBindings (Some id) ] ]
   ;
   class_rawexpr:
     [ [ IDENT "Funclass" -> FunClass

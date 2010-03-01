@@ -1107,6 +1107,10 @@ let vernac_print = function
       let nassumptions = Environ.assumptions (Conv_oracle.get_transp_state ())
 	~add_opaque:o cstr (Global.env ()) in
       msg (Printer.pr_assumptionset (Global.env ()) nassumptions)
+  | PrintDPTheories ->
+      msg (Printer.pr_theories (Global.env ()))
+  | PrintDPBindings oname ->
+      msg (Printer.pr_bindings ?name:oname (Global.env ()))
 
 let global_module r =
   let (loc,qid) = qualid_of_reference r in

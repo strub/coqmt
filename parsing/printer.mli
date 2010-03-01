@@ -79,6 +79,10 @@ val pr_constructor         : env -> constructor -> std_ppcmds
 val pr_inductive           : env -> inductive -> std_ppcmds
 val pr_evaluable_reference : evaluable_global_reference -> std_ppcmds
 
+(* Printers for DP theories and bindings *)
+val pr_theories            : env -> std_ppcmds
+val pr_bindings            : ?name:string -> env -> Pp.std_ppcmds
+
 (* Contexts *)
 
 val pr_ne_context_of       : std_ppcmds -> env -> std_ppcmds

@@ -556,3 +556,17 @@ let pr_instance_gmap insts =
   prlist_with_sep fnl (fun (gr, insts) ->
     prlist_with_sep fnl pr_instance (cmap_to_list insts))
     (Gmap.to_list insts)
+
+(* -------------------------------------------------------------------- *)
+open Decproc
+
+let pr_theories = fun env ->
+  let names =
+    List.map (fun x -> uncname x.dpi_name) (Environ.DP.theories env)
+  in
+    str (String.concat ", " names)
+
+let pr_bindings = fun ?name env ->
+  let bindings = Bindings.all (Environ.DP.bindings env) in
+  let names    = List.map (fun x -> Names.string_of_id x.dpb_name) bindings in
+    str (String.concat ", " names)

@@ -899,6 +899,9 @@ let rec pr_vernac = function
          term *)
 	| PrintAssumptions (b,qid) -> (if b then str"Print Assumptions" else str"Print Opaque Dependencies")
 	    ++spc()++pr_reference qid
+        | PrintDPTheories        -> str "Print DP Theories"
+        | PrintDPBindings None   -> str "Print DP Bindings"
+        | PrintDPBindings Some s -> str (Printf.sprintf "Print DP Bindings For %s" s)
       in pr_printable p
   | VernacSearch (sea,sea_r) -> pr_search sea sea_r pr_constr_pattern_expr
   | VernacLocate loc -> 

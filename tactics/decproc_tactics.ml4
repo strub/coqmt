@@ -25,7 +25,7 @@ module Conversion : sig
   val coqarity   : types -> int -> types
   val coqsymbol  : binding -> symbol -> constr
   val coqterm    : binding -> string list -> sfterm -> constr
-  val coqformula : binding -> types -> sfformula -> types
+  val coqformula : binding -> sfformula -> types
 end = struct
   open FOTerm
 
@@ -71,7 +71,8 @@ end = struct
     in
       fun (t : sfterm) -> coqterm t
 
-  let coqformula = fun binding btype ->
+  let coqformula = fun binding ->
+    let btype = coqentry binding.dpb_bsort in
     let rec coqformula = fun varbinds -> function
       | FTrue  -> Coqlib.build_coq_True  ()
       | FFalse -> Coqlib.build_coq_False ()
@@ -170,6 +171,36 @@ ARGUMENT EXTEND nelist_constr
 | [ constr(x) ]                       -> [ [x] ]
 END
 
+let prebinding = fun theory bname bsort symbols ->
+  let theory =
+    match Global.DP.find_theory theory with
+    | None ->
+        Util.error (Printf.sprintf "cannot find theory: %s" theory)
+    | Some theory -> theory
+  in
+  let entry_of_topconstr = fun tc ->
+    match kind_of_term (constr_of_topconstr tc) with
+    | Const     const       -> DPE_Constant    const
+    | Construct constructor -> DPE_Constructor constructor
+    | Ind       inductive   -> DPE_Inductive   inductive
+    | _                     ->
+        Util.error
+          "can only bind constant, constructor and inductive types"
+  in
+  let symbols =
+    List.map
+      (fun (x, c) -> (mkcname x, entry_of_topconstr c))
+      symbols
+  and bsort = entry_of_topconstr bsort
+  and bname = Names.id_of_string bname
+  in
+    try
+      mkbinding theory bname bsort symbols
+    with
+      | Decproc.InvalidBinding s ->
+          let message = Printf.sprintf "Invalid binding: %s" s in
+            Util.error message
+
 VERNAC COMMAND EXTEND DecProcBind
 | [ "Load" "Theory" preident(theory) ] -> [
     match Decproc.global_find_theory theory with
@@ -177,41 +208,12 @@ VERNAC COMMAND EXTEND DecProcBind
     | Some theory -> Global.DP.add_theory theory
   ]
 
-| [ "Bind" "Theory" preident(theory) "As" preident(name)
+| [ "Bind" "Theory" preident(theory) "As" preident(bname)
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
       "Axioms"  "Proved" "By" nelist_constr(axioms)
   ] -> [
-    let theory =
-      match Global.DP.find_theory theory with
-      | None ->
-          Util.error (Printf.sprintf "cannot find theory: %s" theory)
-      | Some theory -> theory
-    in
-    let entry_of_topconstr = fun tc ->
-      match kind_of_term (constr_of_topconstr tc) with
-      | Const     const       -> DPE_Constant    const
-      | Construct constructor -> DPE_Constructor constructor
-      | Ind       inductive   -> DPE_Inductive   inductive
-      | _                     ->
-          Util.error
-            "can only bind constant, constructor and inductive types"
-    in
-    let symbols =
-      List.map
-        (fun (x, c) -> (mkcname x, entry_of_topconstr c))
-        symbols
-    and bsort = entry_of_topconstr bsort
-    and name  = Names.id_of_string name
-    in
-    let binding =
-      try
-        mkbinding theory name bsort symbols
-      with
-        | Decproc.InvalidBinding s ->
-            let message = Printf.sprintf "Invalid binding: %s" s in
-              Util.error message
-    in
+    let binding = prebinding theory bname bsort symbols in
       (* Check that fo-constructors are mapped to CIC constructors *)
       List.iter
         (fun (symbol, entry) ->
@@ -227,7 +229,8 @@ VERNAC COMMAND EXTEND DecProcBind
       List.iter
         (fun (symbol, entry) ->
            let coqarity =
-             Conversion.coqarity (Conversion.coqentry bsort) symbol.s_arity
+             Conversion.coqarity
+               (Conversion.coqentry binding.dpb_bsort) symbol.s_arity
            in let entryT =
              Safe_typing.j_type
                (Safe_typing.typing
@@ -246,19 +249,18 @@ VERNAC COMMAND EXTEND DecProcBind
         binding.dpb_bsymbols;
 
       (* Check axioms witnesses *)
-      if List.length axioms <> List.length theory.dpi_axioms then begin
+      if List.length axioms <> List.length binding.dpb_theory.dpi_axioms then begin
         let message =
           Printf.sprintf
             "not the right numbers of axioms proofs (%d <> %d)"
-            (List.length axioms) (List.length theory.dpi_axioms)
+            (List.length axioms) (List.length binding.dpb_theory.dpi_axioms)
         in
           Util.error message
       end;
       Util.list_iter2_i
         (fun i witness axiom ->
            let coqtype =
-             Conversion.coqformula binding (Conversion.coqentry bsort)
-               (FOTerm.formula_of_safe axiom)
+             Conversion.coqformula binding (FOTerm.formula_of_safe axiom)
            in let witness =
                Constrintern.interp_constr Evd.empty (Global.env ()) witness
            in let witnessT =
@@ -270,35 +272,37 @@ VERNAC COMMAND EXTEND DecProcBind
                     (Global.env ()) (Safe_typing.j_type witnessT) coqtype)
              with
                | Reduction.NotConvertible ->
-                   let message =
-                     Himsg.explain_type_error (Global.env ())
-                       (Type_errors.ActualType
-                          (Safe_typing.unsafe_judgment_of_safe witnessT, coqtype))
+                   let error =
+                     Type_errors.ActualType
+                       (Safe_typing.unsafe_judgment_of_safe witnessT, coqtype)
                    in
-                     Util.errorlabstrm "" message)
-        axioms theory.dpi_axioms;
+                   raise (Type_errors.TypeError (Global.env (), error)))
+        axioms binding.dpb_theory.dpi_axioms;
       Global.DP.add_binding binding 
   ]
 END
 
-VERNAC COMMAND EXTEND DecProcAdmin
-| [ "Parse" "Formula" string(formula) ] -> [
-    let formula = Decproc.Parsing.ofstring formula in
-      Printf.fprintf stderr "%s\n%!" (Decproc.Parsing.tostring formula)
-  ]
-
-| [ "DP" preident(command) ] -> [
-    match command with
-    | "theories" -> 
-        Printf.printf "%s\n%!"
-          (String.concat ", "
-             (List.map (fun x -> uncname x.dpi_name) (Global.DP.theories ())))
-    | "bindings" ->
-        List.iter
-          (fun binding ->
-             Printf.printf "%s\n%!" (Names.string_of_id binding.dpb_name))
-          (Bindings.all (Global.DP.bindings ()))
-
-    | _ -> Util.error (Printf.sprintf "Unknown DP command: %s" command)
+VERNAC COMMAND EXTEND DecProdAxioms
+| [ "DP" "Axioms" "For" "Theory" preident(theory)
+      "Sort"    "Binded" "By" constr(bsort)
+      "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
+  ] -> [
+    let binding = prebinding theory "none" bsort symbols in
+    let axioms  =
+      List.map
+        (fun x -> Conversion.coqformula binding (FOTerm.formula_of_safe x))
+        binding.dpb_theory.dpi_axioms
+    in
+    let output =
+      match axioms with
+        | [] -> str "no axioms for theory"
+        | _  ->
+            List.fold_left
+              (fun output x ->
+                 output ++ (Printer.pr_constr x) ++ (Pp.fnl ()))
+              ((str "List of axioms for theory are:") ++ (Pp.fnl ()))
+              axioms
+    in
+      msg output
   ]
 END
