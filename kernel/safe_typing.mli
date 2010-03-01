@@ -145,15 +145,46 @@ val register : safe_environment -> field -> Retroknowledge.entry -> constr
 
 (* Decision procedures *)
 module DP : sig
-  val bindings : safe_environment -> Decproc.Bindings.t
-  val theories : safe_environment -> Decproc.dpinfos list
+  open Decproc
+
+  module CoqLogicBinding : sig
+    (* FIXME (strub): this should not be global *)
+    type coq_logic = {
+      cql_true  : constr;
+      cql_false : constr;
+      cql_eq    : constr;
+      cql_not   : constr;
+      cql_and   : constr;
+      cql_conj  : constr;
+      cql_or    : constr;
+      cql_ex    : constr;
+    }
+
+    val register_coq_logic : coq_logic -> unit
+    val coq_logic          : unit -> coq_logic option
+    val coq_logic_exn      : unit -> coq_logic
+  end
+
+  module Conversion : sig
+    exception ConversionError of string
+
+    val coqentry   : entry -> constr
+    val coqarity   : types -> int -> types
+    val coqsymbol  : binding -> FOTerm.symbol -> constr
+    val coqterm    : binding -> string list -> FOTerm.sfterm -> constr
+    val coqformula : binding -> FOTerm.sfformula -> types
+  end
+
+  val bindings : safe_environment -> Bindings.t
+  val theories : safe_environment -> dpinfos list
 
   val add_binding
     :  safe_environment
-    -> Decproc.binding
+    -> binding
+    -> constr list
     -> safe_environment
 
-  val add_theory  : safe_environment -> Decproc.dpinfos -> safe_environment
-  val find_theory : safe_environment -> string -> Decproc.dpinfos option
+  val add_theory  : safe_environment -> dpinfos -> safe_environment
+  val find_theory : safe_environment -> string -> dpinfos option
 end
 

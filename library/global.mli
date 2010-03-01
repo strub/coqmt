@@ -102,7 +102,7 @@ val register : Retroknowledge.field -> constr -> constr -> unit
 module DP : sig
   val bindings    : unit -> Decproc.Bindings.t
   val theories    : unit -> Decproc.dpinfos list
-  val add_binding : Decproc.binding -> unit
+  val add_binding : Decproc.binding -> constr list -> unit
   val add_theory  : Decproc.dpinfos -> unit
   val find_theory : string -> Decproc.dpinfos option
 end

@@ -829,9 +829,224 @@ let safe_infer senv = infer (env_of_senv senv)
 let typing senv = Typeops.typing (env_of_senv senv)
 
 (* Decision procedures *)
+
+module HasAxioms : sig
+  val hasaxioms : Environ.env -> constr -> bool
+end = struct
+  exception HasAxioms
+  
+  type bag_t = {
+    bg_ids    : Names.Idset.t;
+    bg_consts : Names.Cset.t;
+  }
+  
+  let hasaxioms = fun env ->
+    let rec noaxioms = fun bag t ->
+      match Term.kind_of_term t with
+      | Rel _                    -> bag
+      | Var x                    -> noaxioms_var bag x
+      | Const c                  -> noaxioms_const bag c
+      | Sort _                   -> bag
+      | Cast   (t1, _, t2)       -> fold bag [|t1; t2|]
+      | Prod   (_, t1, t2)       -> fold bag [|t1; t2|]
+      | Lambda (_, t1, t2)       -> fold bag [|t1; t2|]
+      | LetIn  (_, t1, t2, t3)   -> fold bag [|t1; t2; t3|]
+      | App    (t1, t2)          -> fold (noaxioms bag t1) t2
+      | Ind    _                 -> bag
+      | Construct _              -> bag
+      | Case (_, t1, t2, ts)     -> fold (fold bag [|t1; t2|]) ts
+      | Fix   (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
+      | CoFix (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
+  
+      | Meta _ -> Util.anomaly "noaxioms: unexpected [Meta]"
+      | Evar _ -> Util.anomaly "noaxioms: unexpetedt [Evar]"
+  
+    and fold = fun bag array ->
+      Array.fold_left noaxioms bag array
+  
+    and noaxioms_var = fun bag x ->
+      if   Names.Idset.mem x bag.bg_ids
+      then bag
+      else begin
+        match Environ.lookup_named x env with
+          | (_, None   , _) -> raise HasAxioms
+          | (_, Some bd, _) ->
+              let bag = { bag with bg_ids = Names.Idset.add x bag.bg_ids } in
+                noaxioms bag bd
+      end
+  
+    and noaxioms_const = fun bag c ->
+      if   Names.Cset.mem c bag.bg_consts
+      then bag
+      else begin
+        let cb = Environ.lookup_constant c env in
+          match cb.Declarations.const_body with
+            | None    -> raise HasAxioms
+            | Some bd ->
+                let bag = { bag with bg_consts = Names.Cset.add c bag.bg_consts } in
+                  noaxioms bag (Declarations.force bd)
+      end
+    in
+      fun t ->
+        let emptybag =
+          { bg_ids    = Names.Idset.empty;
+            bg_consts = Names.Cset.empty }
+        in
+          try
+            (ignore : bag_t -> unit) (noaxioms emptybag t);
+            false
+          with HasAxioms -> true
+end
+
 module DP =
 struct
   open Decproc
+  open Decproc.FOTerm
+
+  module CoqLogicBinding =
+  struct
+    type coq_logic = {
+      cql_true  : constr;
+      cql_false : constr;
+      cql_eq    : constr;
+      cql_not   : constr;
+      cql_and   : constr;
+      cql_conj  : constr;
+      cql_or    : constr;
+      cql_ex    : constr;
+    }
+  
+    let __coq_logic = (ref None : coq_logic option ref)
+  
+    let register_coq_logic = fun cql ->
+      match !__coq_logic with
+      | None   -> __coq_logic := Some cql
+      | Some _ -> failwith "[register_coq_logic] : already registered"
+  
+    let coq_logic = fun () -> !__coq_logic
+  
+    let coq_logic_exn = fun () ->
+      match !__coq_logic with
+      | None     -> failwith "[coq_logic] : nothing registered"
+      | Some cql -> (cql : coq_logic)
+  end
+
+  open CoqLogicBinding
+
+  let _coq_True  = fun () -> (coq_logic_exn ()).cql_true
+  let _coq_False = fun () -> (coq_logic_exn ()).cql_false
+  let _coq_eq    = fun () -> (coq_logic_exn ()).cql_eq
+  let _coq_not   = fun () -> (coq_logic_exn ()).cql_not
+  let _coq_and   = fun () -> (coq_logic_exn ()).cql_and
+  let _coq_conj  = fun () -> (coq_logic_exn ()).cql_conj
+  let _coq_or    = fun () -> (coq_logic_exn ()).cql_or
+  let _coq_ex    = fun () -> (coq_logic_exn ()).cql_ex
+
+  module Conversion : sig
+    open FOTerm
+
+    exception ConversionError of string
+
+    val coqentry   : entry -> constr
+    val coqarity   : types -> int -> types
+    val coqsymbol  : binding -> symbol -> constr
+    val coqterm    : binding -> string list -> sfterm -> constr
+    val coqformula : binding -> sfformula -> types
+  end = struct
+    exception ConversionError of string
+
+    let _e_UnboundSymbol = fun f ->
+      Printf.sprintf "Unbounded symbol: [%s]" f
+    let _e_UnboundVariable = fun x ->
+      Printf.sprintf "Unbounded variable: [%s]" x
+
+    let coqentry = function
+      | DPE_Constructor c -> Term.mkConstruct c
+      | DPE_Constant    c -> Term.mkConst     c
+      | DPE_Inductive   i -> Term.mkInd       i
+
+    let coqarity = fun ty ->
+      let rec coqarity = fun i acc ->
+        if   i = 0
+        then acc
+        else coqarity (i-1) (mkProd (Names.Anonymous, ty, acc))
+      in
+        fun i ->
+          if i < 0 then
+            raise (Invalid_argument "[coqarity _ ty] with i < 0");
+          coqarity i ty
+            
+    let coqsymbol = fun binding f ->
+      try  coqentry (List.assoc f binding.dpb_bsymbols)
+      with Not_found ->
+        raise (ConversionError (_e_UnboundSymbol (uncname f.s_name)))
+
+    let coqterm = fun binding varbinds ->
+      let rec coqterm = function
+        | FVar (CName x) -> begin
+            try  Term.mkRel (Util.list_index x varbinds)
+            with Not_found -> raise (ConversionError (_e_UnboundVariable x))
+          end
+
+        | FSymb (f, ts) ->
+            let f  = coqsymbol binding f
+            and ts = Array.of_list (List.map coqterm ts) in
+              Term.mkApp (f, ts)
+      in
+        fun (t : sfterm) -> coqterm t
+
+    let coqformula = fun binding ->
+      let btype = coqentry binding.dpb_bsort in
+      let rec coqformula = fun varbinds -> function
+        | FTrue  -> _coq_True  ()
+        | FFalse -> _coq_False ()
+
+        | FEq (left, right) ->
+            let left  = coqterm binding varbinds left
+            and right = coqterm binding varbinds right in
+              Term.mkApp (_coq_eq (), [|btype; left; right|])
+
+        | FNeg phi ->
+            let phi = coqformula varbinds phi in
+              Term.mkApp (_coq_not (), [|phi|])
+
+        | FAnd (left, right) ->
+            let left  = coqformula varbinds left
+            and right = coqformula varbinds right in
+              Term.mkApp (_coq_and (), [|left; right|])
+
+        | FOr (left, right) ->
+            let left  = coqformula varbinds left
+            and right = coqformula varbinds right in
+              Term.mkApp (_coq_or (), [|left; right|])
+
+        | FImply (left, right) ->
+            let left  = coqformula varbinds left
+            and right = coqformula varbinds right in
+              Term.mkProd (Names.Anonymous, left, right)
+
+        | FAll (vars, phi) ->
+            let vars = List.map uncname (List.rev vars) in
+              List.fold_left
+                (fun coqphi var ->
+                   let var = Names.Name (Names.id_of_string var) in
+                     Term.mkProd (var, btype, coqphi))
+                (coqformula (vars @ varbinds) phi) vars
+
+        | FExist (vars, phi) ->
+            let vars = List.map uncname (List.rev vars) in
+              List.fold_left
+                (fun coqphi var ->
+                   let var    = Names.Name (Names.id_of_string var) in
+                   let expred = Term.mkLambda (var, btype, coqphi)  in
+                     Term.mkApp (_coq_ex (), [|btype; expred|]))
+                (coqformula (vars @ varbinds) phi) vars
+
+      in
+        fun t -> coqformula [] t
+  end
+
+  open Conversion
 
   let bindings = fun senv ->
     Environ.DP.bindings senv.env
@@ -839,8 +1054,54 @@ struct
   let theories = fun senv ->
     Environ.DP.theories senv.env
 
-  let add_binding = fun senv binding ->
-    (* Check typing *)
+  let add_binding = fun (senv : safe_environment) binding witnesses ->
+    assert (List.length witnesses = List.length binding.dpb_theory.dpi_axioms);
+
+    (* Check that fo-constructors are mapped to CIC constructors *)
+    List.iter
+      (fun (symbol, entry) ->
+         if symbol.s_status = FConstructor then begin
+           match entry with
+             | DPE_Constructor _ -> ()
+             | _ ->
+                 error "theory constructors must be mapped to Coq constructors"
+         end)
+      binding.dpb_bsymbols;
+
+    (* Check arities *)
+    List.iter
+      (fun (symbol, entry) ->
+         let coqarity = coqarity (coqentry binding.dpb_bsort) symbol.s_arity
+         and entryT   = j_type (typing senv (coqentry entry))
+         in
+           try  ignore (conv_leq senv.env entryT coqarity)
+           with
+           | NotConvertible ->
+               error
+                 (Printf.sprintf
+                    "invalid bound symbol arity for symbol [%s]"
+                    (uncname symbol.s_name)))
+      binding.dpb_bsymbols;
+
+    (* Check axioms witnesses *)
+    list_iter2_i
+      (fun i witness axiom ->
+         if HasAxioms.hasaxioms senv.env witness then
+           error (Printf.sprintf "witness #%d depends on assumptions" (i+1));
+         let coqtype  = coqformula binding (FOTerm.formula_of_safe axiom)
+         and witnessT = typing senv witness
+         in
+           try
+             ignore (conv_leq senv.env (j_type witnessT) coqtype)
+           with
+           | NotConvertible ->
+               let error =
+                 ActualType (unsafe_judgment_of_safe witnessT, coqtype)
+               in
+                 raise (TypeError (senv.env, error)))
+      witnesses binding.dpb_theory.dpi_axioms;
+
+    (* All checks done, add binding to environment *)
     { senv with env = Environ.DP.add_binding senv.env binding }
 
   let add_theory = fun senv theory ->

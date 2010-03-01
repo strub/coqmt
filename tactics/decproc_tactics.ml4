@@ -16,125 +16,34 @@ open Decproc
 open Decproc.FOTerm
 
 (* -------------------------------------------------------------------- *)
-module Conversion : sig
-  open FOTerm
-
-  exception ConversionError of string
-
-  val coqentry   : entry -> constr
-  val coqarity   : types -> int -> types
-  val coqsymbol  : binding -> symbol -> constr
-  val coqterm    : binding -> string list -> sfterm -> constr
-  val coqformula : binding -> sfformula -> types
-end = struct
-  open FOTerm
-
-  exception ConversionError of string
-
-  let _e_UnboundSymbol = fun f ->
-    Printf.sprintf "Unbounded symbol: [%s]" f
-  let _e_UnboundVariable = fun x ->
-    Printf.sprintf "Unbounded variable: [%s]" x
-
-  let coqentry = function
-    | DPE_Constructor c -> Term.mkConstruct c
-    | DPE_Constant    c -> Term.mkConst     c
-    | DPE_Inductive   i -> Term.mkInd       i
-
-  let coqarity = fun ty ->
-    let rec coqarity = fun i acc ->
-      if   i = 0
-      then acc
-      else coqarity (i-1) (mkProd (Names.Anonymous, ty, acc))
-    in
-      fun i ->
-        if i < 0 then
-          raise (Invalid_argument "[coqarity _ ty] with i < 0");
-        coqarity i ty
-
-  let coqsymbol = fun binding f ->
-      try  coqentry (List.assoc f binding.dpb_bsymbols)
-      with Not_found ->
-        raise (ConversionError (_e_UnboundSymbol (uncname f.s_name)))
-
-  let coqterm = fun binding varbinds ->
-    let rec coqterm = function
-      | FVar (CName x) -> begin
-          try  Term.mkRel (Util.list_index x varbinds)
-          with Not_found -> raise (ConversionError (_e_UnboundVariable x))
-        end
-
-      | FSymb (f, ts) ->
-          let f  = coqsymbol binding f
-          and ts = Array.of_list (List.map coqterm ts) in
-            Term.mkApp (f, ts)
-    in
-      fun (t : sfterm) -> coqterm t
-
-  let coqformula = fun binding ->
-    let btype = coqentry binding.dpb_bsort in
-    let rec coqformula = fun varbinds -> function
-      | FTrue  -> Coqlib.build_coq_True  ()
-      | FFalse -> Coqlib.build_coq_False ()
-
-      | FEq (left, right) ->
-          let left  = coqterm binding varbinds left
-          and right = coqterm binding varbinds right in
-            Term.mkApp (Coqlib.build_coq_eq (), [|btype; left; right|])
-
-      | FNeg phi ->
-          let phi = coqformula varbinds phi in
-            Term.mkApp (Coqlib.build_coq_not (), [|phi|])
-
-      | FAnd (left, right) ->
-          let left  = coqformula varbinds left
-          and right = coqformula varbinds right in
-            Term.mkApp (Coqlib.build_coq_and (), [|left; right|])
-
-      | FOr (left, right) ->
-          let left  = coqformula varbinds left
-          and right = coqformula varbinds right in
-            Term.mkApp (Coqlib.build_coq_or (), [|left; right|])
-
-      | FImply (left, right) ->
-          let left  = coqformula varbinds left
-          and right = coqformula varbinds right in
-            Term.mkProd (Names.Anonymous, left, right)
-
-      | FAll (vars, phi) ->
-          let vars = List.map uncname (List.rev vars) in
-            List.fold_left
-              (fun coqphi var ->
-                 let var = Names.Name (Names.id_of_string var) in
-                   Term.mkProd (var, btype, coqphi))
-              (coqformula (vars @ varbinds) phi) vars
-
-      | FExist (vars, phi) ->
-          let vars = List.map uncname (List.rev vars) in
-            List.fold_left
-              (fun coqphi var ->
-                 let var    = Names.Name (Names.id_of_string var) in
-                 let expred = Term.mkLambda (var, btype, coqphi)  in
-                   Term.mkApp (Coqlib.build_coq_ex (), [|btype; expred|]))
-              (coqformula (vars @ varbinds) phi) vars
-
-    in
-      fun t -> coqformula [] t
-end
-
-(* -------------------------------------------------------------------- *)
 let _dp_constr_of_topconstr = fun tc ->
   Constrintern.interp_constr Evd.empty (Global.env ()) tc
 
 module DPTactics : sig
+  val lazy_init : unit -> unit
+
   val prebinding :
        theory:string -> bname:string
     -> Topconstr.constr_expr
     -> (string * Topconstr.constr_expr) list
     -> Decproc.binding
-
-  val hasaxioms : Environ.env -> constr -> bool
 end = struct
+  open Safe_typing.DP.CoqLogicBinding
+
+  let lazy_init = fun () ->
+    if coq_logic () = None then begin
+      register_coq_logic {
+        cql_true  = Coqlib.build_coq_True  ();
+        cql_false = Coqlib.build_coq_False ();
+        cql_eq    = Coqlib.build_coq_eq    ();
+        cql_not   = Coqlib.build_coq_not   ();
+        cql_and   = Coqlib.build_coq_and   ();
+        cql_conj  = Coqlib.build_coq_conj  ();
+        cql_or    = Coqlib.build_coq_or    ();
+        cql_ex    = Coqlib.build_coq_ex    ();
+      }
+    end
+
   (* ---------------------------------------------------------------- *)
   let prebinding = fun ~theory ~bname bsort symbols ->
     let theory =
@@ -165,71 +74,6 @@ end = struct
         | Decproc.InvalidBinding s ->
             let message = Printf.sprintf "Invalid binding: %s" s in
               Util.error message
-  
-  (* ---------------------------------------------------------------- *)
-  exception HasAxioms
-  
-  type bag_t = {
-    bg_ids    : Names.Idset.t;
-    bg_consts : Names.Cset.t;
-  }
-  
-  let hasaxioms = fun env ->
-    let rec noaxioms = fun bag t ->
-      match Term.kind_of_term t with
-      | Rel _                    -> bag
-      | Var x                    -> noaxioms_var bag x
-      | Const c                  -> noaxioms_const bag c
-      | Sort _                   -> bag
-      | Cast   (t1, _, t2)       -> fold bag [|t1; t2|]
-      | Prod   (_, t1, t2)       -> fold bag [|t1; t2|]
-      | Lambda (_, t1, t2)       -> fold bag [|t1; t2|]
-      | LetIn  (_, t1, t2, t3)   -> fold bag [|t1; t2; t3|]
-      | App    (t1, t2)          -> fold (noaxioms bag t1) t2
-      | Ind    _                 -> bag
-      | Construct _              -> bag
-      | Case (_, t1, t2, ts)     -> fold (fold bag [|t1; t2|]) ts
-      | Fix   (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
-      | CoFix (_, (_, ts1, ts2)) -> fold (fold bag ts1) ts2
-  
-      | Meta _ -> Util.anomaly "noaxioms: unexpected [Meta]"
-      | Evar _ -> Util.anomaly "noaxioms: unexpetedt [Evar]"
-  
-    and fold = fun bag array ->
-      Array.fold_left noaxioms bag array
-  
-    and noaxioms_var = fun bag x ->
-      if   Names.Idset.mem x bag.bg_ids
-      then bag
-      else begin
-        match Environ.lookup_named x env with
-          | (_, None   , _) -> raise HasAxioms
-          | (_, Some bd, _) ->
-              let bag = { bag with bg_ids = Names.Idset.add x bag.bg_ids } in
-                noaxioms bag bd
-      end
-  
-    and noaxioms_const = fun bag c ->
-      if   Names.Cset.mem c bag.bg_consts
-      then bag
-      else begin
-        let cb = Environ.lookup_constant c env in
-          match cb.Declarations.const_body with
-            | None    -> raise HasAxioms
-            | Some bd ->
-                let bag = { bag with bg_consts = Names.Cset.add c bag.bg_consts } in
-                  noaxioms bag (Declarations.force bd)
-      end
-    in
-      fun t ->
-        let emptybag =
-          { bg_ids    = Names.Idset.empty;
-            bg_consts = Names.Cset.empty }
-        in
-          try
-            (ignore : bag_t -> unit) (noaxioms emptybag t);
-            false
-          with HasAxioms -> true
 end
 
 (* -------------------------------------------------------------------- *)
@@ -288,77 +132,23 @@ VERNAC COMMAND EXTEND DecProcBind
 | [ "Bind" "Theory" preident(theory) "As" preident(bname)
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
-      "Axioms"  "Proved" "By" nelist_constr(axioms)
+      "Axioms"  "Proved" "By" nelist_constr(witnesses)
   ] -> [
-    let binding = DPTactics.prebinding theory bname bsort symbols in
-      (* Check that fo-constructors are mapped to CIC constructors *)
-      List.iter
-        (fun (symbol, entry) ->
-           if symbol.s_status = FConstructor then begin
-             match entry with
-             | DPE_Constructor _ -> ()
-             | _ ->
-                 Util.error "theory constructors must be mapped to Coq constructors"
-           end)
-        binding.dpb_bsymbols;
+    DPTactics.lazy_init ();
 
-      (* Check arities *)
-      List.iter
-        (fun (symbol, entry) ->
-           let coqarity =
-             Conversion.coqarity
-               (Conversion.coqentry binding.dpb_bsort) symbol.s_arity
-           in let entryT =
-             Safe_typing.j_type
-               (Safe_typing.typing
-                  (Global.safe_env ()) (Conversion.coqentry entry))
-           in
-             try
-               ignore (Reduction.conv_leq (Global.env ()) entryT coqarity);
-             with
-               | Reduction.NotConvertible ->
-                   let message =
-                     Printf.sprintf
-                       "invalid bound symbol arity for symbol [%s]"
-                       (uncname symbol.s_name)
-                   in
-                     Util.error message)
-        binding.dpb_bsymbols;
-
-      (* Check axioms witnesses *)
-      if List.length axioms <> List.length binding.dpb_theory.dpi_axioms then begin
-        let message =
-          Printf.sprintf
-            "not the right numbers of axioms proofs (%d <> %d)"
-            (List.length axioms) (List.length binding.dpb_theory.dpi_axioms)
+    let binding   = DPTactics.prebinding theory bname bsort symbols in
+    let witnesses = List.map _dp_constr_of_topconstr witnesses in
+      begin
+        let nwitnesses = List.length witnesses
+        and naxioms    = List.length binding.dpb_theory.dpi_axioms
         in
-          Util.error message
+          if nwitnesses <> naxioms then
+            Util.error
+              (Printf.sprintf
+                 "not the right numbers of axioms proofs (%d <> %d)"
+                 (List.length witnesses) (List.length binding.dpb_theory.dpi_axioms))
       end;
-
-      Util.list_iter2_i
-        (fun i witness axiom ->
-           let witness = _dp_constr_of_topconstr witness in
-             if DPTactics.hasaxioms (Global.env ()) witness then
-               Util.error
-                 (Printf.sprintf "witness #%d depends on assumptions" (i+1));
-             let coqtype =
-               Conversion.coqformula binding (FOTerm.formula_of_safe axiom)
-             in let witnessT =
-                 Safe_typing.typing (Global.safe_env ()) witness
-             in
-               try
-                 ignore
-                   (Reduction.conv_leq
-                      (Global.env ()) (Safe_typing.j_type witnessT) coqtype)
-               with
-               | Reduction.NotConvertible ->
-                   let error =
-                     Type_errors.ActualType
-                       (Safe_typing.unsafe_judgment_of_safe witnessT, coqtype)
-                   in
-                     raise (Type_errors.TypeError (Global.env (), error)))
-        axioms binding.dpb_theory.dpi_axioms;
-      Global.DP.add_binding binding 
+      Global.DP.add_binding binding witnesses
   ]
 END
 
@@ -367,10 +157,13 @@ VERNAC COMMAND EXTEND DecProdAxioms
       "Sort"    "Binded" "By" constr(bsort)
       "Symbols" "Binded" "By" nelist_pid_ctr_map(symbols)
   ] -> [
+    DPTactics.lazy_init ();
+
     let binding = DPTactics.prebinding theory "none" bsort symbols in
     let axioms  =
       List.map
-        (fun x -> Conversion.coqformula binding (FOTerm.formula_of_safe x))
+        (fun x ->
+           Safe_typing.DP.Conversion.coqformula binding (FOTerm.formula_of_safe x))
         binding.dpb_theory.dpi_axioms
     in
     let output =

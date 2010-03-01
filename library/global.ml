@@ -171,9 +171,9 @@ struct
   let theories = fun () ->
     Safe_typing.DP.theories !global_env
 
-  let add_binding = fun binding ->
+  let add_binding = fun binding witnesses ->
     global_env :=
-      Safe_typing.DP.add_binding !global_env binding
+      Safe_typing.DP.add_binding !global_env binding witnesses
 
   let add_theory = fun theory ->
     global_env :=
