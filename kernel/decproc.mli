@@ -194,6 +194,8 @@ type entry =
   | DPE_Constant    of constant
   | DPE_Inductive   of inductive
 
+val entry_of_constr : Term.constr -> entry option
+
 type binding = private {
   dpb_theory   : dpinfos;
   dpb_name     : identifier;
@@ -234,3 +236,19 @@ val peano : dpinfos
 
 (** Global theories registry *)
 val global_find_theory : string -> dpinfos option
+
+(** Decproc opcodes *)
+module OpCodes : sig
+  type opbinding = private {
+    opb_theory   : cname;
+    opb_name     : identifier;
+    opb_bsort    : entry;
+    opb_bsymbols : (cname * entry) list;
+  }
+
+  type opcode =
+    | DP_Load of cname
+    | DP_Bind of opbinding
+
+  val of_binding : binding -> opbinding
+end

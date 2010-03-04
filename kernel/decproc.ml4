@@ -340,6 +340,13 @@ type entry =
   | DPE_Constant    of constant
   | DPE_Inductive   of inductive
 
+let entry_of_constr = fun c ->
+  match Term.kind_of_term c with
+  | Term.Const     const       -> Some (DPE_Constant    const)
+  | Term.Construct constructor -> Some (DPE_Constructor constructor)
+  | Term.Ind       inductive   -> Some (DPE_Inductive   inductive)
+  | _                          -> None
+
 module EntryMap =
   Map.Make (struct type t = entry let compare = compare end)
 
@@ -533,3 +540,27 @@ let peano =
 let global_find_theory = function
   | "peano" -> Some peano
   | _       -> None
+
+(** {1 Decproc opcodes} *)
+module OpCodes =
+struct
+  type opbinding = {
+    opb_theory   : cname;
+    opb_name     : identifier;
+    opb_bsort    : entry;
+    opb_bsymbols : (cname * entry) list;
+  }
+
+  type opcode =
+    | DP_Load of cname
+    | DP_Bind of opbinding
+
+  let of_binding = fun binding ->
+    let opb_bsymbols =
+      List.map (fun (x, y) -> (x.s_name, y)) binding.dpb_bsymbols
+    in
+      { opb_theory   = binding.dpb_theory.dpi_name;
+        opb_name     = binding.dpb_name           ;
+        opb_bsort    = binding.dpb_bsort          ;
+        opb_bsymbols = opb_bsymbols               ; }
+end

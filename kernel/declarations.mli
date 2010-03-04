@@ -205,7 +205,8 @@ and module_body =
       mod_type : struct_expr_body option;
       mod_constraints : constraints;
       mod_alias : substitution;
-      mod_retroknowledge : Retroknowledge.action list}
+      mod_retroknowledge : Retroknowledge.action list;
+      mod_dp : Decproc.OpCodes.opcode list; }
 
 and module_type_body = 
     { typ_expr : struct_expr_body;

@@ -254,7 +254,8 @@ and translate_module env me =
 	  mod_type = Some mtb;
 	  mod_alias = sub;
 	  mod_constraints = Constraint.empty; 
-	  mod_retroknowledge = []}
+	  mod_retroknowledge = [];
+          mod_dp = []; }                (* FIXME (STRUB) *)
     | Some mexpr, _ -> 
 	let meb,sub1 = translate_struct_entry env mexpr in
 	let mod_typ,sub,cst =
@@ -278,6 +279,7 @@ and translate_module env me =
 	    mod_expr = Some meb;
 	    mod_constraints = cst;
 	    mod_alias = sub;
+            mod_dp = [];             (* FIXME (STRUB) *)
 	    mod_retroknowledge = []} (* spiwack: not so sure about that. It may
 					cause a bug when closing nested modules.
 					If it does, I don't really know how to

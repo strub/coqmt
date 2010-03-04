@@ -18,6 +18,7 @@ open Declarations
 open Environ
 open Entries
 open Mod_subst
+open Decproc
 (*i*)
 
 
@@ -110,7 +111,8 @@ let module_body_of_type mtb =
     mod_expr = None;
     mod_constraints = Constraint.empty;
     mod_alias = mtb.typ_alias;
-    mod_retroknowledge = []}
+    mod_retroknowledge = [];
+    mod_dp = []; }
 
 let module_type_of_module mp mb =
   let mp1,expr = 
@@ -185,7 +187,8 @@ and subst_module  sub mb =
 	mod_type=mtb'; 
 	mod_constraints=mb.mod_constraints;
 	mod_alias = mb_alias;
-	mod_retroknowledge=mb.mod_retroknowledge}
+	mod_retroknowledge=mb.mod_retroknowledge;
+        mod_dp = mb.mod_dp; }           (* FIXME (STRUB) *)
 
 
 and subst_struct_expr sub = function
@@ -231,7 +234,47 @@ let add_retroknowledge msid mp =
      imports 10 000 retroknowledge registration.*)
   List.fold_right subst_and_perform lclrk env
 
+let add_dp_bindings = fun msid mp ->
+  let module DO = Decproc.OpCodes in
 
+  let subst_entry =
+    let subst = add_msid msid mp empty_subst in
+      fun entry ->
+        let entry =
+          match entry with
+          | DPE_Constructor c -> subst_mps subst (mkConstruct c)
+          | DPE_Constant    c -> subst_mps subst (mkConst     c)
+          | DPE_Inductive   i -> subst_mps subst (mkInd       i)
+        in
+          match Decproc.entry_of_constr entry with
+          | Some entry -> entry
+          | None       -> anomaly "add_dp_binding: invalid entry"
+
+  in let register  = fun opcode env ->
+    match opcode with
+    | DO.DP_Load name -> begin
+        match global_find_theory (uncname name) with
+        | None        -> anomaly "add_dp_binding: cannot load theory"
+        | Some theory -> Environ.DP.add_theory env theory
+      end
+    | DO.DP_Bind binding -> begin
+        match Environ.DP.find_theory env (uncname binding.DO.opb_theory) with
+        | None        -> anomaly "add_dp_binding: cannot find theory for binding"
+        | Some theory ->
+            let binding =
+              mkbinding
+                theory
+                binding.DO.opb_name
+                (subst_entry binding.DO.opb_bsort)
+                (List.map
+                   (fun (s, t) -> (s, subst_entry t))
+                   binding.DO.opb_bsymbols)
+            in
+              Environ.DP.add_binding env binding
+      end
+  in
+    fun opcodes env ->
+      List.fold_right register opcodes env
 
 let strengthen_const env mp l cb = 
   match cb.const_opaque, cb.const_body with
@@ -360,7 +403,8 @@ and merge_with env mtb with_decl alias=
 			|None -> empty_subst
 			|Some s -> s
 		    end;
-		    mod_retroknowledge = old.mod_retroknowledge}
+		    mod_retroknowledge = old.mod_retroknowledge;
+                    mod_dp = old.mod_dp; } (* FIXME (STRUB) *)
 		in
 		  (SFBmodule msb),subst
 	      else 
@@ -397,12 +441,12 @@ and add_module mp mb env =
   let mod_typ = type_of_mb env mb in
     match mod_typ with
       | SEBstruct (msid,sign) -> 
-	  add_retroknowledge msid mp (mb.mod_retroknowledge)
-	    (add_signature mp (subst_signature_msid msid mp sign) env)
+          let env = add_dp_bindings msid mp (mb.mod_dp)                  env in
+          let env = add_retroknowledge msid mp (mb.mod_retroknowledge)   env in
+          let env = add_signature mp (subst_signature_msid msid mp sign) env in
+            env
       | SEBfunctor _ -> env
       | _ -> anomaly "Modops:the evaluation of the structure failed "
-	  
-
 
 and  constants_of_specification env mp sign =
  let aux (env,res) (l,elem) =
@@ -486,7 +530,8 @@ and strengthen_mod env mp mb =
       mod_type = Some (strengthen_mtb env mp mod_typ);
       mod_constraints = mb.mod_constraints;
       mod_alias = mb.mod_alias;
-      mod_retroknowledge = mb.mod_retroknowledge}
+      mod_retroknowledge = mb.mod_retroknowledge;
+      mod_dp = mb.mod_dp; }             (* FIXME (STRUB) *)
       
 and strengthen_sig env msid sign mp = match sign with
   | [] -> []

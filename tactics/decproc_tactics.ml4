@@ -53,11 +53,9 @@ end = struct
       | Some theory -> theory
     in
     let entry_of_topconstr = fun tc ->
-      match kind_of_term (_dp_constr_of_topconstr tc) with
-      | Const     const       -> DPE_Constant    const
-      | Construct constructor -> DPE_Constructor constructor
-      | Ind       inductive   -> DPE_Inductive   inductive
-      | _                     ->
+      match Decproc.entry_of_constr (_dp_constr_of_topconstr tc) with
+      | Some entry -> entry
+      | None       ->
           Util.error
             "can only bind constant, constructor and inductive types"
     in

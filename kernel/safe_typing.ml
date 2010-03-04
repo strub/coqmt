@@ -61,18 +61,8 @@ type safe_environment =
       engagement : engagement option;
       imports : library_info list;
       loads : (module_path * module_body) list;
-      local_retroknowledge : Retroknowledge.action list}
-
-(*
-  { old = senv.old;
-    env = ;
-    modinfo = senv.modinfo;
-    labset = ;
-    revsign = ;
-    imports = senv.imports ;
-    loads = senv.loads }
-*)
-
+      local_retroknowledge : Retroknowledge.action list;
+      dpopcodes : Decproc.OpCodes.opcode list; }
 
 (* a small hack to avoid variants and an unused case in all functions *)
 let rec empty_environment = 
@@ -91,7 +81,8 @@ let rec empty_environment =
     engagement = None;
     imports = [];
     loads = [];
-    local_retroknowledge = [] }
+    local_retroknowledge = [];
+    dpopcodes = []; }
 
 let env_of_safe_env senv = senv.env
 let env_of_senv = env_of_safe_env
@@ -223,7 +214,8 @@ let add_constant dir l decl senv =
           engagement = senv'.engagement;
 	  imports = senv'.imports;
 	  loads = senv'.loads ;
-	  local_retroknowledge = senv'.local_retroknowledge }
+	  local_retroknowledge = senv'.local_retroknowledge;
+          dpopcodes = senv'.dpopcodes; }
     
 
 (* Insertion of inductive types. *)
@@ -252,7 +244,8 @@ let add_mind dir l mie senv =
         engagement = senv'.engagement;
 	imports = senv'.imports;
 	loads = senv'.loads;
-        local_retroknowledge = senv'.local_retroknowledge }
+        local_retroknowledge = senv'.local_retroknowledge;
+        dpopcodes = senv'.dpopcodes; }
 
 (* Insertion of module types *)
 
@@ -275,7 +268,8 @@ let add_modtype l mte senv =
         engagement = senv'.engagement;
 	imports = senv'.imports;
 	loads = senv'.loads;
-        local_retroknowledge = senv'.local_retroknowledge }
+        local_retroknowledge = senv'.local_retroknowledge;
+        dpopcodes = senv'.dpopcodes; }
 
 
 (* full_add_module adds module with universes and constraints *)
@@ -306,7 +300,8 @@ let add_module l me senv =
         engagement = senv'.engagement;
 	imports = senv'.imports;
 	loads = senv'.loads;
-        local_retroknowledge = senv'.local_retroknowledge }
+        local_retroknowledge = senv'.local_retroknowledge;
+        dpopcodes = senv'.dpopcodes; }
     
 let add_alias l mp senv =
   check_label l senv.labset; 
@@ -339,7 +334,8 @@ let add_alias l mp senv =
         engagement = senv.engagement;
 	imports = senv.imports;
 	loads = senv.loads;
-        local_retroknowledge = senv.local_retroknowledge }
+        local_retroknowledge = senv.local_retroknowledge;
+        dpopcodes = senv.dpopcodes; }
 
 (* Interactive modules *)
 
@@ -364,7 +360,9 @@ let start_module l senv =
 	imports = senv.imports;
 	loads = [];
 	(* spiwack : not sure, but I hope it's correct *)
-        local_retroknowledge = [] }
+        local_retroknowledge = [];
+        (* /spiwack *)
+        dpopcodes = []; }
 
 let end_module l restype senv = 
   let oldsenv = senv.old in
@@ -408,7 +406,8 @@ let end_module l restype senv =
       mod_type = mod_typ;
       mod_constraints = cst;
       mod_alias = subst;
-      mod_retroknowledge = senv.local_retroknowledge }
+      mod_retroknowledge = senv.local_retroknowledge;
+      mod_dp = senv.dpopcodes; }
   in
   let mp = MPdot (oldsenv.modinfo.modpath, l) in
   let newenv = oldsenv.env in
@@ -444,7 +443,8 @@ let end_module l restype senv =
         engagement = senv'.engagement;
 	imports = senv'.imports;
 	loads = senv'.loads@oldsenv.loads;
-	local_retroknowledge = senv'.local_retroknowledge@oldsenv.local_retroknowledge }
+	local_retroknowledge = senv'.local_retroknowledge@oldsenv.local_retroknowledge;
+        dpopcodes = senv'.dpopcodes @ oldsenv.dpopcodes; }
 
 
 (* Include for module and module type*)
@@ -473,7 +473,8 @@ let end_module l restype senv =
                engagement = senv'.engagement;
 	       imports = senv'.imports;
 	       loads = senv'.loads ;
-	       local_retroknowledge = senv'.local_retroknowledge }
+	       local_retroknowledge = senv'.local_retroknowledge;
+               dpopcodes = senv'.dpopcodes; }
 	       	     
        | SFBmind mib ->
 	   let kn = make_kn mp_sup empty_dirpath l in
@@ -488,7 +489,8 @@ let end_module l restype senv =
                engagement = senv'.engagement;
 	       imports = senv'.imports;
 	       loads = senv'.loads;
-               local_retroknowledge = senv'.local_retroknowledge }
+               local_retroknowledge = senv'.local_retroknowledge;
+               dpopcodes = senv'.dpopcodes; }
 	       
        | SFBmodule mb ->
 	   let mp = MPdot(senv.modinfo.modpath, l) in
@@ -508,7 +510,8 @@ let end_module l restype senv =
 	       engagement = senv'.engagement;
 	       imports = senv'.imports;
 	       loads = senv'.loads;
-	       local_retroknowledge = senv'.local_retroknowledge }
+	       local_retroknowledge = senv'.local_retroknowledge;
+               dpopcodes = senv'.dpopcodes; }
        | SFBalias (mp',typ_opt,cst) ->
 	   let env' = Option.fold_right 
 	     Environ.add_constraints cst senv.env in
@@ -530,7 +533,8 @@ let end_module l restype senv =
                engagement = senv.engagement;
 	       imports = senv.imports;
 	       loads = senv.loads;
-               local_retroknowledge = senv.local_retroknowledge }
+               local_retroknowledge = senv.local_retroknowledge;
+               dpopcodes = senv.dpopcodes; }
        | SFBmodtype mtb ->
 	   let env' = add_modtype_constraints senv.env mtb in
 	   let mp = MPdot(senv.modinfo.modpath, l) in
@@ -544,7 +548,8 @@ let end_module l restype senv =
                engagement = senv.engagement;
 	       imports = senv.imports;
 	       loads = senv.loads;
-               local_retroknowledge = senv.local_retroknowledge }
+               local_retroknowledge = senv.local_retroknowledge;
+               dpopcodes = senv.dpopcodes; }
    in
      List.fold_left add senv str1
 	   
@@ -574,7 +579,8 @@ let add_module_parameter mbid mte senv =
     engagement = senv.engagement;
     imports = senv.imports;
     loads = [];
-    local_retroknowledge = senv.local_retroknowledge }
+    local_retroknowledge = senv.local_retroknowledge;
+    dpopcodes = senv.dpopcodes; }
 
 
 (* Interactive module types *)
@@ -600,7 +606,9 @@ let start_modtype l senv =
 	imports = senv.imports;
 	loads = [] ;
 	(* spiwack: not 100% sure, but I think it should be like that *)
-        local_retroknowledge = []}
+        local_retroknowledge = [];
+        (* /spiwack *)
+        dpopcodes = []; }
 
 let end_modtype l senv = 
   let oldsenv = senv.old in
@@ -654,7 +662,9 @@ let end_modtype l senv =
         (* spiwack : if there is a bug with retroknowledge in nested modules
                      it's likely to come from here *)
         local_retroknowledge = 
-                   senv.local_retroknowledge@oldsenv.local_retroknowledge}
+        senv.local_retroknowledge@oldsenv.local_retroknowledge;
+        (* /spiwack *)
+        dpopcodes = senv.dpopcodes @ oldsenv.dpopcodes; }
   
 
 let current_modpath senv = senv.modinfo.modpath
@@ -714,9 +724,8 @@ let start_library dir senv =
         engagement = None;
 	imports = senv.imports;
 	loads = [];
-        local_retroknowledge = [] }
-
-
+        local_retroknowledge = [];
+        dpopcodes = []; }
 
 let export senv dir = 
   let modinfo = senv.modinfo in
@@ -735,7 +744,8 @@ let export senv dir =
       mod_type = None;
       mod_constraints = senv.univ;
       mod_alias = senv.modinfo.alias_subst;
-      mod_retroknowledge = senv.local_retroknowledge}
+      mod_retroknowledge = senv.local_retroknowledge;
+      mod_dp = senv.dpopcodes; }
   in
     modinfo.msid, (dir,mb,senv.imports,engagement senv.env)
 
@@ -1102,10 +1112,14 @@ struct
       witnesses binding.dpb_theory.dpi_axioms;
 
     (* All checks done, add binding to environment *)
-    { senv with env = Environ.DP.add_binding senv.env binding }
+    { senv with
+        env       = Environ.DP.add_binding senv.env binding;
+        dpopcodes = OpCodes.DP_Bind (OpCodes.of_binding binding) :: senv.dpopcodes; }
 
   let add_theory = fun senv theory ->
-    { senv with env = Environ.DP.add_theory senv.env theory }
+    { senv with
+        env       = Environ.DP.add_theory senv.env theory;
+        dpopcodes = OpCodes.DP_Load theory.dpi_name :: senv.dpopcodes; }
 
   let find_theory = fun senv name ->
     Environ.DP.find_theory senv.env name

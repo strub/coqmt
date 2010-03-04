@@ -145,7 +145,8 @@ let build_mb expr typ_opt =
     mod_type = typ_opt;
     mod_constraints = Univ.Constraint.empty;
     mod_alias = Mod_subst.empty_subst;
-    mod_retroknowledge = [] }
+    mod_retroknowledge = [];
+    mod_dp = []; }
 
 let my_type_of_mb env mb =
   match mb.mod_type with

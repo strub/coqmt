@@ -357,7 +357,9 @@ and check_signatures cst env (msid1,sig1) alias (msid2,sig2') =
 		     mod_type = typ_opt;
 		     mod_constraints = Constraint.empty;
 		     mod_alias = (lookup_modtype mp env).typ_alias;
-		     mod_retroknowledge = []} in
+		     mod_retroknowledge = [];
+                     mod_dp = []; }     (* FIXME (STRUB) *)
+                  in
 		    check_modules cst env msid1 l msb msb2 alias
 		| _ -> error_not_match l spec2
 	    end
@@ -371,8 +373,10 @@ and check_signatures cst env (msid1,sig1) alias (msid2,sig2') =
 		       mod_type = typ_opt;
 		       mod_constraints = Constraint.empty;
 		       mod_alias = (lookup_modtype mp env).typ_alias;
-		       mod_retroknowledge = []} in
-			check_modules cst env msid1 l msb msb1 alias
+		       mod_retroknowledge = [];
+                       mod_dp = []; }   (* FIXME (STRUB) *)
+                    in
+		      check_modules cst env msid1 l msb msb1 alias
 		| _ -> error_not_match l spec2
 	    end
 	| SFBmodtype mtb2 ->

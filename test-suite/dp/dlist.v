@@ -1,21 +1,6 @@
 (* -------------------------------------------------------------------- *)
 Require Import Arith .
-
-Load Theory peano .
-
-Bind Theory peano As peano
-  Sort    Binded By nat
-  Symbols Binded By
-    0    for zero ,
-    S    for succ ,
-    plus for plus ,
-    mult for mult
-
-  Axioms Proved By
-    plus_0_r,
-    (fun x y => sym_eq (plus_n_Sm x y)),
-    mult_0_r,
-    (fun x y => sym_eq (mult_n_Sm x y)) .
+Require Import DP_Peano .
 
 (* -------------------------------------------------------------------- *)
 Set Implicit Arguments .
