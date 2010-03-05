@@ -425,6 +425,7 @@ MCHECKER:=\
   kernel/names.cmo kernel/univ.cmo kernel/esubst.cmo \
   checker/validate.cmo \
   checker/term.cmo \
+  checker/decproc.cmo \
   checker/declarations.cmo checker/environ.cmo \
   checker/closure.cmo checker/reduction.cmo \
   checker/type_errors.cmo \

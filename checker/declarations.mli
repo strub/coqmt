@@ -1,12 +1,13 @@
 open Util
 open Names
 open Term
+open Decproc
 
 (* Bytecode *)
 type values
 type reloc_table
 type to_patch_substituted
-(*Retroknowledge *)
+(* Retroknowledge *)
 type action
 type retroknowledge
 
@@ -174,7 +175,8 @@ and module_body =
       mod_type : struct_expr_body option;
       mod_constraints : Univ.constraints;
       mod_alias : substitution;
-      mod_retroknowledge : action list}
+      mod_retroknowledge : action list;
+      mod_dpopcodes : dp_opcode list; }
 
 and module_type_body = 
     { typ_expr : struct_expr_body;

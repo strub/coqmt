@@ -308,13 +308,16 @@ and check_signatures env (msid1,sig1) alias (msid2,sig2') =
 	    begin
 	      match info1 with
 		| Module msb -> check_modules env msid1 l msb msb2
-		| Alias (mp,typ_opt) ->let msb = 
-		    {mod_expr = Some (SEBident mp);
-		     mod_type = typ_opt;
-		     mod_constraints = Constraint.empty;
-		     mod_alias = (lookup_modtype mp env).typ_alias;
-		     mod_retroknowledge = []} in
-		    check_modules env msid1 l msb msb2
+		| Alias (mp,typ_opt) ->
+                    let msb = {
+                      mod_expr = Some (SEBident mp);
+		      mod_type = typ_opt;
+		      mod_constraints = Constraint.empty;
+		      mod_alias = (lookup_modtype mp env).typ_alias;
+		      mod_retroknowledge = [];
+                      mod_dpopcodes = [];
+                    } in
+		      check_modules env msid1 l msb msb2
 		| _ -> error_not_match l spec2
 	    end
 	| SFBalias (mp,typ_opt,_) ->
@@ -322,13 +325,15 @@ and check_signatures env (msid1,sig1) alias (msid2,sig2') =
 	      match info1 with
 		| Alias (mp1,_) -> check_modpath_equiv env mp mp1
 		| Module msb -> 
-		    let msb1 = 
-		      {mod_expr = Some (SEBident mp);
-		       mod_type = typ_opt;
-		       mod_constraints = Constraint.empty;
-		       mod_alias = (lookup_modtype mp env).typ_alias;
-		       mod_retroknowledge = []} in
-			check_modules env msid1 l msb msb1
+		    let msb1 = {
+                      mod_expr = Some (SEBident mp);
+		      mod_type = typ_opt;
+		      mod_constraints = Constraint.empty;
+		      mod_alias = (lookup_modtype mp env).typ_alias;
+		      mod_retroknowledge = [];
+                      mod_dpopcodes = [];
+                    } in
+		      check_modules env msid1 l msb msb1
 		| _ -> error_not_match l spec2
 	    end
 	| SFBmodtype mtb2 ->

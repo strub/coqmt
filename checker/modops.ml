@@ -62,7 +62,8 @@ let module_body_of_type mtb =
     mod_expr = None;
     mod_constraints = Constraint.empty;
     mod_alias = mtb.typ_alias;
-    mod_retroknowledge = []}
+    mod_retroknowledge = [];
+    mod_dpopcodes = []; }
 
 let module_type_of_module mp mb =
   {typ_expr = 
@@ -209,7 +210,8 @@ and merge_with env mtb with_decl alias=
 		mod_type = Some modtype; 
 		mod_constraints = old.mod_constraints;
 		mod_alias = subst;
-		mod_retroknowledge = old.mod_retroknowledge}
+		mod_retroknowledge = old.mod_retroknowledge;
+                mod_dpopcodes = old.mod_dpopcodes; }
 	    in
 	      (SFBmodule msb),Some subst
       in
@@ -305,7 +307,8 @@ and strengthen_mod env mp mb =
       mod_type = Some (strengthen_mtb env mp mod_typ);
       mod_constraints = mb.mod_constraints;
       mod_alias = mb.mod_alias;
-      mod_retroknowledge = mb.mod_retroknowledge}
+      mod_retroknowledge = mb.mod_retroknowledge;
+      mod_dpopcodes = mb.mod_dpopcodes; }
       
 and strengthen_sig env msid sign mp = match sign with
   | [] -> []

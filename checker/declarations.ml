@@ -2,12 +2,13 @@ open Util
 open Names
 open Term
 open Validate
+open Decproc
 
 (* Bytecode *)
 type values
 type reloc_table
 type to_patch_substituted
-(*Retroknowledge *)
+(* Retroknowledge *)
 type action
 type retroknowledge
 
@@ -635,7 +636,8 @@ and module_body =
       mod_type : struct_expr_body option;
       mod_constraints : Univ.constraints;
       mod_alias : substitution;
-      mod_retroknowledge : action list}
+      mod_retroknowledge : action list;
+      mod_dpopcodes : dp_opcode list; }
 
 and module_type_body = 
     { typ_expr : struct_expr_body;
@@ -662,7 +664,13 @@ and val_with o = val_sum "with_declaration_body" 0
   [|[|val_list val_id;val_mp;val_cstrs|];
     [|val_list val_id;val_cb|]|] o
 and val_module o = val_tuple "module_body"
-  [|val_opt val_seb;val_opt val_seb;val_cstrs;val_subst;no_val|] o
+  [|val_opt val_seb;
+    val_opt val_seb;
+    val_cstrs;
+    val_subst;
+    val_list ~name:"mod_retroknoledge" no_val;
+    val_list ~name:"mod_dpopcodes" val_dp_opcode|]
+  o
 and val_modtype o = val_tuple "module_type_body"
   [|val_seb;val_opt val_mp;val_subst|] o
 
@@ -712,7 +720,8 @@ and subst_module  sub mb =
 	mod_type=mtb'; 
 	mod_constraints=mb.mod_constraints;
 	mod_alias = mb_alias;
-	mod_retroknowledge=mb.mod_retroknowledge}
+	mod_retroknowledge=mb.mod_retroknowledge;
+        mod_dpopcodes = mb.mod_dpopcodes; }
 
 
 and subst_struct_expr sub = function
