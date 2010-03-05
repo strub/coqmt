@@ -148,7 +148,7 @@ KERNEL:=\
   kernel/cbytecodes.cmo kernel/copcodes.cmo \
   kernel/cemitcodes.cmo kernel/vm.cmo \
   kernel/declarations.cmo \
-  kernel/simplex/core.cmo kernel/simplex/simplex.cmo kernel/decproc.cmo \
+  kernel/decproc.cmo \
   kernel/retroknowledge.cmo kernel/pre_env.cmo \
   kernel/cbytegen.cmo  kernel/environ.cmo  \
   kernel/csymtable.cmo kernel/conv_oracle.cmo \
@@ -445,7 +445,7 @@ GRAMMARNEEDEDCMO:=\
   kernel/esubst.cmo kernel/term.cmo kernel/mod_subst.cmo kernel/sign.cmo \
   kernel/cbytecodes.cmo kernel/copcodes.cmo kernel/cemitcodes.cmo \
   kernel/declarations.cmo \
-  kernel/simplex/core.cmo kernel/simplex/simplex.cmo kernel/decproc.cmo \
+  kernel/decproc.cmo \
   kernel/retroknowledge.cmo kernel/pre_env.cmo \
   kernel/cbytegen.cmo kernel/conv_oracle.cmo kernel/environ.cmo \
   kernel/closure.cmo kernel/reduction.cmo kernel/type_errors.cmo\
@@ -491,7 +491,7 @@ PRINTERSCMO:=\
   config/coq_config.cmo lib/lib.cma \
   kernel/names.cmo kernel/univ.cmo kernel/esubst.cmo kernel/term.cmo	\
   kernel/mod_subst.cmo kernel/copcodes.cmo kernel/cemitcodes.cmo	\
-  kernel/simplex/core.cmo kernel/simplex/simplex.cmo kernel/decproc.cmo \
+  kernel/decproc.cmo \
   kernel/sign.cmo kernel/declarations.cmo kernel/retroknowledge.cmo \
   kernel/pre_env.cmo \
   kernel/retroknowledge.cmo kernel/pre_env.cmo \

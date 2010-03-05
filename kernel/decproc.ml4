@@ -462,6 +462,8 @@ end
 struct
   open Num
 
+  exception InvalidProblem
+
   let zero   = num_of_int   0
   let one    = num_of_int   1
   let negone = num_of_int (-1)
@@ -482,7 +484,7 @@ struct
           augment preop (augment preop (values, ctt) t1) t2
       | _ -> assert false
     in
-    let (values, ctt) =
+    let (coeffs, ctt) =
       augment
         (fun x -> minus_num x)
         (augment
@@ -490,32 +492,18 @@ struct
            (Varmap.empty, zero)
            t1)
         t2
-    in let nvars =
-        Varmap.fold (fun _ _ x -> x+1) values 0
-
-    in let solve = fun step ->
-      let pb =
-        Array.init (nvars+1)
-          (fun i ->
-             if   i = 0
-             then Array.of_list (Varmap.fold (fun _ v acc -> v :: acc) values [])
-             else Array.init nvars (fun j -> if (i-1) = j then one else zero))
-      and bounds =
-          Array.init (nvars+1)
-            (fun i ->
-               if   i = 0
-               then (match step with
-                       | `Left  -> (ctt +/ one, `Ge)
-                       | `Right -> (ctt -/ one, `Le))
-               else (zero, `Ge))
-      in let simplex = 
-          Simplex.Simplex.simplex_N pb bounds
-      in
-        Simplex.Simplex.solve_N simplex
     in
-      match solve `Left with
-      | None   -> (solve `Right) = None
-      | Some _ -> false
+      match ctt =/ zero with
+      | false -> false
+      | true  -> begin
+          try
+            Varmap.iter
+              (fun _ value -> if value <>/ zero then raise InvalidProblem)
+              coeffs;
+            true
+          with
+          | InvalidProblem -> false
+        end
 end
 
 (** {1 Theory declaration - Peano} *)

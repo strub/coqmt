@@ -63,7 +63,7 @@ else
 endif
 
 LOCALINCLUDES=-I config -I tools -I tools/coqdoc \
-	      -I scripts -I lib -I kernel -I kernel/byterun -I kernel/simplex \
+	      -I scripts -I lib -I kernel -I kernel/byterun \
               -I library -I proofs -I tactics -I pretyping \
               -I interp -I toplevel -I parsing -I ide/utils -I ide \
               -I contrib/omega -I contrib/romega -I contrib/micromega \
