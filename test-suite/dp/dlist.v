@@ -28,12 +28,6 @@ Section DList .
 
   Infix "++" := append (at level 35, right associativity) .
 
-  Fixpoint reverse n (xs : dlist n) : dlist n :=
-  match xs in dlist n return dlist n with
-  | nil => nil
-  | cons n x xs => (reverse xs) ++ [:: x]
-  end .
-
   Section AppArith .
     Variables n₁ n₂ n₃ : nat .
   
@@ -58,15 +52,70 @@ Section DList .
     Qed .
   End AppArith .
 
+  Fixpoint rcons n (xs : dlist n) y :=
+  match xs in dlist n return dlist (S n) with
+  | nil         => [:: y]
+  | cons n x xs => x :: (rcons xs y)
+  end .
+
+  Lemma rconsapp : forall x n (xs : dlist n), rcons xs x = xs ++ [:: x] .
+  Proof .
+    intros x n xs; induction xs as [|y n ys IH];
+      simpl; try rewrite IH; reflexivity .
+  Qed .
+
+  Fixpoint reverse n (xs : dlist n) : dlist n :=
+  match xs in dlist n return dlist n with
+  | nil => nil
+  | cons n x xs => rcons (reverse xs) x
+  end .
+
+  Lemma rev0 : reverse nil = nil .
+  Proof . reflexivity . Qed .
+
+  Lemma rev1 : forall x, reverse [:: x] = [:: x] .
+  Proof . reflexivity . Qed .
+
   Lemma apprev :
     forall n₁ n₂ (xs : dlist n₁) (ys : dlist n₂),
       (reverse ys) ++ (reverse xs) = reverse (xs ++ ys) .
   Proof .
     induction xs as [|n₁ x xs IH]; intros ys; simpl .
     (**) rewrite apps0; reflexivity .
-    (**) rewrite <- IH .
-         rewrite (appA (reverse ys) (reverse xs) _) . (* PB: unification failure *)
+    (**) rewrite <- IH; repeat rewrite rconsapp .
+         rewrite (appA (reverse ys) (reverse xs) _) .
          reflexivity .
+  Qed .
+
+  Lemma revI : forall n (xs : dlist n), reverse (reverse xs) = xs .
+  Proof .
+    intros n xs; induction xs as [|n x xs IH]; simpl .
+    (**) reflexivity .
+    (**) rewrite rconsapp .
+         (* FIXME: work on unification needed *)
+         change (S n) with (n + 1); rewrite <- (apprev _ _) .
+         simpl; rewrite IH; reflexivity .
+  Qed .
+
+  Lemma consappA :
+    forall x n₁ (xs₁ : dlist n₁) n₂ (xs₂ : dlist n₂),
+      x :: (xs₁ ++ xs₂) = (x :: xs₁) ++ xs₂ .
+  Proof . reflexivity . Qed .
+
+  Lemma rconsappAC :
+    forall n₁ (xs₁ : dlist n₁) n₂ (xs₂ : dlist n₂) y,
+      rcons (xs₁ ++ xs₂) y = xs₁ ++ (rcons xs₂ y) .
+  Proof .
+    intros until y; induction xs₁ as [|n₁ x xs₁ IH]; simpl .
+    (**) reflexivity .
+    (**) rewrite IH; reflexivity .
+  Qed .
+
+  Lemma appconsAC :
+    forall n₁ (xs₁ : dlist n₁) y n₂ (xs₂ : dlist n₂),
+      (rcons xs₁ y) ++ xs₂ = xs₁ ++ (y :: xs₂) .
+  Proof .
+    intros until xs₂; rewrite rconsapp, (appA xs₁ [:: y] _); reflexivity .
   Qed .
 End DList .
 
