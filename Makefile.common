@@ -505,6 +505,7 @@ PRINTERSCMO:=\
   kernel/term_typing.cmo kernel/mod_typing.cmo kernel/safe_typing.cmo	\
   library/summary.cmo library/global.cmo library/nameops.cmo		\
   library/libnames.cmo library/nametab.cmo library/libobject.cmo	\
+  library/decproc_lib.cmo \
   library/lib.cmo library/goptions.cmo library/decls.cmo library/heads.cmo \
   pretyping/termops.cmo pretyping/evd.cmo pretyping/rawterm.cmo \
   pretyping/reductionops.cmo pretyping/inductiveops.cmo			    \
