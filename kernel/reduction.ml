@@ -405,7 +405,7 @@ and eqappr cv_pb infos ((lft1, st1) as t1) ((lft2, st2) as t2) cuniv =
         in
           DP.finalize
             (fun (lft1, t1, st1) (lft2, t2, st2) c ->
-               eqappr CONV infos (lft1, (t1, st2)) (lft2, (t2, st2)) c)
+               eqappr CONV infos (lft1, (t1, st1)) (lft2, (t2, st2)) c)
             cuniv state
       with DP.ExtractFailure ->
         raise NotConvertible
