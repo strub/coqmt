@@ -36,18 +36,6 @@ let rec is_empty_stack = function
   | Zshift _::s -> is_empty_stack s
   | _ -> false
 
-(* Compute the lift to be performed on a term placed in a given stack *)
-let el_stack el stk =
-  let n =
-    List.fold_left
-      (fun i z ->
-        match z with
-            Zshift n -> i+n
-          | _ -> i)
-      0
-      stk in
-  el_shft n el
-
 let compare_stack_shape stk1 stk2 =
   let rec compare_rec bal stk1 stk2 =
   match (stk1,stk2) with
@@ -62,33 +50,6 @@ let compare_stack_shape stk1 stk2 =
         bal=0 && compare_rec 0 a1 a2 && compare_rec 0 s1 s2
     | (_,_) -> false in
   compare_rec 0 stk1 stk2
-
-type lft_constr_stack_elt =
-    Zlapp of (lift * fconstr) array
-  | Zlfix of (lift * fconstr) * lft_constr_stack
-  | Zlcase of case_info * lift * fconstr * fconstr array
-and lft_constr_stack = lft_constr_stack_elt list
-
-let rec zlapp v = function
-    Zlapp v2 :: s -> zlapp (Array.append v v2) s
-  | s -> Zlapp v :: s
-
-let pure_stack lfts stk =
-  let rec pure_rec lfts stk =
-    match stk with
-        [] -> (lfts,[])
-      | zi::s ->
-          (match (zi,pure_rec lfts s) with
-              (Zupdate _,lpstk)  -> lpstk
-            | (Zshift n,(l,pstk)) -> (el_shft n l, pstk)
-            | (Zapp a, (l,pstk)) ->
-                (l,zlapp (Array.map (fun t -> (l,t)) a) pstk)
-            | (Zfix(fx,a),(l,pstk)) ->
-                let (lfx,pa) = pure_rec l a in
-                (l, Zlfix((lfx,fx),pa)::pstk)
-            | (Zcase(ci,p,br),(l,pstk)) ->
-                (l,Zlcase(ci,l,p,br)::pstk)) in
-  snd (pure_rec lfts stk)
 
 (****************************************************************************)
 (*                   Reduction Functions                                    *)
@@ -238,154 +199,6 @@ let whd_both infos =
   in
     whd_both
 
-(* Decision procedures conversion module *)
-module DP : sig
-  open Decproc
-
-  type state_t
-
-  type xfconstr_t = lift * fconstr * stack
-  type xcnv_t     = xfconstr_t -> xfconstr_t -> Univ.constraints -> Univ.constraints
-
-  exception ExtractFailure
-
-  val create   : Bindings.t -> state_t
-  val extract  : state_t -> clos_infos -> xfconstr_t -> state_t
-
-  val finalize
-    :  xcnv_t
-    -> Univ.constraints
-    -> state_t
-    -> FOTerm.exterm array * dpinfos * Univ.constraints
-end
-  =
-struct
-  open Decproc
-
-  type xfconstr_t = lift * fconstr * stack
-  type xcnv_t     = xfconstr_t -> xfconstr_t -> Univ.constraints -> Univ.constraints
-
-  type prefoterm =
-    | PFO_Var   of identifier
-    | PFO_Rel   of int
-    | PFO_Alien of xfconstr_t
-    | PFO_Symb  of FOTerm.symbol * prefoterm array
-
-  type state_t = {
-    st_bindings : Bindings.t;
-    st_theory   : dpinfos option;
-    st_terms    : prefoterm list;
-  }
-
-  exception ExtractFailure
-
-  let create = fun bindings -> {
-    st_bindings = bindings;
-    st_theory   = None;
-    st_terms    = [];
-  }
-
-  exception AlienNotMerged
-
-  let finalize = fun cnv ->
-    let rec to_foterm_fold = fun term (aliens, foterms) ->
-      let aliens, foterm = to_foterm aliens term in
-        (aliens, foterm :: foterms)
-
-    and to_foterm = fun ((cuniv, aliens) as infos) term ->
-      match term with
-      | PFO_Var x -> (infos, FOTerm.FVar (`Named x))
-      | PFO_Rel n -> (infos, FOTerm.FVar (`DeBruijn n))
-      | PFO_Symb (f, ts) ->
-          let infos, foterms =
-            Array.fold_right to_foterm_fold ts (infos, [])
-          in
-            (infos, FOTerm.FSymb (f, foterms))
-
-      | PFO_Alien term ->               (* FIXME *)
-          let rec merge = fun i subaliens ->
-            match subaliens with
-            | [] ->
-                ((cuniv, aliens @ [term]), FOTerm.FVar (`Alien i))
-            | alien :: subaliens ->
-                try
-                  let cuniv = cnv term alien cuniv in
-                    ((cuniv, aliens), FOTerm.FVar (`Alien i))
-                with NotConvertible ->
-                  merge (i+1) subaliens
-          in
-            merge 0 aliens
-    in
-      fun cuniv state ->
-        match state.st_theory with
-        | None        -> raise ExtractFailure
-        | Some theory ->
-            let (cuniv, _), foterms =
-              List.fold_right to_foterm_fold state.st_terms ((cuniv, []), [])
-            in
-              (Array.of_list foterms, theory, cuniv)
-  
-  let extract = fun state ->
-    let entry_of_fterm = function
-      | FFlex (ConstKey x) -> Some (Decproc.DPE_Constant    x)
-      | FConstruct x       -> Some (Decproc.DPE_Constructor x)
-      | FInd x             -> Some (Decproc.DPE_Inductive   x)
-      | _                  -> None
-  
-    and merge_theory = fun th1 th2 ->
-      match th1 with
-      | None                             -> th2
-      | Some th1 when th1 ==(*\phi*) th2 -> th1
-      | _                                -> raise ExtractFailure
-    in
-  
-    let rec extract_r = fun theory closure (lift, term, stack) ->
-      let (term, stack) = whd_stack closure term stack in
-      let el_lift       = el_stack lift stack in
-        match entry_of_fterm (fterm_of term) with
-        | None -> begin
-            match pure_stack lift stack with (* FIXME (STRUB): no need of pure_stack *)
-            | [] -> begin
-                match fterm_of term with
-                | FFlex (VarKey x) -> (PFO_Var x, theory)
-                | FRel n           -> (PFO_Rel (reloc_rel n el_lift), theory) (* ?? *)
-                | _                -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
-              end
-            | _ -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
-          end
-  
-        | Some entry -> begin
-            match Bindings.revbinding_symbol state.st_bindings entry with
-            | None            -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
-            | Some (bd, symb) ->
-                let theory = merge_theory theory bd.dpb_theory in
-                  match pure_stack lift stack with
-                  | [] -> begin
-                      if symb.FOTerm.s_arity <> 0 then
-                        raise ExtractFailure;
-                      (PFO_Symb (symb, [| |]), Some theory)
-                    end
-                  | [ Zlapp args ] -> begin
-                      if Array.length args <> symb.FOTerm.s_arity then
-                        raise ExtractFailure;
-                      let foargs =
-                        Array.map
-                          (fun (alift, arg) ->
-                             (fst (extract_r (Some theory) closure (alift, arg, []))))
-                          args
-                      in
-                        (PFO_Symb (symb, foargs), Some theory)
-                    end
-                  | _ -> raise ExtractFailure
-          end
-    in
-      fun closure xfconstr ->
-        let foterm, theory = extract_r state.st_theory closure xfconstr in
-          { state with
-              st_terms  = foterm :: state.st_terms;
-              st_theory = theory; }
-end
-  
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
 let rec ccnv cv_pb infos lft1 lft2 term1 term2 cuniv = 
   eqappr cv_pb infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
@@ -399,15 +212,19 @@ and eqappr cv_pb infos ((lft1, st1) as t1) ((lft2, st2) as t2) cuniv =
         let state =
           List.fold_left
             (fun state (lft, st) ->
-               DP.extract state infos.if_closure (lft, fst st, snd st))
-            (DP.create infos.if_bindings)
+               Closure.DP.extract
+                 state infos.if_closure (lft, fst st, snd st))
+            (Closure.DP.create infos.if_bindings)
             [ t1; t2 ]
         in
-          DP.finalize
+          Closure.DP.finalize
             (fun (lft1, t1, st1) (lft2, t2, st2) c ->
-               eqappr CONV infos (lft1, (t1, st1)) (lft2, (t2, st2)) c)
+               try
+                 eqappr CONV infos (lft1, (t1, st1)) (lft2, (t2, st2)) c
+               with NotConvertible ->
+                 raise Closure.DP.AliensNotConvertible)
             cuniv state
-      with DP.ExtractFailure ->
+      with Closure.DP.ExtractFailure ->
         raise NotConvertible
     in
       if not (theory.Decproc.dpi_blackbox (foterms.(0), foterms.(1))) then

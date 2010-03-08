@@ -413,6 +413,17 @@ let rec stack_nth s p = match s with
       else args.(p)
   | _ -> raise Not_found
 
+let el_stack el stk =
+  let n =
+    List.fold_left
+      (fun i z ->
+        match z with
+            Zshift n -> i+n
+          | _ -> i)
+      0
+      stk in
+  el_shft n el
+
 (* Lifting. Preserves sharing (useful only for cell with norm=Red).
    lft_fconstr always create a new cell, while lift_fconstr avoids it
    when the lift is 0. *)
@@ -996,3 +1007,161 @@ let create_clos_infos ?(evars=fun _ -> None) flgs env =
   create (fun _ -> inject) flgs env evars
 
 let unfold_reference = ref_value_cache
+
+(* Pure stacks *)
+type lft_stack_member =
+  | Zlapp of (lift * fconstr) array
+  | Zlcase of case_info * lift * fconstr * fconstr array
+  | Zlfix of (lift * fconstr) * lft_stack
+
+and lft_stack = lft_stack_member list
+
+let pure_stack lfts stk =
+  let rec zlapp v = function
+    Zlapp v2 :: s -> zlapp (Array.append v v2) s
+  | s -> Zlapp v :: s
+
+  in let rec pure_rec lfts stk =
+    match stk with
+        [] -> (lfts,[])
+      | zi::s ->
+          (match (zi,pure_rec lfts s) with
+              (Zupdate _,lpstk)  -> lpstk
+            | (Zshift n,(l,pstk)) -> (el_shft n l, pstk)
+            | (Zapp a, (l,pstk)) ->
+                (l,zlapp (Array.map (fun t -> (l,t)) a) pstk)
+            | (Zfix(fx,a),(l,pstk)) ->
+                let (lfx,pa) = pure_rec l a in
+                (l, Zlfix((lfx,fx),pa)::pstk)
+            | (Zcase(ci,p,br),(l,pstk)) ->
+                (l,Zlcase(ci,l,p,br)::pstk)) in
+  snd (pure_rec lfts stk)
+
+(* Extraction of terms for DP *)
+module DP =
+struct
+  open Decproc
+
+  type xfconstr_t = lift * fconstr * stack
+  type ('alien, 'state) xcnv_t = 'alien -> 'alien -> 'state -> 'state
+
+  type 'alien prefoterm =
+    | PFO_Var   of identifier
+    | PFO_Rel   of int
+    | PFO_Alien of 'alien
+    | PFO_Symb  of FOTerm.symbol * ('alien prefoterm) array
+
+
+  type 'alien state_t = {
+    st_bindings : Bindings.t;
+    st_theory   : dpinfos option;
+    st_terms    : 'alien prefoterm list;
+  }
+
+
+  exception AliensNotConvertible
+  exception ExtractFailure
+
+  let create = fun bindings -> {
+    st_bindings = bindings;
+    st_theory   = None;
+    st_terms    = [];
+  }
+
+  let merge_theory = fun ~exn th1 th2 ->
+    match th1 with
+    | None                             -> th2
+    | Some th1 when th1 ==(*\phi*) th2 -> th1
+    | _                                -> raise exn
+
+  let extract = fun state ->
+    let entry_of_fterm = function
+      | FFlex (ConstKey x) -> Some (DPE_Constant    x)
+      | FConstruct x       -> Some (DPE_Constructor x)
+      | FInd x             -> Some (DPE_Inductive   x)
+      | _                  -> None
+  
+    in let rec extract_r = fun theory closure (lift, term, stack) ->
+      let (term, stack) = whd_stack closure term stack in
+      let el_lift       = el_stack lift stack in
+        match entry_of_fterm (fterm_of term) with
+        | None -> begin
+            match pure_stack lift stack with (* FIXME (STRUB): no need of pure_stack *)
+            | [] -> begin
+                match fterm_of term with
+                | FFlex (VarKey x) -> (PFO_Var x, theory)
+                | FRel n           -> (PFO_Rel (reloc_rel n el_lift), theory) (* ?? *)
+                | _                -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+              end
+            | _ -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+          end
+  
+        | Some entry -> begin
+            match Bindings.revbinding_symbol state.st_bindings entry with
+            | None            -> (PFO_Alien (lift, term, stack), theory) (* ?? *)
+            | Some (bd, symb) ->
+                let theory = merge_theory ~exn:ExtractFailure theory bd.dpb_theory in
+                  match pure_stack lift stack with
+                  | [] -> begin
+                      if symb.FOTerm.s_arity <> 0 then
+                        raise ExtractFailure;
+                      (PFO_Symb (symb, [| |]), Some theory)
+                    end
+                  | [ Zlapp args ] -> begin
+                      if Array.length args <> symb.FOTerm.s_arity then
+                        raise ExtractFailure;
+                      let foargs =
+                        Array.map
+                          (fun (alift, arg) ->
+                             (fst (extract_r (Some theory) closure (alift, arg, []))))
+                          args
+                      in
+                        (PFO_Symb (symb, foargs), Some theory)
+                    end
+                  | _ -> raise ExtractFailure
+          end
+    in
+      fun closure xfconstr ->
+        let foterm, theory = extract_r state.st_theory closure xfconstr in
+          { state with
+              st_terms  = foterm :: state.st_terms;
+              st_theory = theory; }
+
+  let finalize = fun cnv ->
+    let rec to_foterm_fold = fun term (aliens, foterms) ->
+      let aliens, foterm = to_foterm aliens term in
+        (aliens, foterm :: foterms)
+
+    and to_foterm = fun ((cuniv, aliens) as infos) term ->
+      match term with
+      | PFO_Var x -> (infos, FOTerm.FVar (`Named x))
+      | PFO_Rel n -> (infos, FOTerm.FVar (`DeBruijn n))
+      | PFO_Symb (f, ts) ->
+          let infos, foterms =
+            Array.fold_right to_foterm_fold ts (infos, [])
+          in
+            (infos, FOTerm.FSymb (f, foterms))
+
+      | PFO_Alien term ->               (* FIXME *)
+          let rec merge = fun i subaliens ->
+            match subaliens with
+            | [] ->
+                ((cuniv, aliens @ [term]), FOTerm.FVar (`Alien i))
+            | alien :: subaliens ->
+                try
+                  let cuniv = cnv term alien cuniv in
+                    ((cuniv, aliens), FOTerm.FVar (`Alien i))
+                with AliensNotConvertible ->
+                  merge (i+1) subaliens
+          in
+            merge 0 aliens
+    in
+      fun cuniv state ->
+        match state.st_theory with
+        | None        -> raise ExtractFailure
+        | Some theory ->
+            let (cuniv, _), foterms =
+              List.fold_right to_foterm_fold state.st_terms ((cuniv, []), [])
+            in
+              (Array.of_list foterms, theory, cuniv)
+end

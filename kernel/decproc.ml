@@ -383,5 +383,3 @@ let global_register_theory = fun theory ->
   match global_find_theory (uncname theory.dpi_name) with
   | None   -> global_theories := theory :: !global_theories
   | Some _ -> failwith "duplicated theory in registry"
-
-

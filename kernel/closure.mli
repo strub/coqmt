@@ -143,6 +143,19 @@ val stack_tail : int -> stack -> stack
 val stack_nth : stack -> int -> fconstr
 val zip_term : (fconstr -> constr) -> constr -> stack -> constr
 
+(* Compute the lift to be performed on a term placed in a given stack *)
+val el_stack : lift -> stack -> lift
+
+(* Pure stacks *)
+type lft_stack_member =
+  | Zlapp of (lift * fconstr) array
+  | Zlcase of case_info * lift * fconstr * fconstr array
+  | Zlfix of (lift * fconstr) * lft_stack
+
+and lft_stack = lft_stack_member list
+
+val pure_stack : lift -> stack -> lft_stack
+
 (* To lazy reduce a constr, create a [clos_infos] with
    [create_clos_infos], inject the term to reduce with [inject]; then use
    a reduction function *)
@@ -182,6 +195,46 @@ val unfold_reference : clos_infos -> table_key -> fconstr option
 (* [mind_equiv] checks whether two inductive types are intentionally equal *)
 val mind_equiv : env -> inductive -> inductive -> bool
 val mind_equiv_infos : clos_infos -> inductive -> inductive -> bool
+
+(* Extraction of terms for DP *)
+module DP : sig
+  open Decproc
+
+  type 'alien prefoterm =
+    | PFO_Var   of identifier
+    | PFO_Rel   of int
+    | PFO_Alien of 'alien
+    | PFO_Symb  of FOTerm.symbol * ('alien prefoterm) array
+
+
+  type 'alien state_t = {
+    st_bindings : Bindings.t;
+    st_theory   : dpinfos option;
+    st_terms    : 'alien prefoterm list;
+  }
+
+  exception ExtractFailure
+  exception AliensNotConvertible
+
+  type ('alien, 'state) xcnv_t = 'alien -> 'alien -> 'state -> 'state
+
+  type xfconstr_t = lift * fconstr * stack
+
+  val create       : Bindings.t -> 'alien state_t
+  val merge_theory : exn:exn -> dpinfos option -> dpinfos -> dpinfos
+
+  val extract
+    :  xfconstr_t state_t
+    -> clos_infos
+    -> xfconstr_t
+    -> xfconstr_t state_t
+
+  val finalize
+    :  ('alien, 'state) xcnv_t
+    -> 'state
+    -> 'alien state_t
+    ->  FOTerm.exterm array * dpinfos * 'state
+end
 
 (************************************************************************)
 (*i This is for lazy debug *)
