@@ -759,7 +759,8 @@ let init () =
   add_frozen_state ();
   comp_name := None;
   path_prefix := initial_prefix;
-  init_summaries()
+  init_summaries();
+  Decproc_lib.init_dp ()
 
 (* Initial state. *)
 

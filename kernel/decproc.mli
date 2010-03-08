@@ -141,14 +141,6 @@ module FOTerm : sig
   val formula_to_safe : signature -> foformula -> safe_formula
 end
 
-(** Parsing of first-order formulas *)
-module Parsing : sig
-  exception ParseError of Ploc.t * exn
-
-  val ofstring : string -> FOTerm.foformula
-  val tostring : FOTerm.foformula -> string
-end
-
 type blackbox_t = FOTerm.exterm * FOTerm.exterm -> bool
 
 type dpinfos = private {
@@ -231,12 +223,6 @@ module Bindings : sig
   val revbinding_sort   : t -> entry -> binding option
 end
 
-(** Peano natural numbers + blackbox *)
-val peano : dpinfos
-
-(** Global theories registry *)
-val global_find_theory : string -> dpinfos option
-
 (** Decproc opcodes *)
 module OpCodes : sig
   type opbinding = private {
@@ -252,3 +238,7 @@ module OpCodes : sig
 
   val of_binding : binding -> opbinding
 end
+
+(** Decproc registry *)
+val global_find_theory     : string -> dpinfos option
+val global_register_theory : dpinfos -> unit

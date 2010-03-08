@@ -13,7 +13,6 @@ open Pcoq
 open Genarg
 open Term
 open Decproc
-open Decproc.FOTerm
 
 (* -------------------------------------------------------------------- *)
 let _dp_constr_of_topconstr = fun tc ->
