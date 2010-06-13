@@ -126,18 +126,21 @@ type unify_flags = {
   modulo_conv_on_closed_terms : Names.transparent_state option;
   use_metas_eagerly : bool;
   modulo_delta : Names.transparent_state;
+  can_dp_delayed : bool;
 }
 
 let default_unify_flags = {
   modulo_conv_on_closed_terms = Some full_transparent_state;
   use_metas_eagerly = true;
   modulo_delta = full_transparent_state;
+  can_dp_delayed = true;
 }
 
 let default_no_delta_unify_flags = {
   modulo_conv_on_closed_terms = Some full_transparent_state;
   use_metas_eagerly = true;
   modulo_delta = empty_transparent_state;
+  can_dp_delayed = true;
 }
 
 let expand_key env = function
@@ -166,72 +169,152 @@ let oracle_order env cf1 cf2 =
       match cf2 with
       | None -> Some true
       | Some k2 -> Some (Conv_oracle.oracle_order k1 k2)
-	    
-let unify_0_with_initial_metas subst conv_at_top env sigma cv_pb flags m n =
-  let trivial_unify curenv pb (metasubst,_) m n =
-    let subst = if flags.use_metas_eagerly then metasubst else fst subst in
+
+type unif_delayed = {
+  ud_unif_pb : constr * constr;
+  ud_environ : Environ.env * int;
+  ud_cv_pb   : conv_pb_up_to_eta;
+  ud_unfold  : bool;
+}
+
+type unif_state = {
+  us_metasubst : Evd.metabinding list;
+  us_evarsubst : (constr pexistential * constr) list;
+  us_delayed   : unif_delayed list;
+}
+
+let ex_metasubst = fun evd subst ->
+  { subst with us_metasubst = evd :: subst.us_metasubst }
+
+let ex_evarsubst = fun x subst ->
+  { subst with us_evarsubst = x :: subst.us_evarsubst }
+
+let ex_delayed = fun x subst ->
+  { subst with us_delayed = x :: subst.us_delayed }
+
+let ex_to_subst = fun subst ->
+  (subst.us_metasubst, subst.us_evarsubst)
+
+let ex_from_subst = fun (metasubst, evarsubst) delayed ->
+  { us_metasubst = metasubst;
+    us_evarsubst = evarsubst;
+    us_delayed   = delayed; }
+
+let trivial_unify =
+  fun top_subst top_env sigma conv_at_top flags ->
+    fun sub_subst sub_env pb m n ->
+      let subst =
+        if   flags.use_metas_eagerly
+        then fst sub_subst
+        else fst top_subst
+      in
     match subst_defined_metas subst m with
     | Some m1 ->
 	if (match flags.modulo_conv_on_closed_terms with
 	    Some flags ->
-	      is_trans_fconv (conv_pb_of pb) flags env sigma m1 n
+	      is_trans_fconv (conv_pb_of pb) flags top_env sigma m1 n
 	  | None -> false) then true else
         if (not (is_ground_term (create_evar_defs sigma) m1))
             || occur_meta_or_existential n then false else
-               error_cannot_unify curenv sigma (m, n)
-    | _ -> false in
-  let rec unirec_rec (curenv,nb as curenvnb) pb b ((metasubst,evarsubst) as substn) curm curn =
+               error_cannot_unify sub_env sigma (m, n)
+    | _ -> false
+
+let delayable = fun env ->
+  let bindings = Environ.DP.bindings env in
+  let rec entry = fun t ->
+    match kind_of_term t with
+    | Ind       i     -> Some (Decproc.DPE_Inductive   i)
+    | Construct c     -> Some (Decproc.DPE_Constructor c)
+    | Const     c     -> Some (Decproc.DPE_Constant    c)
+    | App      (t, _) -> entry t
+    | _               -> None
+  in
+    fun t ->
+      match entry t with
+      | None -> false
+      | Some entry -> begin
+          match Decproc.Bindings.revbinding_symbol bindings entry with
+          | None   -> false
+          | Some _ -> true
+        end
+
+let unify_0_with_initial_metas =
+  fun conv_at_top top_subst top_env top_pb sigma flags m n ->
+
+  let trivial_unify =
+    trivial_unify top_subst top_env sigma conv_at_top
+  in
+
+  let rec unirec_rec (env, bn as envnb) pb b flags subst curm curn =
     let cM = Evarutil.whd_castappevar sigma curm
     and cN = Evarutil.whd_castappevar sigma curn in 
+
+      if flags.can_dp_delayed then begin
+        if (delayable env cM) && (delayable env cN) then
+          let delayed = {
+            ud_unif_pb = (cM, cN);
+            ud_environ = envnb;
+            ud_cv_pb   = pb;
+            ud_unfold  = b;
+          }
+          in ex_delayed delayed subst
+        else
+          unirec_rec_struct envnb pb b flags subst cM cN
+      end else
+        unirec_rec_struct envnb pb b flags subst cM cN
+
+  and unirec_rec_struct (env,nb as envnb) pb b flags subst cM cN =
       match (kind_of_term cM,kind_of_term cN) with
 	| Meta k1, Meta k2 ->
 	    let stM,stN = extract_instance_status pb in
 	    if k1 < k2 
-	    then (k1,cN,stN)::metasubst,evarsubst
-	    else if k1 = k2 then substn
-	    else (k2,cM,stM)::metasubst,evarsubst
+	    then ex_metasubst (k1,cN,stN) subst
+	    else if k1 = k2 then subst
+	    else ex_metasubst (k2,cM,stM) subst
 	| Meta k, _ when not (dependent cM cN) -> 
 	    (* Here we check that [cN] does not contain any local variables *)
 	    if nb = 0 then
-              (k,cN,snd (extract_instance_status pb))::metasubst,evarsubst
+              ex_metasubst (k,cN,snd (extract_instance_status pb)) subst
             else if noccur_between 1 nb cN then
-              (k,lift (-nb) cN,snd (extract_instance_status pb))::metasubst,
-              evarsubst
-	    else error_cannot_unify_local curenv sigma (m,n,cN)
+              ex_metasubst (k,lift (-nb) cN,snd (extract_instance_status pb)) subst
+	    else error_cannot_unify_local env sigma (m,n,cN)
 	| _, Meta k when not (dependent cN cM) -> 
 	    (* Here we check that [cM] does not contain any local variables *)
 	    if nb = 0 then
-              (k,cM,snd (extract_instance_status pb))::metasubst,evarsubst
+              ex_metasubst (k,cM,snd (extract_instance_status pb)) subst
 	    else if noccur_between 1 nb cM
 	    then
-              (k,lift (-nb) cM,fst (extract_instance_status pb))::metasubst,
-              evarsubst
-	    else error_cannot_unify_local curenv sigma (m,n,cM)
-	| Evar ev, _ -> metasubst,((ev,cN)::evarsubst)
-	| _, Evar ev -> metasubst,((ev,cM)::evarsubst)
+              ex_metasubst (k,lift (-nb) cM,fst (extract_instance_status pb)) subst
+	    else error_cannot_unify_local env sigma (m,n,cM)
+	| Evar ev, _ -> ex_evarsubst (ev,cN) subst
+	| _, Evar ev -> ex_evarsubst (ev,cM) subst
 	| Lambda (na,t1,c1), Lambda (_,t2,c2) ->
-	    unirec_rec (push (na,t1) curenvnb) topconv true
-	      (unirec_rec curenvnb topconv true substn t1 t2) c1 c2
+            let subst = unirec_rec envnb topconv true flags subst t1 t2 in
+	      unirec_rec (push (na,t1) envnb) topconv true flags subst c1 c2
 	| Prod (na,t1,c1), Prod (_,t2,c2) ->
-	    unirec_rec (push (na,t1) curenvnb) (prod_pb pb) true
-	      (unirec_rec curenvnb topconv true substn t1 t2) c1 c2
-	| LetIn (_,a,_,c), _ -> unirec_rec curenvnb pb b substn (subst1 a c) cN
-	| _, LetIn (_,a,_,c) -> unirec_rec curenvnb pb b substn cM (subst1 a c)
+            let subst = unirec_rec envnb topconv true flags subst t1 t2 in
+              unirec_rec (push (na,t1) envnb) (prod_pb pb) true flags subst c1 c2
+	| LetIn (_,a,_,c), _ -> unirec_rec envnb pb b flags subst (subst1 a c) cN
+	| _, LetIn (_,a,_,c) -> unirec_rec envnb pb b flags subst cM (subst1 a c)
 	    
 	| Case (_,p1,c1,cl1), Case (_,p2,c2,cl2) ->
-            array_fold_left2 (unirec_rec curenvnb topconv true)
-	      (unirec_rec curenvnb topconv true
-		  (unirec_rec curenvnb topconv true substn p1 p2) c1 c2) cl1 cl2
+            array_fold_left2 (unirec_rec envnb topconv true flags)
+	      (unirec_rec envnb topconv true flags
+		  (unirec_rec envnb topconv true flags subst p1 p2) c1 c2) cl1 cl2
 
 	| App (f1,l1), _ when
-	    isMeta f1 & is_unification_pattern curenvnb f1 l1 cN &
+	    isMeta f1 & is_unification_pattern envnb f1 l1 cN &
 	    not (dependent f1 cN) ->
-	      solve_pattern_eqn_array curenvnb sigma f1 l1 cN substn
+            ex_from_subst
+	      (solve_pattern_eqn_array envnb sigma f1 l1 cN (ex_to_subst subst))
+              subst.us_delayed
 
 	| _, App (f2,l2) when
-	    isMeta f2 & is_unification_pattern curenvnb f2 l2 cM &
+	    isMeta f2 & is_unification_pattern envnb f2 l2 cM &
 	    not (dependent f2 cM) ->
-	      solve_pattern_eqn_array curenvnb sigma f2 l2 cM substn
+            ex_from_subst
+	      (solve_pattern_eqn_array envnb sigma f2 l2 cM (ex_to_subst subst))
+              subst.us_delayed
 
 	| App (f1,l1), App (f2,l2) ->
 	      let len1 = Array.length l1
@@ -246,58 +329,58 @@ let unify_0_with_initial_metas subst conv_at_top env sigma cv_pb flags m n =
 		      let extras,restl1 = array_chop (len1-len2) l1 in 
 		      (appvect (f1,extras), restl1, f2, l2) in
 		  let pb = ConvUnderApp (len1,len2) in
-		  array_fold_left2 (unirec_rec curenvnb topconv true)
-		    (unirec_rec curenvnb pb true substn f1 f2) l1 l2
+		  array_fold_left2 (unirec_rec envnb topconv true flags)
+		    (unirec_rec envnb pb true flags subst f1 f2) l1 l2
 		with ex when precatchable_exception ex ->
-		  expand curenvnb pb b substn cM f1 l1 cN f2 l2)
+		  expand envnb pb b flags subst cM f1 l1 cN f2 l2)
 		
 	| _ ->
-            if constr_cmp (conv_pb_of cv_pb) cM cN then substn else
+            if constr_cmp (conv_pb_of top_pb) cM cN then subst else
 	    let (f1,l1) = 
 	      match kind_of_term cM with App (f,l) -> (f,l) | _ -> (cM,[||]) in
 	    let (f2,l2) =
 	      match kind_of_term cN with App (f,l) -> (f,l) | _ -> (cN,[||]) in
-	    expand curenvnb pb b substn cM f1 l1 cN f2 l2
+	    expand envnb pb b flags subst cM f1 l1 cN f2 l2
 
-  and expand (curenv,_ as curenvnb) pb b substn cM f1 l1 cN f2 l2 =
-    if trivial_unify curenv pb substn cM cN then substn
+  and expand (env,_ as envnb) pb b flags subst cM f1 l1 cN f2 l2 =
+    if trivial_unify flags (ex_to_subst subst) env pb cM cN then subst
     else if b then
       let cf1 = key_of flags f1 and cf2 = key_of flags f2 in
-	match oracle_order curenv cf1 cf2 with
-	| None -> error_cannot_unify curenv sigma (cM,cN)
+	match oracle_order env cf1 cf2 with
+	| None -> error_cannot_unify env sigma (cM,cN)
 	| Some true -> 
-	    (match expand_key curenv cf1 with
+	    (match expand_key env cf1 with
 	    | Some c ->
-		unirec_rec curenvnb pb b substn
+		unirec_rec envnb pb b flags subst
                   (whd_betaiotazeta sigma (mkApp(c,l1))) cN
 	    | None ->
-		(match expand_key curenv cf2 with
+		(match expand_key env cf2 with
 		| Some c ->
-		    unirec_rec curenvnb pb b substn cM
+		    unirec_rec envnb pb b flags subst cM
                       (whd_betaiotazeta sigma (mkApp(c,l2)))
 		| None ->
-		    error_cannot_unify curenv sigma (cM,cN)))
+		    error_cannot_unify env sigma (cM,cN)))
 	| Some false ->
-	    (match expand_key curenv cf2 with
+	    (match expand_key env cf2 with
 	    | Some c ->
-		unirec_rec curenvnb pb b substn cM
+		unirec_rec envnb pb b flags subst cM
                   (whd_betaiotazeta sigma (mkApp(c,l2)))
 	    | None ->
-		(match expand_key curenv cf1 with
+		(match expand_key env cf1 with
 		| Some c ->
-		    unirec_rec curenvnb pb b substn
+		    unirec_rec envnb pb b flags subst
                       (whd_betaiotazeta sigma (mkApp(c,l1))) cN
 		| None ->
-		    error_cannot_unify curenv sigma (cM,cN)))
+		    error_cannot_unify env sigma (cM,cN)))
     else
-      error_cannot_unify curenv sigma (cM,cN)
+      error_cannot_unify env sigma (cM,cN)
 
   in
     if (if occur_meta m then false else
        if (match flags.modulo_conv_on_closed_terms with
 	  Some flags ->
-	    is_trans_fconv (conv_pb_of cv_pb) flags env sigma m n
-	| None -> constr_cmp (conv_pb_of cv_pb) m n) then true else
+	    is_trans_fconv (conv_pb_of top_pb) flags top_env sigma m n
+	| None -> constr_cmp (conv_pb_of top_pb) m n) then true else
       if (not (is_ground_term (create_evar_defs sigma) m))
           || occur_meta_or_existential n then false else
       if (match flags.modulo_conv_on_closed_terms, flags.modulo_delta with
@@ -305,13 +388,40 @@ let unify_0_with_initial_metas subst conv_at_top env sigma cv_pb flags m n =
                 Idpred.subset dl_id cv_id && Cpred.subset dl_k cv_k
             | None,(dl_id, dl_k) ->
                 Idpred.is_empty dl_id && Cpred.is_empty dl_k)
-      then error_cannot_unify env sigma (m, n) else false) 
+      then error_cannot_unify top_env sigma (m, n) else false) 
     then
-      subst
+      top_subst
     else 
-      unirec_rec (env,0) cv_pb conv_at_top subst m n
+      let rec do_delayed = fun subst delayed ->
+        match delayed with
+        | []            -> subst
+        | ud :: delayed ->
+            let left, right = ud.ud_unif_pb in
+            let subst_left  = subst_meta_instances (fst subst) left
+            and subst_right = subst_meta_instances (fst subst) right in
+            let convertible =
+              is_fconv
+                (conv_pb_of ud.ud_cv_pb) (fst ud.ud_environ)
+                sigma subst_left subst_right
+            in
+              if convertible then
+                do_delayed subst delayed
+              else begin
+                let state =
+                  unirec_rec
+                    ud.ud_environ ud.ud_cv_pb ud.ud_unfold
+                    { flags with can_dp_delayed = false }
+                    (ex_from_subst subst []) left right
+                in
+                  assert (state.us_delayed = []);
+                  do_delayed (ex_to_subst state) delayed
+              end
+      in
+      let state = ex_from_subst top_subst [] in
+      let state = unirec_rec (top_env,0) top_pb conv_at_top flags state m n in
+        do_delayed (ex_to_subst state) (List.rev state.us_delayed)
 
-let unify_0 = unify_0_with_initial_metas ([],[]) true
+let unify_0 = unify_0_with_initial_metas true ([],[])
 
 let left = true
 let right = false
@@ -324,7 +434,7 @@ let rec unify_with_eta keptside flags env sigma k1 k2 c1 c2 =
   match kind_of_term c1, kind_of_term c2 with
   | (Lambda (na,t1,c1'), Lambda (_,t2,c2')) ->
       let env' = push_rel_assum (na,t1) env in
-      let metas,evars = unify_0 env sigma topconv flags t1 t2 in
+      let metas,evars = unify_0 env topconv sigma flags t1 t2 in
       let side,status,(metas',evars') =
 	unify_with_eta keptside flags env' sigma (pop k1) (pop k2) c1' c2'
       in (side,status,(metas@metas',evars@evars'))
@@ -340,7 +450,7 @@ let rec unify_with_eta keptside flags env sigma k1 k2 c1 c2 =
 	(mkApp (lift 1 c1,[|mkRel 1|])) c2'
   | _ ->
       (keptside,ConvUpToEta(min k1 k2),
-       unify_0 env sigma topconv flags c1 c2)
+       unify_0 env topconv sigma flags c1 c2)
 
 (* We solved problems [?n =_pb u] (i.e. [u =_(opp pb) ?n]) and [?n =_pb' u'],
    we now compute the problem on [u =? u'] and decide which of u or u' is kept
@@ -360,22 +470,22 @@ let merge_instances env sigma flags st1 st2 c1 c2 =
       unify_with_eta side flags env sigma n1 n2 c1 c2
   | ((IsSubType | ConvUpToEta _ | UserGiven as oppst1),
      (IsSubType | ConvUpToEta _ | UserGiven)) ->
-      let res = unify_0 env sigma Cumul flags c2 c1 in
+      let res = unify_0 env Cumul sigma flags c2 c1 in
       if oppst1=st2 then (* arbitrary choice *) (left, st1, res)
       else if st2=IsSubType or st1=UserGiven then (left, st1, res)
       else (right, st2, res)
   | ((IsSuperType | ConvUpToEta _ | UserGiven as oppst1),
      (IsSuperType | ConvUpToEta _ | UserGiven)) ->
-      let res = unify_0 env sigma Cumul flags c1 c2 in
+      let res = unify_0 env Cumul sigma flags c1 c2 in
       if oppst1=st2 then (* arbitrary choice *) (left, st1, res)
       else if st2=IsSuperType or st1=UserGiven then (left, st1, res)
       else (right, st2, res)
   | (IsSuperType,IsSubType) ->
-      (try (left, IsSubType, unify_0 env sigma Cumul flags c2 c1)
-       with _ -> (right, IsSubType, unify_0 env sigma Cumul flags c1 c2))
+      (try (left, IsSubType, unify_0 env Cumul sigma flags c2 c1)
+       with _ -> (right, IsSubType, unify_0 env Cumul sigma flags c1 c2))
   | (IsSubType,IsSuperType) ->
-      (try (left, IsSuperType, unify_0 env sigma Cumul flags c1 c2)
-       with _ -> (right, IsSuperType, unify_0 env sigma Cumul flags c2 c1))
+      (try (left, IsSuperType, unify_0 env Cumul sigma flags c1 c2)
+       with _ -> (right, IsSuperType, unify_0 env Cumul sigma flags c2 c1))
 
 (* Unification
  *
@@ -495,7 +605,7 @@ let unify_to_type env evd flags c u =
   let t = get_type_of_with_meta env sigma (List.map (on_snd (nf_meta evd)) (metas_of evd)) (nf_meta evd c) in
   let t = Tacred.hnf_constr env sigma (nf_betaiota sigma (nf_meta evd t)) in
   let u = Tacred.hnf_constr env sigma u in
-  try unify_0 env sigma Cumul flags t u
+  try unify_0 env Cumul sigma flags t u
   with e when precatchable_exception e -> ([],[])
 
 let unify_type env evd flags mv c =
@@ -536,7 +646,7 @@ let w_merge env with_types flags (metas,evars) evd =
     	if is_defined_evar evd ev then
 	  let v = Evd.existential_value (evars_of evd) ev in
 	  let (metas',evars'') =
-	    unify_0 env (evars_of evd) topconv flags rhs v in
+	    unify_0 env topconv (evars_of evd) flags rhs v in
 	  w_merge_rec evd (metas'@metas) (evars''@evars') eqns
     	else begin
           let rhs' = subst_meta_instances metas rhs in
@@ -592,7 +702,7 @@ let w_merge env with_types flags (metas,evars) evd =
     let sp_env = Global.env_of_context ev.evar_hyps in
     let (evd', c) = applyHead sp_env evd nargs hdc in
     let (mc,ec) =
-      unify_0 sp_env (evars_of evd') Cumul flags
+      unify_0 sp_env Cumul (evars_of evd') flags
         (Retyping.get_type_of_with_meta sp_env (evars_of evd') (metas_of evd') c) ev.evar_concl in
     let evd'' = w_merge_rec evd' mc ec [] in
     if (evars_of evd') == (evars_of evd'')
@@ -619,7 +729,7 @@ let w_unify_meta_types env ?(flags=default_unify_flags) evd =
 let check_types env evd flags subst m n =
   let sigma = evars_of evd in
   if isEvar (fst (whd_stack sigma m)) or isEvar (fst (whd_stack sigma n)) then
-    unify_0_with_initial_metas subst true env (evars_of evd) topconv 
+    unify_0_with_initial_metas true subst env topconv (evars_of evd)
       flags
       (Retyping.get_type_of_with_meta env sigma (metas_of evd) m)
       (Retyping.get_type_of_with_meta env sigma (metas_of evd) n)
@@ -630,7 +740,7 @@ let w_unify_core_0 env with_types cv_pb flags m n evd =
   let (mc1,evd') = retract_coercible_metas evd in
   let subst1 = check_types env evd flags (mc1,[]) m n in
   let subst2 =
-     unify_0_with_initial_metas subst1 true env (evars_of evd') cv_pb flags m n
+     unify_0_with_initial_metas true subst1 env cv_pb (evars_of evd') flags m n
   in 
   w_merge env with_types flags subst2 evd'
 

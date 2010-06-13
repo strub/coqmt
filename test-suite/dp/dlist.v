@@ -83,17 +83,14 @@ Section DList .
     induction xs as [|n₁ x xs IH]; intros ys; simpl .
     (**) rewrite apps0; reflexivity .
     (**) rewrite <- IH; repeat rewrite rconsapp .
-         rewrite (appA (reverse ys) (reverse xs) _) .
-         reflexivity .
+         rewrite appA; reflexivity .
   Qed .
 
   Lemma revI : forall n (xs : dlist n), reverse (reverse xs) = xs .
   Proof .
     intros n xs; induction xs as [|n x xs IH]; simpl .
     (**) reflexivity .
-    (**) rewrite rconsapp .
-         (* FIXME: work on unification needed *)
-         change (S n) with (n + 1); rewrite <- (apprev _ _) .
+    (**) rewrite rconsapp; rewrite <- apprev .
          simpl; rewrite IH; reflexivity .
   Qed .
 
@@ -115,7 +112,7 @@ Section DList .
     forall n₁ (xs₁ : dlist n₁) y n₂ (xs₂ : dlist n₂),
       (rcons xs₁ y) ++ xs₂ = xs₁ ++ (y :: xs₂) .
   Proof .
-    intros until xs₂; rewrite rconsapp, (appA xs₁ [:: y] _); reflexivity .
+    intros until xs₂; rewrite rconsapp, appA; reflexivity .
   Qed .
 End DList .
 

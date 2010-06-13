@@ -82,6 +82,7 @@ let auto_unif_flags = {
   modulo_conv_on_closed_terms = Some full_transparent_state;
   use_metas_eagerly = true;
   modulo_delta = var_full_transparent_state;
+  can_dp_delayed = true;
 }
 
 let unify_e_resolve flags (c,clenv) gls = 
@@ -779,6 +780,7 @@ let rewrite_unif_flags = {
   Unification.modulo_conv_on_closed_terms = None;
   Unification.use_metas_eagerly = true;
   Unification.modulo_delta = empty_transparent_state;
+  Unification.can_dp_delayed = true;
 }
 
 let conv_transparent_state = (Idpred.empty, Cpred.full)
@@ -787,6 +789,7 @@ let rewrite2_unif_flags = {
   Unification.modulo_conv_on_closed_terms = Some conv_transparent_state;
   Unification.use_metas_eagerly = true;
   Unification.modulo_delta = empty_transparent_state;
+  Unification.can_dp_delayed = true;
 }
 
 let convertible env evd x y =
