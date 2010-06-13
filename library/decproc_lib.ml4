@@ -184,14 +184,11 @@ let peano =
   and sb_0      = mksymbol (mkcname "zero") (0, FConstructor)
   and sb_S      = mksymbol (mkcname "succ") (1, FConstructor)
   and sb_P      = mksymbol (mkcname "plus") (2, FDefined)
-  and sb_M      = mksymbol (mkcname "mult") (2, FDefined)
   and axioms    = [ "forall x  , @plus(x, @zero)    = x"                     ;
-                    "forall x y, @plus(x, @succ(y)) = @succ(@plus(x, y))"    ;
-                    "forall x  , @mult(x, @zero)    = @zero"                 ;
-                    "forall x y, @mult(x, @succ(y)) = @plus(@mult(x, y), x)" ]
+                    "forall x y, @plus(x, @succ(y)) = @succ(@plus(x, y))"    ]
   in
     mkdpinfos ~name ~sort
-      (mksig [sb_0; sb_S; sb_P; sb_M])
+      (mksig [sb_0; sb_S; sb_P])
       (`Unchecked (List.map Parsing.ofstring axioms))
       Peano.blackbox
 

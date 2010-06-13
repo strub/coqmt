@@ -10,11 +10,8 @@ Bind Theory peano As peano
   Symbols Binded By
     0    for zero ,
     S    for succ ,
-    plus for plus ,
-    mult for mult
+    plus for plus
 
   Axioms Proved By
     plus_0_r,
-    (fun x y => sym_eq (plus_n_Sm x y)),
-    mult_0_r,
-    (fun x y => sym_eq (mult_n_Sm x y)) .
+    (fun x y => sym_eq (plus_n_Sm x y)) .
