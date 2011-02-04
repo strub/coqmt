@@ -178,8 +178,8 @@ struct
 end
 
 (* -------------------------------------------------------------------- *)
-let peano =
-  let name      = mkcname "peano"
+let nattheory =
+  let name      = mkcname "nattheory"
   and sort      = mkcname "nat"
   and sb_0      = mksymbol (mkcname "zero") (0, FConstructor)
   and sb_S      = mksymbol (mkcname "succ") (1, FConstructor)
@@ -192,7 +192,6 @@ let peano =
       (`Unchecked (List.map Parsing.ofstring axioms))
       Peano.blackbox
 
-
 (* -------------------------------------------------------------------- *)
 let init_dp = fun () ->
-  Decproc.global_register_theory peano
+  Decproc.global_register_theory nattheory

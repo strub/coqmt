@@ -10,7 +10,7 @@
 val init_dp : unit -> unit
 
 (** Peano blackbox *)
-val peano : Decproc.dpinfos
+val nattheory : Decproc.dpinfos
 
 (** Parsing of first-order formulas *)
 module Parsing : sig

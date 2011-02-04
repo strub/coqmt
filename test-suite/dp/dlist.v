@@ -1,7 +1,7 @@
 (* -------------------------------------------------------------------- *)
 Require Import Arith .
 
-Require Import DP_Peano .
+Require Import DP_Nat .
 
 (* -------------------------------------------------------------------- *)
 Set Implicit Arguments .
