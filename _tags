@@ -53,6 +53,7 @@
 "tactics/eqdecide.ml4": use_grammar
 "tactics/hipattern.ml4": use_grammar, use_constr
 "tactics/rewrite.ml4": use_grammar
+"tactics/decproc_tactics.ml4": use_grammar
 
 "library/decproc_lib.ml4": use_extend, use_extprint
 
