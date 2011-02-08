@@ -124,57 +124,152 @@ struct
     Eprinter.apply pr_formula Pprintf.empty_pc formula
 end
 
+(* -------------------------------------------------------------------- *)
+(* Stupid implementation of a polynom data structure                    *)
+(* -------------------------------------------------------------------- *)
+module Polynom : sig
+  type 'a rpolynom = (('a * int) list * Num.num) list
+
+  type 'a polynom
+
+  val pzero     : unit    -> 'a polynom
+  val pone      : unit    -> 'a polynom
+  val pconstant : Num.num -> 'a polynom
+  val pmonom    : 'a      -> 'a polynom
+
+  val oflist : 'a rpolynom -> 'a polynom
+  val tolist : 'a polynom  -> 'a rpolynom
+
+  val getconstant : 'a polynom -> Num.num
+
+  val add    : 'a polynom -> 'a polynom -> 'a polynom
+  val sub    : 'a polynom -> 'a polynom -> 'a polynom
+  val mul    : 'a polynom -> 'a polynom -> 'a polynom
+
+  val pcompare : 'a polynom -> 'a polynom -> int
+  val peq      : 'a polynom -> 'a polynom -> bool
+end = struct
+  open Num
+
+  type 'a rpolynom = (('a * int) list * Num.num) list
+  type 'a polynom  = 'a rpolynom
+
+  let zero = num_of_int 0
+  let one  = num_of_int 1
+
+  let pcompare =
+    (Pervasives.compare : 'a polynom -> 'a polynom -> int)
+
+  let peq = fun p1 p2 -> (pcompare p1 p2) = 0
+
+  let oflist = fun p ->
+    let p = List.filter (fun x -> not (snd x =/ zero)) p in
+    let p = List.sort (fun m1 m2 -> compare (fst m1) (fst m2)) p in
+      p
+
+  let tolist = fun (p : 'a polynom) -> (p : 'a rpolynom)
+
+  let getconstant = fun (p : 'a polynom) ->
+    match p with
+    | []           -> zero
+    | ([], c) :: _ -> c
+    | _            -> assert false
+
+  let pconstant = fun c  -> oflist [([], c)]
+  let pzero     = fun () -> pconstant zero
+  let pone      = fun () -> pconstant one
+  let pmonom    = fun x  -> oflist [([x, 1], one)]
+
+  let addsub = fun op ->
+    let rec addsub = fun p1 p2 acc ->
+      match p1, p2 with
+      | p, [] | [], p -> List.rev_append acc p
+      | (m1 as m, c1) :: p1', (m2, c2) :: p2' ->
+        let cmp = compare m1 m2 in
+          if cmp == 0 then begin
+            let c = op c1 c2 in
+              if   c =/ zero
+              then addsub p1' p2' acc
+              else addsub p1' p2' ((m, c) :: acc)
+          end
+          else if cmp < 0 then begin
+            addsub p1' p2 ((m1, c1) :: acc)
+          end else begin
+            addsub p1 p2' ((m2, c2) :: acc)
+          end
+    in
+      fun p1 p2 -> addsub p1 p2 []
+
+  let add = fun p1 p2 -> addsub Num.add_num p1 p2
+  let sub = fun p1 p2 -> addsub Num.sub_num p1 p2
+
+  let mul =
+    let rec mul = fun p1 p2 acc ->
+      match p1 with
+      | []       -> acc
+      | m1 :: p1 -> mul p1 p2 (add [m1] acc)
+    in
+      fun p1 p2 -> mul p1 p2 []
+end
 
 (* -------------------------------------------------------------------- *)
-module Peano : sig
+(* Stupid implementation of the nat blackbox based on the studid        *)
+(* implementation of polynoms.                                          *)
+(* -------------------------------------------------------------------- *)
+module NatBox : sig
   val blackbox : (exterm * exterm) -> bool
 end
-=
+  =
 struct
   open Num
 
-  exception InvalidProblem
-
-  let zero   = num_of_int   0
-  let one    = num_of_int   1
-  let negone = num_of_int (-1)
-
   let blackbox = fun ((t1, t2) : exterm * exterm) ->
-    let rec augment = fun preop (values, ctt) term ->
+    let newvar =
+      let hc, current = Hashtbl.create 13, ref (-1) in
+        fun (c : string) ts ->
+          try  Hashtbl.find hc (c, ts)
+          with Not_found ->
+            incr current;
+            Hashtbl.add hc (c, ts) !current;
+            !current
+
+    in let rec augment = fun term ->
       match term with
-      | FVar x ->
-          let xvalue =
-            try  Varmap.find x values
-            with Not_found -> zero
+        | FVar x ->
+          Polynom.pmonom (`Out x)
+        | FSymb ({ s_name = CName "zero" }, []) ->
+          Polynom.pzero ()
+        | FSymb ({ s_name = CName "succ" }, [t]) ->
+          Polynom.add (Polynom.pone ()) (augment t)
+        | FSymb ({ s_name = CName "plus" }, [t1; t2]) ->
+          Polynom.add (augment t1) (augment t2)
+        | FSymb ({ s_name = CName "mult" }, [t1; t2]) ->
+          Polynom.mul (augment t1) (augment t2)
+        | FSymb ({ s_name = CName x }, [t1; t2])
+            when x = "min" || x = "max"
+                   ->
+          let ismin = if x = "min" then true else false in
+
+          let (p1, p2) = augment t1, augment t2 in
+          let c1 = Polynom.getconstant p1
+          and c2 = Polynom.getconstant p2 in
+          let c  = Num.min_num c1 c2 in
+          let p1 = Polynom.sub p1 (Polynom.pconstant c1)
+          and p2 = Polynom.sub p2 (Polynom.pconstant c2) in
+          let p =
+            if Polynom.peq p1 (Polynom.pzero ()) then
+              (if ismin then p1 else p2)
+            else if Polynom.peq p2 (Polynom.pzero ()) then
+              (if ismin then p2 else p1)
+            else if Polynom.peq p1 p2 then
+              p1
+            else
+              Polynom.pmonom (`In (newvar x [p1; p2]))
           in
-            (Varmap.add x (xvalue +/ (preop one)) values, ctt)
-      | FSymb ({ s_name = CName "zero" }, []) -> (values, ctt)
-      | FSymb ({ s_name = CName "succ" }, [t]) ->
-          augment preop (values, ctt +/ (preop one)) t
-      | FSymb ({ s_name = CName "plus" }, [t1; t2]) ->
-          augment preop (augment preop (values, ctt) t1) t2
-      | _ -> assert false
-    in
-    let (coeffs, ctt) =
-      augment
-        (fun x -> minus_num x)
-        (augment
-           (fun x -> x)
-           (Varmap.empty, zero)
-           t1)
-        t2
-    in
-      match ctt =/ zero with
-      | false -> false
-      | true  -> begin
-          try
-            Varmap.iter
-              (fun _ value -> if value <>/ zero then raise InvalidProblem)
-              coeffs;
-            true
-          with
-          | InvalidProblem -> false
-        end
+            Polynom.add p (Polynom.pconstant c)
+        | _ -> assert false
+       in
+         Polynom.peq (augment t1) (augment t2)
 end
 
 (* -------------------------------------------------------------------- *)
@@ -184,13 +279,24 @@ let nattheory =
   and sb_0      = mksymbol (mkcname "zero") (0, FConstructor)
   and sb_S      = mksymbol (mkcname "succ") (1, FConstructor)
   and sb_P      = mksymbol (mkcname "plus") (2, FDefined)
-  and axioms    = [ "forall x  , @plus(x, @zero)    = x"                     ;
-                    "forall x y, @plus(x, @succ(y)) = @succ(@plus(x, y))"    ]
+  and sb_T      = mksymbol (mkcname "time") (2, FDefined)
+  and sb_min    = mksymbol (mkcname "min" ) (2, FDefined)
+  and sb_max    = mksymbol (mkcname "max" ) (2, FDefined)
+  and axioms    = [ "forall x  , @plus(x, @zero)    = x"                       ;
+                    "forall x y, @plus(x, @succ(y)) = @succ(@plus(x, y))"      ;
+                    "forall x  , @time(x, @zero)    = @zero"                   ;
+                    "forall x y, @time(x, @succ(y)) = @plus(@time(x, y), x)"   ;
+                    "forall x  , @min(x, @zero) = @zero"                       ;
+                    "forall x  , @min(@zero, x) = @zero"                       ;
+                    "forall x y, @min(@succ(x), @succ(y)) = @succ(@min(x, y))" ;
+                    "forall x  , @max(x, @zero) = x"                           ;
+                    "forall x  , @max(@zero, x) = x"                           ;
+                    "forall x y, @max(@succ(x), @succ(y)) = @succ(@max(x, y))" ]
   in
     mkdpinfos ~name ~sort
-      (mksig [sb_0; sb_S; sb_P])
+      (mksig [sb_0; sb_S; sb_P; sb_T; sb_min; sb_max])
       (`Unchecked (List.map Parsing.ofstring axioms))
-      Peano.blackbox
+      NatBox.blackbox
 
 (* -------------------------------------------------------------------- *)
 let init_dp = fun () ->
