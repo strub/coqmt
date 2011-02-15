@@ -163,6 +163,11 @@ usable in the proof development.
   This tactic clears all hypotheses except the ones depending in 
   goal.
 
+\item {\tt clear dependent \ident \tacindex{clear dependent}}
+
+ This clears the hypothesis \ident\ and all hypotheses
+ which depend on it.
+
 \end{Variants}
 
 \begin{ErrMsgs}
@@ -234,7 +239,7 @@ context\footnote{but it does not rename the hypothesis in the
 
 \begin{ErrMsgs}
 
-\item \errindex{{\ident$_2$} not found}
+\item \errindex{{\ident$_1$} not found}
 
 \item \errindexbis{{\ident$_2$} is already used}{is already used}
 
@@ -795,11 +800,27 @@ where $G'$ is obtained from $G$ by replacing all occurrences of $t$ by
   This generalizes {\term} but also {\em all} hypotheses which depend
   on {\term}. It clears the generalized hypotheses.
 
-\item {\tt revert \ident$_1$ \dots\ \ident$_n$}\tacindex{revert}
- 
-  This is equivalent to a {\tt generalize} followed by a {\tt clear}
-  on the given hypotheses. This tactic can be seen as reciprocal to 
-  {\tt intros}. 
+\end{Variants}
+
+
+\subsection{\tt revert  \ident$_1$ \dots\ \ident$_n$
+\tacindex{revert}
+\label{revert}}
+
+This applies to any goal with variables \ident$_1$ \dots\ \ident$_n$.
+It moves the hypotheses (possibly defined) to the goal, if this respects
+dependencies. This tactic is the inverse of {\tt intro}. 
+
+\begin{ErrMsgs}
+\item \errindexbis{{\ident} is used in the hypothesis {\ident'}}{is
+    used in the hypothesis} 
+\end{ErrMsgs}
+
+\begin{Variants}
+\item {\tt revert dependent \ident \tacindex{revert dependent}}
+
+ This moves to the goal the hypothesis \ident\ and all hypotheses
+ which depend on it.
 
 \end{Variants}
 
@@ -1115,6 +1136,15 @@ the following way:
 \item  {\tt H: A $\vd$ $\neg$B} \ becomes \ {\tt H: B $\vd$ $\neg$A}
 \end{itemize}
 
+\subsection{\tt exfalso}
+\label{exfalso}
+\tacindex{exfalso}
+
+This tactic implements the ``ex falso quodlibet'' logical principle:
+an elimination of {\tt False} is performed on the current goal, and the
+user is then required to prove that {\tt False} is indeed provable in
+the current context. This tactic is a macro for {\tt elimtype False}.
+
 \section{Conversion tactics
 \index{Conversion tactics}
 \label{Conversion-tactics}}
@@ -1324,7 +1354,7 @@ applicative subterms whose head occurrence is {\ident}.
 \label{unfold}}
 
 This tactic applies to any goal. The argument {\qualid} must denote a
-defined transparent constant or local definition (see Sections~\ref{Simpl-definitions} and~\ref{Transparent}).  The tactic {\tt
+defined transparent constant or local definition (see Sections~\ref{Basic-definitions} and~\ref{Transparent}).  The tactic {\tt
   unfold} applies the $\delta$ rule to each occurrence of the constant
 to which {\qualid} refers in the current goal and then replaces it
 with its $\beta\iota$-normal form.
@@ -1514,6 +1544,10 @@ equivalent to {\tt intros; apply ci}.
   Applies if {\tt I} has only one constructor, for instance in the
   case of existential quantification $\exists x\cdot P(x)$. 
   Then, it is equivalent to {\tt intros; constructor 1 with \bindinglist}.
+
+\item {\tt exists \nelist{\bindinglist}{,}}
+
+  This iteratively applies {\tt exists {\bindinglist}}.
 
 \item {\tt left}\tacindex{left}\\
       {\tt right}\tacindex{right}
@@ -2024,30 +2058,37 @@ Qed.
 %\subsection[\tt FixPoint \dots]{\tt FixPoint \dots\tacindex{Fixpoint}}
 %Not yet documented.
 
-\subsection{\tt double induction \ident$_1$ \ident$_2$
-\tacindex{double induction}}
+\subsection{\tt double induction \ident$_1$ \ident$_2$}
+%\tacindex{double induction}}
+This tactic is deprecated and should be replaced by {\tt induction \ident$_1$; induction \ident$_2$} (or {\tt induction \ident$_1$; destruct \ident$_2$} depending on the exact needs).
 
-This tactic applies to any goal. If the variables {\ident$_1$} and
-{\ident$_2$} of the goal have an inductive type, then this tactic
-performs double induction on these variables.  For instance, if the
-current goal is \verb+forall n m:nat, P n m+ then, {\tt double induction n
-  m} yields the four cases with their respective inductive hypotheses.
+%% This tactic applies to any goal. If the variables {\ident$_1$} and
+%% {\ident$_2$} of the goal have an inductive type, then this tactic
+%% performs double induction on these variables.  For instance, if the
+%% current goal is \verb+forall n m:nat, P n m+ then, {\tt double induction n
+%%   m} yields the four cases with their respective inductive hypotheses.
 
-In particular, for proving \verb+(P (S n) (S m))+, the generated induction
-hypotheses are \verb+(P (S n) m)+ and \verb+(m:nat)(P n m)+ (of the latter, 
-\verb+(P n m)+ and \verb+(P n (S m))+ are derivable).
+%% In particular, for proving \verb+(P (S n) (S m))+, the generated induction
+%% hypotheses are \verb+(P (S n) m)+ and \verb+(m:nat)(P n m)+ (of the latter, 
+%% \verb+(P n m)+ and \verb+(P n (S m))+ are derivable).
 
-\Rem When the induction hypothesis \verb+(P (S n) m)+ is not
-needed, {\tt induction \ident$_1$; destruct \ident$_2$} produces
-more concise subgoals.
+%% \Rem When the induction hypothesis \verb+(P (S n) m)+ is not
+%% needed, {\tt induction \ident$_1$; destruct \ident$_2$} produces
+%% more concise subgoals.
 
 \begin{Variant}
 
 \item {\tt double induction \num$_1$ \num$_2$}
 
-This applies double induction on the \num$_1^{th}$ and \num$_2^{th}$ {\it
-non dependent} premises of the goal. More generally, any combination of an
-{\ident} and a {\num} is valid.
+This tactic is deprecated and should be replaced by {\tt induction
+  \num$_1$; induction \num$_3$} where \num$_3$ is the result of
+\num$_2$-\num$_1$.
+
+%% This tactic applies to any goal. If the variables {\ident$_1$} and
+
+%% This applies double induction on the \num$_1^{th}$ and \num$_2^{th}$ {\it
+%% non dependent} premises of the goal. More generally, any combination of an
+%% {\ident} and a {\num} is valid.
 
 \end{Variant}
 
@@ -3113,10 +3154,16 @@ hints of the database named {\tt core}.
   Uses all existing hint databases, minus the special database
   {\tt v62}. See Section~\ref{Hints-databases}
 
-\item \texttt{auto using $lemma_1, \ldots, lemma_n$}
+\item \texttt{auto using \nterm{lemma}$_1$ , \ldots , \nterm{lemma}$_n$}
 
-  Uses $lemma_1, \ldots, lemma_n$ in addition to hints (can be combined
-  with the \texttt{with \ident} option).
+  Uses \nterm{lemma}$_1$, \ldots, \nterm{lemma}$_n$ in addition to
+  hints (can be combined with the \texttt{with \ident} option). If
+  $lemma_i$ is an inductive type, it is the collection of its
+  constructors which is added as hints.
+
+\item \texttt{auto using \nterm{lemma}$_1$ , \ldots , \nterm{lemma}$_n$ with \ident$_1$ \dots\ \ident$_n$}
+
+  This combines the effects of the {\tt using} and {\tt with} options.
 
 \item {\tt trivial}\tacindex{trivial}
 
@@ -3159,6 +3206,24 @@ Note that {\tt ex\_intro} should be declared as an
 hint.
 
 \SeeAlso Section~\ref{Hints-databases}
+
+\subsection{\tt autounfold with  \ident$_1$ \dots\ \ident$_n$
+\tacindex{autounfold}
+\label{autounfold}}
+
+This tactic unfolds constants that were declared through a {\tt Hint
+  Unfold} in the given databases.
+
+\begin{Variants}
+\item {\tt autounfold with \ident$_1$ \dots\ \ident$_n$ in \textit{clause}}
+  
+  Perform the unfolding in the given clause.
+
+\item {\tt autounfold with *}
+  
+  Uses the unfold hints declared in all the hint databases.
+\end{Variants}
+
 
 % EXISTE ENCORE ?
 % 
@@ -3298,11 +3363,17 @@ instead may reason about any first-order class inductive definition.
    Adds lemmas \ident$_1$ \dots\ \ident$_n$ to the proof-search
    environment.
 
- \item {\tt firstorder using \ident$_1$ \dots\ \ident$_n$ }
+ \item {\tt firstorder using {\qualid}$_1$ , \dots\ , {\qualid}$_n$ }
    \tacindex{firstorder using}
 
-   Adds lemmas in {\tt auto} hints bases \ident$_1$ \dots\ \ident$_n$
-   to the proof-search environment.
+   Adds lemmas in {\tt auto} hints bases {\qualid}$_1$ \dots\ {\qualid}$_n$
+   to the proof-search environment. If {\qualid}$_i$ refers to an inductive
+   type, it is the collection of its constructors which is added as hints.
+
+\item \texttt{firstorder using {\qualid}$_1$ , \dots\ , {\qualid}$_n$ with \ident$_1$ \dots\ \ident$_n$}
+
+  This combines the effects of the {\tt using} and {\tt with} options.
+
 \end{Variants}
 
 Proof-search is bounded by a depth parameter which can be set by typing the
@@ -3568,7 +3639,7 @@ intros; field.
 Reset Initial.
 \end{coq_eval}
 
-\SeeAlso file {\tt contrib/setoid\_ring/RealField.v} for an example of instantiation,\\
+\SeeAlso file {\tt plugins/setoid\_ring/RealField.v} for an example of instantiation,\\
 \phantom{\SeeAlso}theory {\tt theories/Reals} for many examples of use of {\tt
 field}.
 
@@ -3818,7 +3889,7 @@ where {\sl hint\_definition} is one of the following expressions:
 
   \end{Variants}
 
-\item \texttt{Transparent},\texttt{Opaque} {\qualid}
+\item \texttt{Transparent}, \texttt{Opaque} {\qualid}
 \label{HintTransparency}
 \comindex{Hint Transparent}
 \comindex{Hint Opaque}
@@ -3831,7 +3902,7 @@ where {\sl hint\_definition} is one of the following expressions:
   
   \begin{Variants}
 
-    \item \texttt{Transparent},\texttt{Opaque} {\ident$_1$} \dots {\ident$_m$} 
+    \item \texttt{Transparent}, \texttt{Opaque} {\ident$_1$} \dots {\ident$_m$} 
 
       Declares each {\ident$_i$} as a transparent or opaque constant.
       
@@ -4137,16 +4208,16 @@ general principle of mutual induction for objects in type {\term$_i$}.
 \SeeAlso Section~\ref{Scheme-examples}
 
 \subsection{Automatic declaration of schemes}
-\comindex{Set Equality Scheme}
+\comindex{Set Equality Schemes}
 \comindex{Set Elimination Schemes}
 It is possible to deactivate the automatic declaration of the induction
  principles when defining a new inductive type  with the
- {\tt UnSet Elimination Schemes} command. It may be
+ {\tt Unset Elimination Schemes} command. It may be
 reactivated at any time with {\tt Set Elimination Schemes}. 
 \\
 
 You can also activate the automatic declaration of those boolean equalities 
-(see the second variant of {\tt Scheme})  with the {\tt Set Equality Scheme}
+(see the second variant of {\tt Scheme})  with the {\tt Set Equality Schemes}
  command. However you have to be careful with this option since
 \Coq~ may now reject well-defined inductive types because it cannot compute
 a boolean equality for them.
@@ -4223,7 +4294,7 @@ Chapter~\ref{TacticLanguage} gives examples of more complex
 user-defined tactics.
 
 
-% $Id: RefMan-tac.tex 12208 2009-06-26 08:40:00Z notin $ 
+% $Id: RefMan-tac.tex 13344 2010-07-28 15:04:36Z msozeau $ 
 
 %%% Local Variables: 
 %%% mode: latex

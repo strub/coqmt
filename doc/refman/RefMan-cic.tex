@@ -282,7 +282,7 @@ declared in $E$, we write $c \in E$ and if $c:T$ or $c:=t:T$ is
 declared in $E$, we write $(c : T) \in E$.
 
 \paragraph[Typing rules.]{Typing rules.\label{Typing-rules}\index{Typing rules}}
-In the following, we assume $E$ is a valid environment wrt to
+In the following, we assume $E$ is a valid environment w.r.t.
 inductive definitions.  We define simultaneously two
 judgments.  The first one \WTEG{t}{T} means the term $t$ is well-typed
 and has type $T$ in the environment $E$ and context $\Gamma$.  The
@@ -422,6 +422,7 @@ convertibility into an order inductively defined by:
 \item if $i \leq j$ then $\WTEGLECONV{\Type(i)}{\Type(j)}$,
 \item for any $i$, $\WTEGLECONV{\Prop}{\Type(i)}$,
 \item for any $i$, $\WTEGLECONV{\Set}{\Type(i)}$,
+\item $\WTEGLECONV{\Prop}{\Set}$,
 \item if $\WTEGCONV{T}{U}$ and $\WTELECONV{\Gamma::(x:T)}{T'}{U'}$ then $\WTEGLECONV{\forall~x:T,T'}{\forall~x:U,U'}$.
 \end{enumerate}
 
@@ -842,7 +843,7 @@ the type $V$ satisfies the nested positivity condition for $X$
 \paragraph{Example}
 
 $X$ occurs strictly positively in $A\ra X$ or $X*A$ or $({\tt list}~
-X)$ but not in $X \ra A$ or $(X \ra A)\ra A$ nor $({\tt neg}~A)$
+X)$ but not in $X \ra A$ or $(X \ra A)\ra A$ nor $({\tt neg}~X)$
 assuming the notion of product and lists were already defined and {\tt
   neg} is an inductive definition with declaration \Ind{}{A:\Set}{{\tt
     neg}:\Set}{{\tt neg}:(A\ra{\tt False}) \ra {\tt neg}}.  Assuming
@@ -1224,8 +1225,8 @@ $I$.
 
 \begin{description}
 \item[Prod] \inference{\frac{\compat{(I~x):A'}{B'}}
-                      {\compat{I:(x:A)A'}{(x:A)B'}}}
-\item[\Set \& \Type] \inference{\frac{
+                      {\compat{I:\forall x:A, A'}{\forall x:A, B'}}}
+\item[{\Set} \& \Type] \inference{\frac{
     s_1 \in \{\Set,\Type(j)\}, 
     s_2 \in \Sort}{\compat{I:s_1}{I\ra s_2}}}
 \end{description}
@@ -1705,7 +1706,7 @@ impredicative system for sort \Set{} become~:
      
 
 
-% $Id: RefMan-cic.tex 11643 2008-11-28 18:12:34Z letouzey $ 
+% $Id: RefMan-cic.tex 13029 2010-05-28 11:49:12Z herbelin $ 
 
 %%% Local Variables: 
 %%% mode: latex

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -86,13 +86,13 @@ let whd_betaiotazeta env x =
        Prod _|Lambda _|Fix _|CoFix _) -> x
     | _ -> whd_val (create_clos_infos betaiotazeta env) (inject x)
 
-let whd_betadeltaiota env t = 
+let whd_betadeltaiota env t =
   match t with
     | (Sort _|Meta _|Evar _|Ind _|Construct _|
        Prod _|Lambda _|Fix _|CoFix _) -> t
     | _ -> whd_val (create_clos_infos betadeltaiota env) (inject t)
 
-let whd_betadeltaiota_nolet env t = 
+let whd_betadeltaiota_nolet env t =
   match t with
     | (Sort _|Meta _|Evar _|Ind _|Construct _|
        Prod _|Lambda _|Fix _|CoFix _|LetIn _) -> t
@@ -106,6 +106,15 @@ let beta_appvect c v =
         Lambda(_,_,c), arg::stacktl -> stacklam (arg::env) c stacktl
       | _ -> applist (substl env t, stack) in
   stacklam [] c (Array.to_list v)
+
+let betazeta_appvect n c v =
+  let rec stacklam n env t stack =
+    if n = 0 then applist (substl env t, stack) else
+    match t, stack with
+        Lambda(_,_,c), arg::stacktl -> stacklam (n-1) (arg::env) c stacktl
+      | LetIn(_,b,_,c), _ -> stacklam (n-1) (b::env) c stack
+      | _ -> anomaly "Not enough lambda/let's" in
+  stacklam n [] c (Array.to_list v)
 
 (********************************************************************)
 (*                         Conversion                               *)
@@ -139,13 +148,14 @@ let compare_stacks f fmind lft1 stk1 lft2 stk2 =
 
 (* Convertibility of sorts *)
 
-type conv_pb = 
-  | CONV 
+type conv_pb =
+  | CONV
   | CUMUL
 
 let sort_cmp univ pb s0 s1 =
   match (s0,s1) with
-    | (Prop c1, Prop c2) -> if c1 = Pos & c2 = Null then raise NotConvertible
+    | (Prop c1, Prop c2) when pb = CUMUL -> if c1 = Pos & c2 = Null then raise NotConvertible
+    | (Prop c1, Prop c2) -> if c1 <> c2 then raise NotConvertible
     | (Prop c1, Type u)  ->
         (match pb with
             CUMUL -> ()
@@ -202,7 +212,7 @@ let oracle_order fl1 fl2 =
     | _ -> false
 
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
-let rec ccnv univ cv_pb infos lft1 lft2 term1 term2 = 
+let rec ccnv univ cv_pb infos lft1 lft2 term1 term2 =
   eqappr univ cv_pb infos (lft1, (term1,[])) (lft2, (term2,[]))
 
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
@@ -224,7 +234,7 @@ and eqappr univ cv_pb infos (lft1,st1) (lft2,st2) =
     (* case of leaves *)
     | (FAtom a1, FAtom a2) ->
 	(match a1, a2 with
-	   | (Sort s1, Sort s2) -> 
+	   | (Sort s1, Sort s2) ->
 	       assert (is_empty_stack v1 && is_empty_stack v2);
 	       sort_cmp univ cv_pb s1 s2
 	   | (Meta n, Meta m) ->
@@ -247,7 +257,7 @@ and eqappr univ cv_pb infos (lft1,st1) (lft2,st2) =
     (* 2 constants, 2 local defined vars or 2 defined rels *)
     | (FFlex fl1, FFlex fl2) ->
 	(try (* try first intensional equality *)
-	  if fl1 = fl2
+	  if  eq_table_key fl1 fl2
           then convert_stacks univ infos lft1 lft2 v1 v2
           else raise NotConvertible
         with NotConvertible ->
@@ -272,15 +282,15 @@ and eqappr univ cv_pb infos (lft1,st1) (lft2,st2) =
     (* only one constant, defined var or defined rel *)
     | (FFlex fl1, _)      ->
         (match unfold_reference infos fl1 with
-           | Some def1 -> 
+           | Some def1 ->
 	       eqappr univ cv_pb infos (lft1, whd_stack infos def1 v1) appr2
            | None -> raise NotConvertible)
     | (_, FFlex fl2)      ->
         (match unfold_reference infos fl2 with
-           | Some def2 -> 
+           | Some def2 ->
 	       eqappr univ cv_pb infos appr1 (lft2, whd_stack infos def2 v2)
            | None -> raise NotConvertible)
-	
+
     (* other constructors *)
     | (FLambda _, FLambda _) ->
         assert (is_empty_stack v1 && is_empty_stack v2);
@@ -318,7 +328,7 @@ and eqappr univ cv_pb infos (lft1,st1) (lft2,st2) =
            let fcl1 = Array.map (mk_clos (subs_liftn n e1)) cl1 in
            let fcl2 = Array.map (mk_clos (subs_liftn n e2)) cl2 in
            convert_vect univ infos el1 el2 fty1 fty2;
-           convert_vect univ infos 
+           convert_vect univ infos
 	     (el_liftn n el1) (el_liftn n el2) fcl1 fcl2;
            convert_stacks univ infos lft1 lft2 v1 v2
          else raise NotConvertible
@@ -341,7 +351,7 @@ and eqappr univ cv_pb infos (lft1,st1) (lft2,st2) =
      | ( (FLetIn _, _) | (FCases _,_) | (FApp _,_) | (FCLOS _,_) | (FLIFT _,_)
        | (_, FLetIn _) | (_,FCases _) | (_,FApp _) | (_,FCLOS _) | (_,FLIFT _)
        | (FLOCKED,_) | (_,FLOCKED) ) -> assert false
-    
+
      (* In all other cases, terms are not convertible *)
      | _ -> raise NotConvertible
 
@@ -368,9 +378,9 @@ let conv = fconv CONV
 let conv_leq = fconv CUMUL
 
 let conv_leq_vecti env v1 v2 =
-  array_fold_left2_i 
+  array_fold_left2_i
     (fun i _ t1 t2 ->
-      (try conv_leq env t1 t2 
+      (try conv_leq env t1 t2
       with (NotConvertible|Invalid_argument _) ->
         raise (NotConvertibleVect i));
       ())
@@ -382,13 +392,13 @@ let conv_leq_vecti env v1 v2 =
 
 let vm_conv = ref fconv
 let set_vm_conv f = vm_conv := f
-let vm_conv cv_pb env t1 t2 = 
-  try 
+let vm_conv cv_pb env t1 t2 =
+  try
     !vm_conv cv_pb env t1 t2
   with Not_found | Invalid_argument _ ->
       (* If compilation fails, fall-back to closure conversion *)
       clos_fconv cv_pb env t1 t2
-  
+
 (********************************************************************)
 (*             Special-Purpose Reduction                            *)
 (********************************************************************)
@@ -404,12 +414,12 @@ let hnf_prod_app env t n =
     | Prod (_,_,b) -> subst1 n b
     | _ -> anomaly "hnf_prod_app: Need a product"
 
-let hnf_prod_applist env t nl = 
+let hnf_prod_applist env t nl =
   List.fold_left (hnf_prod_app env) t nl
 
 (* Dealing with arities *)
 
-let dest_prod env = 
+let dest_prod env =
   let rec decrec env m c =
     let t = whd_betadeltaiota env c in
     match t with
@@ -417,11 +427,11 @@ let dest_prod env =
           let d = (n,None,a) in
 	  decrec (push_rel d env) (d::m) c0
       | _ -> m,t
-  in 
+  in
   decrec env empty_rel_context
 
 (* The same but preserving lets *)
-let dest_prod_assum env = 
+let dest_prod_assum env =
   let rec prodec_rec env l ty =
     let rty = whd_betadeltaiota_nolet env ty in
     match rty with

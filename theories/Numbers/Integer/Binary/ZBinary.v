@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,212 +8,103 @@
 (*                      Evgeny Makarov, INRIA, 2007                     *)
 (************************************************************************)
 
-(*i $Id: ZBinary.v 11040 2008-06-03 00:04:16Z letouzey $ i*)
+(*i $Id: ZBinary.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-Require Import ZMulOrder.
-Require Import ZArith.
 
-Open Local Scope Z_scope.
+Require Import ZAxioms ZProperties.
+Require Import ZArith_base.
 
-Module ZBinAxiomsMod <: ZAxiomsSig.
-Module Export NZOrdAxiomsMod <: NZOrdAxiomsSig.
-Module Export NZAxiomsMod <: NZAxiomsSig.
+Local Open Scope Z_scope.
 
-Definition NZ := Z.
-Definition NZeq := (@eq Z).
-Definition NZ0 := 0.
-Definition NZsucc := Zsucc'.
-Definition NZpred := Zpred'.
-Definition NZadd := Zplus.
-Definition NZsub := Zminus.
-Definition NZmul := Zmult.
+(** * Implementation of [ZAxiomsSig] by [BinInt.Z] *)
 
-Theorem NZeq_equiv : equiv Z NZeq.
-Proof.
-exact (@eq_equiv Z).
-Qed.
+Module ZBinAxiomsMod <: ZAxiomsExtSig.
 
-Add Relation Z NZeq
- reflexivity proved by (proj1 NZeq_equiv)
- symmetry proved by (proj2 (proj2 NZeq_equiv))
- transitivity proved by (proj1 (proj2 NZeq_equiv))
-as NZeq_rel.
+(** Bi-directional induction. *)
 
-Add Morphism NZsucc with signature NZeq ==> NZeq as NZsucc_wd.
-Proof.
-congruence.
-Qed.
-
-Add Morphism NZpred with signature NZeq ==> NZeq as NZpred_wd.
-Proof.
-congruence.
-Qed.
-
-Add Morphism NZadd with signature NZeq ==> NZeq ==> NZeq as NZadd_wd.
-Proof.
-congruence.
-Qed.
-
-Add Morphism NZsub with signature NZeq ==> NZeq ==> NZeq as NZsub_wd.
-Proof.
-congruence.
-Qed.
-
-Add Morphism NZmul with signature NZeq ==> NZeq ==> NZeq as NZmul_wd.
-Proof.
-congruence.
-Qed.
-
-Theorem NZpred_succ : forall n : Z, NZpred (NZsucc n) = n.
-Proof.
-exact Zpred'_succ'.
-Qed.
-
-Theorem NZinduction :
-  forall A : Z -> Prop, predicate_wd NZeq A ->
-    A 0 -> (forall n : Z, A n <-> A (NZsucc n)) -> forall n : Z, A n.
+Theorem bi_induction :
+  forall A : Z -> Prop, Proper (eq ==> iff) A ->
+    A 0 -> (forall n : Z, A n <-> A (Zsucc n)) -> forall n : Z, A n.
 Proof.
 intros A A_wd A0 AS n; apply Zind; clear n.
 assumption.
-intros; now apply -> AS.
-intros n H. rewrite <- (Zsucc'_pred' n) in H. now apply <- AS.
+intros; rewrite <- Zsucc_succ'. now apply -> AS.
+intros n H. rewrite <- Zpred_pred'. rewrite Zsucc_pred in H. now apply <- AS.
 Qed.
 
-Theorem NZadd_0_l : forall n : Z, 0 + n = n.
-Proof.
-exact Zplus_0_l.
-Qed.
+(** Basic operations. *)
 
-Theorem NZadd_succ_l : forall n m : Z, (NZsucc n) + m = NZsucc (n + m).
-Proof.
-intros; do 2 rewrite <- Zsucc_succ'; apply Zplus_succ_l.
-Qed.
+Definition eq_equiv : Equivalence (@eq Z) := eq_equivalence.
+Local Obligation Tactic := simpl_relation.
+Program Instance succ_wd : Proper (eq==>eq) Zsucc.
+Program Instance pred_wd : Proper (eq==>eq) Zpred.
+Program Instance add_wd : Proper (eq==>eq==>eq) Zplus.
+Program Instance sub_wd : Proper (eq==>eq==>eq) Zminus.
+Program Instance mul_wd : Proper (eq==>eq==>eq) Zmult.
 
-Theorem NZsub_0_r : forall n : Z, n - 0 = n.
-Proof.
-exact Zminus_0_r.
-Qed.
+Definition pred_succ n := eq_sym (Zpred_succ n).
+Definition add_0_l := Zplus_0_l.
+Definition add_succ_l := Zplus_succ_l.
+Definition sub_0_r := Zminus_0_r.
+Definition sub_succ_r := Zminus_succ_r.
+Definition mul_0_l := Zmult_0_l.
+Definition mul_succ_l := Zmult_succ_l.
 
-Theorem NZsub_succ_r : forall n m : Z, n - (NZsucc m) = NZpred (n - m).
-Proof.
-intros; rewrite <- Zsucc_succ'; rewrite <- Zpred_pred';
-apply Zminus_succ_r.
-Qed.
+(** Order *)
 
-Theorem NZmul_0_l : forall n : Z, 0 * n = 0.
-Proof.
-reflexivity.
-Qed.
+Program Instance lt_wd : Proper (eq==>eq==>iff) Zlt.
 
-Theorem NZmul_succ_l : forall n m : Z, (NZsucc n) * m = n * m + m.
-Proof.
-intros; rewrite <- Zsucc_succ'; apply Zmult_succ_l.
-Qed.
+Definition lt_eq_cases := Zle_lt_or_eq_iff.
+Definition lt_irrefl := Zlt_irrefl.
+Definition lt_succ_r := Zlt_succ_r.
 
-End NZAxiomsMod.
+Definition min_l := Zmin_l.
+Definition min_r := Zmin_r.
+Definition max_l := Zmax_l.
+Definition max_r := Zmax_r.
 
-Definition NZlt := Zlt.
-Definition NZle := Zle.
-Definition NZmin := Zmin.
-Definition NZmax := Zmax.
+(** Properties specific to integers, not natural numbers. *)
 
-Add Morphism NZlt with signature NZeq ==> NZeq ==> iff as NZlt_wd.
-Proof.
-unfold NZeq. intros n1 n2 H1 m1 m2 H2; rewrite H1; now rewrite H2.
-Qed.
+Program Instance opp_wd : Proper (eq==>eq) Zopp.
 
-Add Morphism NZle with signature NZeq ==> NZeq ==> iff as NZle_wd.
-Proof.
-unfold NZeq. intros n1 n2 H1 m1 m2 H2; rewrite H1; now rewrite H2.
-Qed.
+Definition succ_pred n := eq_sym (Zsucc_pred n).
+Definition opp_0 := Zopp_0.
+Definition opp_succ := Zopp_succ.
 
-Add Morphism NZmin with signature NZeq ==> NZeq ==> NZeq as NZmin_wd.
-Proof.
-congruence.
-Qed.
+(** Absolute value and sign *)
 
-Add Morphism NZmax with signature NZeq ==> NZeq ==> NZeq as NZmax_wd.
-Proof.
-congruence.
-Qed.
+Definition abs_eq := Zabs_eq.
+Definition abs_neq := Zabs_non_eq.
 
-Theorem NZlt_eq_cases : forall n m : Z, n <= m <-> n < m \/ n = m.
-Proof.
-intros n m; split. apply Zle_lt_or_eq.
-intro H; destruct H as [H | H]. now apply Zlt_le_weak. rewrite H; apply Zle_refl.
-Qed.
+Lemma sgn_null : forall x, x = 0 -> Zsgn x = 0.
+Proof. intros. apply <- Zsgn_null; auto. Qed.
+Lemma sgn_pos : forall x, 0 < x -> Zsgn x = 1.
+Proof. intros. apply <- Zsgn_pos; auto. Qed.
+Lemma sgn_neg : forall x, x < 0 -> Zsgn x = -1.
+Proof. intros. apply <- Zsgn_neg; auto. Qed.
 
-Theorem NZlt_irrefl : forall n : Z, ~ n < n.
-Proof.
-exact Zlt_irrefl.
-Qed.
+(** The instantiation of operations.
+    Placing them at the very end avoids having indirections in above lemmas. *)
 
-Theorem NZlt_succ_r : forall n m : Z, n < (NZsucc m) <-> n <= m.
-Proof.
-intros; unfold NZsucc; rewrite <- Zsucc_succ'; split;
-[apply Zlt_succ_le | apply Zle_lt_succ].
-Qed.
-
-Theorem NZmin_l : forall n m : NZ, n <= m -> NZmin n m = n.
-Proof.
-unfold NZmin, Zmin, Zle; intros n m H.
-destruct (n ?= m); try reflexivity. now elim H.
-Qed.
-
-Theorem NZmin_r : forall n m : NZ, m <= n -> NZmin n m = m.
-Proof.
-unfold NZmin, Zmin, Zle; intros n m H.
-case_eq (n ?= m); intro H1; try reflexivity.
-now apply Zcompare_Eq_eq.
-apply <- Zcompare_Gt_Lt_antisym in H1. now elim H.
-Qed.
-
-Theorem NZmax_l : forall n m : NZ, m <= n -> NZmax n m = n.
-Proof.
-unfold NZmax, Zmax, Zle; intros n m H.
-case_eq (n ?= m); intro H1; try reflexivity.
-apply <- Zcompare_Gt_Lt_antisym in H1. now elim H.
-Qed.
-
-Theorem NZmax_r : forall n m : NZ, n <= m -> NZmax n m = m.
-Proof.
-unfold NZmax, Zmax, Zle; intros n m H.
-case_eq (n ?= m); intro H1.
-now apply Zcompare_Eq_eq. reflexivity. now elim H.
-Qed.
-
-End NZOrdAxiomsMod.
-
-Definition Zopp (x : Z) :=
-match x with
-| Z0 => Z0
-| Zpos x => Zneg x
-| Zneg x => Zpos x
-end.
-
-Add Morphism Zopp with signature NZeq ==> NZeq as Zopp_wd.
-Proof.
-congruence.
-Qed.
-
-Theorem Zsucc_pred : forall n : Z, NZsucc (NZpred n) = n.
-Proof.
-exact Zsucc'_pred'.
-Qed.
-
-Theorem Zopp_0 : - 0 = 0.
-Proof.
-reflexivity.
-Qed.
-
-Theorem Zopp_succ : forall n : Z, - (NZsucc n) = NZpred (- n).
-Proof.
-intro; rewrite <- Zsucc_succ'; rewrite <- Zpred_pred'. apply Zopp_succ.
-Qed.
+Definition t := Z.
+Definition eq := (@eq Z).
+Definition zero := 0.
+Definition succ := Zsucc.
+Definition pred := Zpred.
+Definition add := Zplus.
+Definition sub := Zminus.
+Definition mul := Zmult.
+Definition lt := Zlt.
+Definition le := Zle.
+Definition min := Zmin.
+Definition max := Zmax.
+Definition opp := Zopp.
+Definition abs := Zabs.
+Definition sgn := Zsgn.
 
 End ZBinAxiomsMod.
 
-Module Export ZBinMulOrderPropMod := ZMulOrderPropFunct ZBinAxiomsMod.
+Module Export ZBinPropMod := ZPropFunct ZBinAxiomsMod.
 
 (** Z forms a ring *)
 

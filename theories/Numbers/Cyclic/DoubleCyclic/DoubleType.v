@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,12 +8,12 @@
 (*            Benjamin Gregoire, Laurent Thery, INRIA, 2007             *)
 (************************************************************************)
 
-(*i $Id: DoubleType.v 10964 2008-05-22 11:08:13Z letouzey $ i*)
+(*i $Id: DoubleType.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Set Implicit Arguments.
 
 Require Import ZArith.
-Open Local Scope Z_scope.
+Local Open Scope Z_scope.
 
 Definition base digits := Zpower 2 (Zpos digits).
 
@@ -37,10 +37,10 @@ Section Zn2Z.
 
  Variable znz : Type.
 
- (** From a type [znz] representing a cyclic structure Z/nZ, 
+ (** From a type [znz] representing a cyclic structure Z/nZ,
      we produce a representation of Z/2nZ by pairs of elements of [znz]
-     (plus a special case for zero). High half of the new number comes 
-     first. 
+     (plus a special case for zero). High half of the new number comes
+     first.
  *)
 
  Inductive zn2z :=
@@ -57,10 +57,10 @@ End Zn2Z.
 
 Implicit Arguments W0 [znz].
 
-(** From a cyclic representation [w], we iterate the [zn2z] construct 
-    [n] times, gaining the type of binary trees of depth at most [n], 
-    whose leafs are either W0 (if depth < n) or elements of w 
-    (if depth = n). 
+(** From a cyclic representation [w], we iterate the [zn2z] construct
+    [n] times, gaining the type of binary trees of depth at most [n],
+    whose leafs are either W0 (if depth < n) or elements of w
+    (if depth = n).
 *)
 
 Fixpoint word (w:Type) (n:nat) : Type :=

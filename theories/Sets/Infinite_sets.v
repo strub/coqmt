@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -24,7 +24,7 @@
 (* in Summer 1995. Several developments by E. Ledinot were an inspiration.  *)
 (****************************************************************************)
 
-(*i $Id: Infinite_sets.v 10637 2008-03-07 23:52:56Z letouzey $ i*)
+(*i $Id: Infinite_sets.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Finite_sets.
 Require Export Constructive_sets.
@@ -50,7 +50,7 @@ Hint Resolve Defn_of_Approximant.
 
 Section Infinite_sets.
   Variable U : Type.
-  
+
   Lemma make_new_approximant :
     forall A X:Ensemble U,
       ~ Finite U A -> Approximant U A X -> Inhabited U (Setminus U A X).
@@ -61,7 +61,7 @@ Section Infinite_sets.
     red in |- *; intro H'3; apply H'.
     rewrite <- H'3; auto with sets.
   Qed.
-  
+
   Lemma approximants_grow :
     forall A X:Ensemble U,
       ~ Finite U A ->
@@ -101,7 +101,7 @@ Section Infinite_sets.
     apply Defn_of_Approximant; auto with sets.
     apply cardinal_finite with (n := S n0); auto with sets.
   Qed.
-  
+
   Lemma approximants_grow' :
     forall A X:Ensemble U,
       ~ Finite U A ->
@@ -121,7 +121,7 @@ Section Infinite_sets.
     apply cardinal_finite with (n := S n); auto with sets.
     apply approximants_grow with (X := X); auto with sets.
   Qed.
-  
+
   Lemma approximant_can_be_any_size :
     forall A X:Ensemble U,
       ~ Finite U A ->
@@ -135,7 +135,7 @@ Section Infinite_sets.
   Qed.
 
   Variable V : Type.
-  
+
   Theorem Image_set_continuous :
     forall (A:Ensemble U) (f:U -> V) (X:Ensemble V),
       Finite V X ->
@@ -230,7 +230,7 @@ Section Infinite_sets.
     rewrite H'4; auto with sets.
     elim H'3; auto with sets.
   Qed.
-  
+
   Theorem Pigeonhole_ter :
     forall (A:Ensemble U) (f:U -> V) (n:nat),
       injective U V f -> Finite V (Im U V A f) -> Finite U A.

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: topconstr.mli 11739 2009-01-02 19:33:19Z herbelin $ i*)
+(*i $Id: topconstr.mli 13332 2010-07-26 22:12:43Z msozeau $ i*)
 
 (*i*)
 open Pp
@@ -32,6 +32,7 @@ type aconstr =
   (* Part only in [rawconstr] *)
   | ALambda of name * aconstr * aconstr
   | AProd of name * aconstr * aconstr
+  | ABinderList of identifier * identifier * aconstr * aconstr
   | ALetIn of name * aconstr * aconstr
   | ACases of case_style * aconstr option *
       (aconstr * (name * (inductive * int * name list) option)) list *
@@ -39,18 +40,41 @@ type aconstr =
   | ALetTuple of name list * (name * aconstr option) * aconstr * aconstr
   | AIf of aconstr * (name * aconstr option) * aconstr * aconstr
   | ARec of fix_kind * identifier array *
-      (name * aconstr option * aconstr) list array * aconstr array * 
+      (name * aconstr option * aconstr) list array * aconstr array *
       aconstr array
   | ASort of rawsort
   | AHole of Evd.hole_kind
   | APatVar of patvar
   | ACast of aconstr * aconstr cast_type
 
+type scope_name = string
+
+type tmp_scope_name = scope_name
+
+type subscopes = tmp_scope_name option * scope_name list
+
+(** Type of the meta-variables of an aconstr: in a recursive pattern x..y,
+    x carries the sequence of objects bound to the list x..y  *)
+type notation_var_instance_type =
+  | NtnTypeConstr | NtnTypeConstrList | NtnTypeBinderList
+
+(** Type of variables when interpreting a constr_expr as an aconstr:
+    in a recursive pattern x..y, both x and y carry the individual type
+    of each element of the list x..y *)
+type notation_var_internalization_type =
+  | NtnInternTypeConstr | NtnInternTypeBinder | NtnInternTypeIdent
+
+(** This characterizes to what a notation is interpreted to *)
+type interpretation =
+    (identifier * (subscopes * notation_var_instance_type)) list * aconstr
+
 (**********************************************************************)
 (* Translate a rawconstr into a notation given the list of variables  *)
-(* bound by the notation; also interpret recursive patterns           *) 
+(* bound by the notation; also interpret recursive patterns           *)
 
-val aconstr_of_rawconstr : identifier list -> rawconstr -> aconstr
+val aconstr_of_rawconstr :
+  (identifier * notation_var_internalization_type) list ->
+  (identifier * identifier) list -> rawconstr -> aconstr
 
 (* Name of the special identifier used to encode recursive notations  *)
 val ldots_var : identifier
@@ -61,30 +85,24 @@ val eq_rawconstr : rawconstr -> rawconstr -> bool
 (**********************************************************************)
 (* Re-interpret a notation as a rawconstr, taking care of binders     *)
 
-val rawconstr_of_aconstr_with_binders : loc -> 
-  ('a -> identifier -> 'a * identifier) ->
+val rawconstr_of_aconstr_with_binders : loc ->
+  ('a -> name -> 'a * name) ->
   ('a -> aconstr -> rawconstr) -> 'a -> aconstr -> rawconstr
 
 val rawconstr_of_aconstr : loc -> aconstr -> rawconstr
 
 (**********************************************************************)
-(* [match_aconstr metas] matches a rawconstr against an aconstr with  *)
-(* metavariables in [metas]; raise [No_match] if the matching fails   *)
+(* [match_aconstr] matches a rawconstr against a notation             *)
+(* interpretation raise [No_match] if the matching fails              *)
 
 exception No_match
 
-type scope_name = string
-
-type tmp_scope_name = scope_name
-
-type subscopes = tmp_scope_name option * scope_name list
-
-type interpretation =
-    (* regular vars of notation    / recursive parts of notation    / body *)
-    ((identifier * subscopes) list * (identifier * subscopes) list) * aconstr
-
 val match_aconstr : rawconstr -> interpretation ->
-      (rawconstr * subscopes) list * (rawconstr list * subscopes) list
+      (rawconstr * subscopes) list * (rawconstr list * subscopes) list *
+      (rawdecl list * subscopes) list
+
+val match_aconstr_cases_pattern :  cases_pattern -> interpretation ->
+      (cases_pattern * subscopes) list * (cases_pattern list * subscopes) list
 
 (**********************************************************************)
 (* Substitution of kernel names in interpretation data                *)
@@ -97,9 +115,9 @@ val subst_interpretation : substitution -> interpretation -> interpretation
 type notation = string
 
 type explicitation = ExplByPos of int * identifier option | ExplByName of identifier
-  
-type binder_kind = 
-  | Default of binding_kind 
+
+type binder_kind =
+  | Default of binding_kind
   | Generalized of binding_kind * binding_kind * bool
       (* Inner binding, outer bindings, typeclass-specific flag
 	 for implicit generalization of superclasses *)
@@ -110,64 +128,71 @@ type proj_flag = int option (* [Some n] = proj of the n-th visible argument *)
 
 type prim_token = Numeral of Bigint.bigint | String of string
 
-type 'a notation_substitution =
-    'a list * (* for recursive notations: *) 'a list list
-
 type cases_pattern_expr =
   | CPatAlias of loc * cases_pattern_expr * identifier
   | CPatCstr of loc * reference * cases_pattern_expr list
   | CPatAtom of loc * reference option
   | CPatOr of loc * cases_pattern_expr list
-  | CPatNotation of loc * notation * cases_pattern_expr notation_substitution
+  | CPatNotation of loc * notation * cases_pattern_notation_substitution
   | CPatPrim of loc * prim_token
+  | CPatRecord of Util.loc * (reference * cases_pattern_expr) list
   | CPatDelimiters of loc * string * cases_pattern_expr
+
+and cases_pattern_notation_substitution =
+    cases_pattern_expr list *     (** for constr subterms *)
+    cases_pattern_expr list list  (** for recursive notations *)
 
 type constr_expr =
   | CRef of reference
-  | CFix of loc * identifier located * fixpoint_expr list
-  | CCoFix of loc * identifier located * cofixpoint_expr list
+  | CFix of loc * identifier located * fix_expr list
+  | CCoFix of loc * identifier located * cofix_expr list
   | CArrow of loc * constr_expr * constr_expr
   | CProdN of loc * (name located list * binder_kind * constr_expr) list * constr_expr
   | CLambdaN of loc * (name located list * binder_kind * constr_expr) list * constr_expr
   | CLetIn of loc * name located * constr_expr * constr_expr
   | CAppExpl of loc * (proj_flag * reference) * constr_expr list
-  | CApp of loc * (proj_flag * constr_expr) * 
+  | CApp of loc * (proj_flag * constr_expr) *
       (constr_expr * explicitation located option) list
-  | CRecord of loc * constr_expr option * (identifier located * constr_expr) list
+  | CRecord of loc * constr_expr option * (reference * constr_expr) list
   | CCases of loc * case_style * constr_expr option *
-      (constr_expr * (name option * constr_expr option)) list *
+      (constr_expr * (name located option * constr_expr option)) list *
       (loc * cases_pattern_expr list located list * constr_expr) list
-  | CLetTuple of loc * name list * (name option * constr_expr option) *
+  | CLetTuple of loc * name located list * (name located option * constr_expr option) *
       constr_expr * constr_expr
-  | CIf of loc * constr_expr * (name option * constr_expr option)
+  | CIf of loc * constr_expr * (name located option * constr_expr option)
       * constr_expr * constr_expr
   | CHole of loc * Evd.hole_kind option
   | CPatVar of loc * (bool * patvar)
   | CEvar of loc * existential_key * constr_expr list option
   | CSort of loc * rawsort
   | CCast of loc * constr_expr * constr_expr cast_type
-  | CNotation of loc * notation * constr_expr notation_substitution
+  | CNotation of loc * notation * constr_notation_substitution
   | CGeneralization of loc * binding_kind * abstraction_kind option * constr_expr
   | CPrim of loc * prim_token
   | CDelimiters of loc * string * constr_expr
   | CDynamic of loc * Dyn.t
 
-and fixpoint_expr =
+and fix_expr =
     identifier located * (identifier located option * recursion_order_expr) * local_binder list * constr_expr * constr_expr
 
-and cofixpoint_expr =
+and cofix_expr =
     identifier located * local_binder list * constr_expr * constr_expr
 
-and recursion_order_expr = 
+and recursion_order_expr =
   | CStructRec
   | CWfRec of constr_expr
-  | CMeasureRec of constr_expr
+  | CMeasureRec of constr_expr * constr_expr option (* measure, relation *)
 
 (** Anonymous defs allowed ?? *)
 and local_binder =
   | LocalRawDef of name located * constr_expr
   | LocalRawAssum of name located list * binder_kind * constr_expr
-      
+
+and constr_notation_substitution =
+    constr_expr list *      (** for constr subterms *)
+    constr_expr list list * (** for recursive notations *)
+    local_binder list list (** for binders subexpressions *)
+
 type typeclass_constraint = name located * binding_kind * constr_expr
 
 and typeclass_context = typeclass_constraint list
@@ -180,6 +205,8 @@ type constr_pattern_expr = constr_expr
 val constr_loc : constr_expr -> loc
 
 val cases_pattern_expr_loc : cases_pattern_expr -> loc
+
+val local_binders_loc : local_binder list -> loc
 
 val replace_vars_constr_expr :
   (identifier * identifier) list -> constr_expr -> constr_expr
@@ -200,7 +227,11 @@ val mkLambdaC : name located list * binder_kind * constr_expr * constr_expr -> c
 val mkLetInC : name located * constr_expr * constr_expr -> constr_expr
 val mkProdC : name located list * binder_kind * constr_expr * constr_expr -> constr_expr
 
+val coerce_reference_to_id : reference -> identifier
 val coerce_to_id : constr_expr -> identifier located
+val coerce_to_name : constr_expr -> name located
+
+val split_at_annot : local_binder list -> identifier located option -> local_binder list * local_binder list
 
 val abstract_constr_expr : constr_expr -> local_binder list -> constr_expr
 val prod_constr_expr : constr_expr -> local_binder list -> constr_expr
@@ -211,17 +242,11 @@ val mkCProdN : loc -> local_binder list -> constr_expr -> constr_expr
 
 (* For binders parsing *)
 
-(* Includes let binders *)
-val local_binders_length : local_binder list -> int
-
-(* Excludes let binders *)
-val local_assums_length : local_binder list -> int
+(* With let binders *)
+val names_of_local_binders : local_binder list -> name located list
 
 (* Does not take let binders into account *)
 val names_of_local_assums : local_binder list -> name located list
-
-(* With let binders *)
-val names_of_local_binders : local_binder list -> name located list
 
 (* Used in typeclasses *)
 
@@ -238,23 +263,22 @@ val map_constr_expr_with_binders :
 (**********************************************************************)
 (* Concrete syntax for modules and module types                       *)
 
-type with_declaration_ast = 
+type with_declaration_ast =
   | CWith_Module of identifier list located * qualid located
   | CWith_Definition of identifier list located * constr_expr
 
+type module_ast =
+  | CMident of qualid located
+  | CMapply of module_ast * module_ast
+  | CMwith of module_ast * with_declaration_ast
 
-type module_ast = 
-  | CMEident of qualid located
-  | CMEapply of module_ast * module_ast
+type module_ast_inl = module_ast * bool (* honor the inline annotations or not *)
 
-type module_type_ast = 
-  | CMTEident of qualid located
-  | CMTEapply of module_type_ast * module_ast
-  | CMTEwith of module_type_ast * with_declaration_ast
+type 'a module_signature =
+  | Enforce of 'a (* ... : T *)
+  | Check of 'a list (* ... <: T1 <: T2, possibly empty *)
 
-type include_ast =
-  | CIMTE of module_type_ast
-  | CIME of module_ast
-
-val ntn_loc : Util.loc -> constr_expr list -> string -> int
-val patntn_loc : Util.loc -> cases_pattern_expr list -> string -> int
+val ntn_loc :
+  Util.loc -> constr_notation_substitution -> string -> (int * int) list
+val patntn_loc :
+  Util.loc -> cases_pattern_notation_substitution -> string -> (int * int) list

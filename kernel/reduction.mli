@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: reduction.mli 11897 2009-02-09 19:28:02Z barras $ i*)
+(*i $Id: reduction.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Term
@@ -21,6 +21,7 @@ val whd_betaiotazeta        : constr -> constr
 val whd_betadeltaiota       : env -> constr -> constr
 val whd_betadeltaiota_nolet : env -> constr -> constr
 
+val whd_betaiota      : constr -> constr
 val nf_betaiota      : constr -> constr
 
 (************************************************************************)
@@ -33,7 +34,7 @@ type 'a trans_conversion_function = Names.transparent_state -> env -> 'a -> 'a -
 
 type conv_pb = CONV | CUMUL
 
-val sort_cmp : 
+val sort_cmp :
     conv_pb -> sorts -> sorts -> Univ.constraints -> Univ.constraints
 
 val conv_sort      : sorts conversion_function
@@ -63,8 +64,11 @@ val default_conv_leq : types conversion_function
 
 (************************************************************************)
 
-(* Builds an application node, reducing beta redexes it may produce. *) 
+(* Builds an application node, reducing beta redexes it may produce. *)
 val beta_appvect : constr -> constr array -> constr
+
+(* Builds an application node, reducing the [n] first beta-zeta redexes. *)
+val betazeta_appvect : int -> constr -> constr array -> constr
 
 (* Pseudo-reduction rule  Prod(x,A,B) a --> B[x\a] *)
 val hnf_prod_applist : env -> types -> constr list -> types
@@ -73,8 +77,8 @@ val hnf_prod_applist : env -> types -> constr list -> types
 (************************************************************************)
 (*s Recognizing products and arities modulo reduction *)
 
-val dest_prod       : env -> types -> Sign.rel_context * types
-val dest_prod_assum : env -> types -> Sign.rel_context * types
+val dest_prod       : env -> types -> rel_context * types
+val dest_prod_assum : env -> types -> rel_context * types
 
-val dest_arity : env -> types -> Sign.arity
+val dest_arity : env -> types -> arity
 val is_arity   : env -> types -> bool

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -10,15 +10,16 @@
 
 (* An undoable view class *)
 
-class undoable_view : [> Gtk.text_view] Gtk.obj ->
+class undoable_view : ([> Gtk.text_view] as 'a) Gtk.obj ->
 object
   inherit GText.view
+  val obj : 'a Gtk.obj
   method undo : bool
   method redo : bool
   method clear_undo : unit
 end
 
-val undoable_view : 
+val undoable_view :
     ?buffer:GText.buffer ->
     ?editable:bool ->
     ?cursor_visible:bool ->

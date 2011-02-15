@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: rawterm.mli 11282 2008-07-28 11:51:53Z msozeau $ i*)
+(*i $Id: rawterm.mli 13329 2010-07-26 11:05:39Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -38,15 +38,13 @@ type patvar = identifier
 
 type rawsort = RProp of Term.contents | RType of Univ.universe option
 
-type binder_kind = BProd | BLambda | BLetIn
-
 type binding_kind = Lib.binding_kind = Explicit | Implicit
 
 type quantified_hypothesis = AnonHyp of int | NamedHyp of identifier
 
 type 'a explicit_bindings = (loc * quantified_hypothesis * 'a) list
 
-type 'a bindings = 
+type 'a bindings =
   | ImplicitBindings of 'a list
   | ExplicitBindings of 'a explicit_bindings
   | NoBindings
@@ -57,7 +55,7 @@ type 'a cast_type =
   | CastConv of cast_kind * 'a
   | CastCoerce (* Cast to a base type (eg, an underlying inductive type) *)
 
-type rawconstr = 
+type rawconstr =
   | RRef of (loc * global_reference)
   | RVar of (loc * identifier)
   | REvar of loc * existential_key * rawconstr list option
@@ -67,7 +65,7 @@ type rawconstr =
   | RProd of loc * name * binding_kind * rawconstr * rawconstr
   | RLetIn of loc * name * rawconstr * rawconstr
   | RCases of loc * case_style * rawconstr option * tomatch_tuples * cases_clauses
-  | RLetTuple of loc * name list * (name * rawconstr option) * 
+  | RLetTuple of loc * name list * (name * rawconstr option) *
       rawconstr * rawconstr
   | RIf of loc * rawconstr * (name * rawconstr option) * rawconstr * rawconstr
   | RRec of loc * fix_kind * identifier array * rawdecl list array *
@@ -79,7 +77,7 @@ type rawconstr =
 
 and rawdecl = name * binding_kind * rawconstr option * rawconstr
 
-and fix_recursion_order = RStructRec | RWfRec of rawconstr | RMeasureRec of rawconstr
+and fix_recursion_order = RStructRec | RWfRec of rawconstr | RMeasureRec of rawconstr * rawconstr option
 
 and fix_kind =
   | RFix of ((int option * fix_recursion_order) array * int)
@@ -98,25 +96,20 @@ and cases_clauses = cases_clause list
 
 val cases_predicate_names : tomatch_tuples -> name list
 
-(*i - if PRec (_, names, arities, bodies) is in env then arities are
-   typed in env too and bodies are typed in env enriched by the
-   arities incrementally lifted 
-
-  [On pourrait plutot mettre les arités aves le type qu'elles auront
-   dans le contexte servant à typer les body ???]
-
-   - boolean in POldCase means it is recursive
-   - option in PHole tell if the "?" was apparent or has been implicitely added
-i*)
-
 val map_rawconstr : (rawconstr -> rawconstr) -> rawconstr -> rawconstr
 
+(** Ensure traversal from left to right *)
+val map_rawconstr_left_to_right :
+  (rawconstr -> rawconstr) -> rawconstr -> rawconstr
+
 (*i
-val map_rawconstr_with_binders_loc : loc -> 
+val map_rawconstr_with_binders_loc : loc ->
   (identifier -> 'a -> identifier * 'a) ->
   ('a -> rawconstr -> rawconstr) -> 'a -> rawconstr -> rawconstr
 i*)
 
+val fold_rawconstr : ('a -> rawconstr -> 'a) -> 'a -> rawconstr -> 'a
+val iter_rawconstr : (rawconstr -> unit) -> rawconstr -> unit
 val occur_rawconstr : identifier -> rawconstr -> bool
 val free_rawvars : rawconstr -> identifier list
 val loc_of_rawconstr : rawconstr -> loc
@@ -155,10 +148,10 @@ val no_occurrences_expr : occurrences_expr
 
 type 'a with_occurrences = occurrences_expr * 'a
 
-type ('a,'b) red_expr_gen =
+type ('a,'b,'c) red_expr_gen =
   | Red of bool
   | Hnf
-  | Simpl of 'a with_occurrences option
+  | Simpl of 'c with_occurrences option
   | Cbv of 'b raw_red_flag
   | Lazy of 'b raw_red_flag
   | Unfold of 'b with_occurrences list
@@ -167,8 +160,8 @@ type ('a,'b) red_expr_gen =
   | ExtraRedExpr of string
   | CbvVm
 
-type ('a,'b) may_eval =
+type ('a,'b,'c) may_eval =
   | ConstrTerm of 'a
-  | ConstrEval of ('a,'b) red_expr_gen * 'a
+  | ConstrEval of ('a,'b,'c) red_expr_gen * 'a
   | ConstrContext of (loc * identifier) * 'a
   | ConstrTypeOf of 'a

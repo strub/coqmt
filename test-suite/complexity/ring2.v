@@ -1,4 +1,4 @@
-(* This example, checks the efficiency of the abstract machine used by ring *)
+(* This example checks the efficiency of the abstract machine used by ring *)
 (* Expected time < 1.00s *)
 
 Require Import BinInt Zbool.
@@ -48,4 +48,4 @@ Open Scope Z_scope.
 Infix "+" := Zplus : Z_scope.
 
 Goal forall a, a+a+a+a+a+a+a+a+a+a+a+a+a = a*13.
-Time intro; ring.
+Timeout 5 Time intro; ring.

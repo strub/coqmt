@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: heads.ml 11282 2008-07-28 11:51:53Z msozeau $ *)
+(* $Id: heads.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -22,8 +22,8 @@ open Lib
 (** Characterization of the head of a term *)
 
 (* We only compute an approximation to ensure the computation is not
-   arbitrary long (e.g. the head constant of [h] defined to be 
-   [g (fun x -> phi(x))] where [g] is [fun f => g O] does not launch 
+   arbitrary long (e.g. the head constant of [h] defined to be
+   [g (fun x -> phi(x))] where [g] is [fun f => g O] does not launch
    the evaluation of [phi(0)] and the head of [h] is declared unknown). *)
 
 type rigid_head_kind =
@@ -41,10 +41,18 @@ type head_approximation =
 
 module Evalreford = struct
   type t = evaluable_global_reference
-  let compare = Pervasives.compare
+  let compare x y = 
+     let make_name = function
+      | EvalConstRef con -> 
+	  EvalConstRef(constant_of_kn(canonical_con con))
+      | k -> k
+     in 
+       Pervasives.compare (make_name x) (make_name y)
 end
 
-module Evalrefmap = Map.Make(Evalreford)
+module Evalrefmap =
+  Map.Make (Evalreford)
+
 
 let head_map = ref Evalrefmap.empty
 
@@ -54,13 +62,11 @@ let freeze () = !head_map
 
 let unfreeze hm = head_map := hm
 
-let _ = 
+let _ =
   Summary.declare_summary "Head_decl"
     { Summary.freeze_function = freeze;
       Summary.unfreeze_function = unfreeze;
-      Summary.init_function = init;
-      Summary.survive_module = true;
-      Summary.survive_section = false }
+      Summary.init_function = init }
 
 let variable_head id  = Evalrefmap.find (EvalVarRef id) !head_map
 let constant_head cst = Evalrefmap.find (EvalConstRef cst) !head_map
@@ -69,7 +75,7 @@ let kind_of_head env t =
   let rec aux k l t b = match kind_of_term (Reduction.whd_betaiotazeta t) with
   | Rel n when n > k -> NotImmediatelyComputableHead
   | Rel n -> FlexibleHead (k,k+1-n,List.length l,b)
-  | Var id -> 
+  | Var id ->
       (try on_subterm k l b (variable_head id)
        with Not_found ->
         (* a goal variable *)
@@ -77,7 +83,7 @@ let kind_of_head env t =
         | Some c -> aux k l c b
         | None -> NotImmediatelyComputableHead)
   | Const cst -> on_subterm k l b (constant_head cst)
-  | Construct _ | CoFix _ -> 
+  | Construct _ | CoFix _ ->
       if b then NotImmediatelyComputableHead else ConstructorHead
   | Sort _ | Ind _ | Prod _ -> RigidHead RigidType
   | Cast (c,_,_) -> aux k l c b
@@ -94,7 +100,7 @@ let kind_of_head env t =
   and on_subterm k l with_case = function
   | FlexibleHead (n,i,q,with_subcase) ->
       let m = List.length l in
-      let k',rest,a = 
+      let k',rest,a =
         if n > m then
           (* eta-expansion *)
           let a =
@@ -121,12 +127,12 @@ let compute_head = function
      | Some c -> kind_of_head (Global.env()) c)
 | EvalVarRef id ->
     (match pi2 (Global.lookup_named id) with
-     | Some c when not (Decls.variable_opacity id) -> 
+     | Some c when not (Decls.variable_opacity id) ->
            kind_of_head (Global.env()) c
-     | _ -> 
+     | _ ->
            RigidHead (RigidVar id))
 
-let is_rigid env t = 
+let is_rigid env t =
   match kind_of_head env t with
   | RigidHead _ | ConstructorHead -> true
   | _ -> false
@@ -135,7 +141,7 @@ let is_rigid env t =
 
 let load_head _ (_,(ref,(k:head_approximation))) =
   head_map := Evalrefmap.add ref k !head_map
-  
+
 let cache_head o =
   load_head 1 o
 
@@ -150,7 +156,7 @@ let subst_head_approximation subst = function
         kind_of_head (Global.env()) c
   | x -> x
 
-let subst_head (_,subst,(ref,k)) =
+let subst_head (subst,(ref,k)) =
   (subst_evaluable_reference subst ref, subst_head_approximation subst k)
 
 let discharge_head (_,(ref,k)) =
@@ -161,17 +167,14 @@ let discharge_head (_,(ref,k)) =
 let rebuild_head (ref,k) =
   (ref, compute_head ref)
 
-let export_head o = Some o
-
 let (inHead, _) =
-  declare_object {(default_object "HEAD") with 
+  declare_object {(default_object "HEAD") with
     cache_function = cache_head;
     load_function = load_head;
     subst_function = subst_head;
-    classify_function = (fun (_,x) -> Substitute x);
+    classify_function = (fun x -> Substitute x);
     discharge_function = discharge_head;
-    rebuild_function = rebuild_head;
-    export_function = export_head }
+    rebuild_function = rebuild_head }
 
 let declare_head c =
   let hd = compute_head c in

@@ -1,11 +1,12 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
-(*i $Id: Zabs.v 10302 2007-11-08 09:54:31Z letouzey $ i*)
+(*i $Id: Zabs.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Binary Integers (Pierre Crégut (CNET, Lannion, France) *)
 
@@ -77,9 +78,9 @@ Proof.
       (intros H2; rewrite H2); auto.
 Qed.
 
-Lemma Zabs_spec : forall x:Z, 
-  0 <= x /\ Zabs x = x \/ 
-  0 > x /\ Zabs x = -x. 
+Lemma Zabs_spec : forall x:Z,
+  0 <= x /\ Zabs x = x \/
+  0 > x /\ Zabs x = -x.
 Proof.
  intros; unfold Zabs, Zle, Zgt; destruct x; simpl; intuition discriminate.
 Qed.
@@ -142,7 +143,7 @@ Lemma Zabs_nat_mult: forall n m:Z, Zabs_nat (n*m) = (Zabs_nat n * Zabs_nat m)%na
 Proof.
   intros; apply inj_eq_rev.
   rewrite inj_mult; repeat rewrite inj_Zabs_nat; apply Zabs_Zmult.
-Qed. 
+Qed.
 
 Lemma Zabs_nat_Zsucc:
  forall p, 0 <= p ->  Zabs_nat (Zsucc p) = S (Zabs_nat p).
@@ -151,13 +152,13 @@ Proof.
   rewrite inj_S; repeat rewrite inj_Zabs_nat, Zabs_eq; auto with zarith.
 Qed.
 
-Lemma Zabs_nat_Zplus: 
+Lemma Zabs_nat_Zplus:
  forall x y, 0<=x -> 0<=y -> Zabs_nat (x+y) = (Zabs_nat x + Zabs_nat y)%nat.
 Proof.
   intros; apply inj_eq_rev.
   rewrite inj_plus; repeat rewrite inj_Zabs_nat, Zabs_eq; auto with zarith.
   apply Zplus_le_0_compat; auto.
-Qed.  
+Qed.
 
 Lemma Zabs_nat_Zminus:
  forall x y, 0 <= x <= y ->  Zabs_nat (y - x) = (Zabs_nat y - Zabs_nat x)%nat.
@@ -200,11 +201,11 @@ Qed.
 
 (** A characterization of the sign function: *)
 
-Lemma Zsgn_spec : forall x:Z, 
-  0 < x /\ Zsgn x = 1 \/ 
-  0 = x /\ Zsgn x = 0 \/ 
+Lemma Zsgn_spec : forall x:Z,
+  0 < x /\ Zsgn x = 1 \/
+  0 = x /\ Zsgn x = 0 \/
   0 > x /\ Zsgn x = -1.
-Proof. 
+Proof.
  intros; unfold Zsgn, Zle, Zgt; destruct x; compute; intuition.
 Qed.
 

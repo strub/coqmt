@@ -1,15 +1,14 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tacinterp.mli 12102 2009-04-24 10:48:11Z herbelin $ i*)
+(*i $Id: tacinterp.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
-open Dyn
 open Pp
 open Util
 open Names
@@ -27,12 +26,12 @@ open Redexpr
 (* Values for interpretation *)
 type value =
   | VRTactic of (goal list sigma * validation)
-  | VFun of ltac_trace * (identifier*value) list * 
+  | VFun of ltac_trace * (identifier*value) list *
       identifier option list * glob_tactic_expr
   | VVoid
   | VInteger of int
   | VIntroPattern of intro_pattern_expr
-  | VConstr of constr
+  | VConstr of Pattern.constr_under_binders
   | VConstr_context of constr
   | VList of value list
   | VRec of (identifier*value) list ref * glob_tactic_expr
@@ -44,8 +43,8 @@ and interp_sign =
     debug : debug_info;
     trace : ltac_trace }
 
-val extract_ltac_vars : interp_sign -> Evd.evar_map -> Environ.env -> 
-  Pretyping.var_map * Pretyping.unbound_ltac_var_map
+val extract_ltac_constr_values : interp_sign -> Environ.env ->
+  Pretyping.ltac_var_map
 
 (* Transforms an id into a constr if possible *)
 val constr_of_id : Environ.env -> identifier -> constr
@@ -53,7 +52,7 @@ val constr_of_id : Environ.env -> identifier -> constr
 (* To embed several objects in Coqast.t *)
 val tactic_in : (interp_sign -> glob_tactic_expr) -> Dyn.t
 val tactic_out : Dyn.t -> (interp_sign -> glob_tactic_expr)
-  
+
 val tacticIn : (interp_sign -> raw_tactic_expr) -> raw_tactic_expr
 val globTacticIn : (interp_sign -> glob_tactic_expr) -> raw_tactic_expr
 val valueIn : value -> raw_tactic_arg
@@ -67,7 +66,8 @@ val get_debug : unit -> debug_info
 
 (* Adds a definition for tactics in the table *)
 val add_tacdef :
-  bool -> (Libnames.reference * bool * raw_tactic_expr) list -> unit
+  Vernacexpr.locality_flag -> bool ->
+  (Libnames.reference * bool * raw_tactic_expr) list -> unit
 val add_primitive_tactic : string -> glob_tactic_expr -> unit
 
 (* Tactic extensions *)
@@ -88,7 +88,7 @@ type glob_sign = {
 val add_interp_genarg :
   string ->
     (glob_sign -> raw_generic_argument -> glob_generic_argument) *
-    (interp_sign -> goal sigma -> glob_generic_argument -> 
+    (interp_sign -> goal sigma -> glob_generic_argument ->
       typed_generic_argument) *
     (substitution -> glob_generic_argument -> glob_generic_argument)
     -> unit
@@ -99,14 +99,14 @@ val interp_genarg :
 val intern_genarg :
   glob_sign -> raw_generic_argument -> glob_generic_argument
 
-val intern_tactic : 
+val intern_tactic :
   glob_sign -> raw_tactic_expr -> glob_tactic_expr
 
 val intern_constr :
   glob_sign -> constr_expr -> rawconstr_and_expr
 
 val intern_constr_with_bindings :
-  glob_sign -> constr_expr * constr_expr Rawterm.bindings -> 
+  glob_sign -> constr_expr * constr_expr Rawterm.bindings ->
   rawconstr_and_expr * rawconstr_and_expr Rawterm.bindings
 
 val intern_hyp :
@@ -122,7 +122,7 @@ val subst_rawconstr_and_expr :
 val val_interp : interp_sign -> goal sigma -> glob_tactic_expr -> value
 
 (* Interprets an expression that evaluates to a constr *)
-val interp_ltac_constr : interp_sign -> goal sigma -> glob_tactic_expr -> 
+val interp_ltac_constr : interp_sign -> goal sigma -> glob_tactic_expr ->
   constr
 
 (* Interprets redexp arguments *)
@@ -134,8 +134,7 @@ val interp_tac_gen : (identifier * value) list -> identifier list ->
 
 val interp_hyp :  interp_sign -> goal sigma -> identifier located -> identifier
 
-val interp_bindings : interp_sign -> goal sigma -> rawconstr_and_expr Rawterm.bindings -> 
-  Evd.open_constr Rawterm.bindings
+val interp_bindings : interp_sign -> Environ.env -> Evd.evar_map -> rawconstr_and_expr Rawterm.bindings -> Evd.evar_map * constr Rawterm.bindings
 
 (* Initial call for interpretation *)
 val glob_tactic : raw_tactic_expr -> glob_tactic_expr
@@ -158,7 +157,7 @@ val hide_interp : raw_tactic_expr -> tactic option -> tactic
 val declare_implicit_tactic : tactic -> unit
 
 (* Declare the xml printer *)
-val declare_xml_printer : 
+val declare_xml_printer :
   (out_channel -> Environ.env -> Evd.evar_map -> constr -> unit) -> unit
 
 (* printing *)

@@ -1,12 +1,13 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: EqdepFacts.v 11735 2009-01-02 17:22:31Z herbelin $ i*)
+(*i $Id: EqdepFacts.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file defines dependent equality and shows its equivalence with
     equality on dependent pairs (inhabiting sigma-types). It derives
@@ -25,7 +26,7 @@
   References:
 
   [1] T. Streicher, Semantical Investigations into Intensional Type Theory,
-      Habilitationsschrift, LMU München, 1993.
+      Habilitationsschrift, LMU MÃ¼nchen, 1993.
   [2] M. Hofmann, T. Streicher, The groupoid interpretation of type theory,
       Proceedings of the meeting Twenty-five years of constructive
       type theory, Venice, Oxford University Press, 1998
@@ -45,7 +46,7 @@ Table of contents:
 (** * Definition of dependent equality and equivalence with equality of dependent pairs *)
 
 Section Dependent_Equality.
-  
+
   Variable U : Type.
   Variable P : U -> Type.
 
@@ -119,7 +120,7 @@ Lemma equiv_eqex_eqdep :
   forall (U:Type) (P:U -> Type) (p q:U) (x:P p) (y:P q),
    existT P p x = existT P q y <-> eq_dep p x q y.
 Proof.
-  split. 
+  split.
   (* -> *)
   apply eq_sigT_eq_dep.
   (* <- *)
@@ -142,27 +143,27 @@ Hint Immediate eq_dep_sym: core.
 (** * Eq_rect_eq <-> Eq_dep_eq <-> UIP <-> UIP_refl <-> K          *)
 
 Section Equivalences.
-  
+
   Variable U:Type.
-  
+
   (** Invariance by Substitution of Reflexive Equality Proofs *)
-  
-  Definition Eq_rect_eq := 
+
+  Definition Eq_rect_eq :=
     forall (p:U) (Q:U -> Type) (x:Q p) (h:p = p), x = eq_rect p Q x p h.
-  
+
   (** Injectivity of Dependent Equality *)
-  
-  Definition Eq_dep_eq := 
+
+  Definition Eq_dep_eq :=
     forall (P:U->Type) (p:U) (x y:P p), eq_dep p x p y -> x = y.
-  
+
   (** Uniqueness of Identity Proofs (UIP) *)
-  
-  Definition UIP_ := 
+
+  Definition UIP_ :=
     forall (x y:U) (p1 p2:x = y), p1 = p2.
-  
+
   (** Uniqueness of Reflexive Identity Proofs *)
 
-  Definition UIP_refl_ := 
+  Definition UIP_refl_ :=
     forall (x:U) (p:x = x), p = refl_equal x.
 
   (** Streicher's axiom K *)
@@ -198,7 +199,7 @@ Section Equivalences.
     elim p1 using eq_indd.
     apply eq_dep_intro.
   Qed.
-  
+
   (** Uniqueness of Reflexive Identity Proofs is a direct instance of UIP *)
 
   Lemma UIP__UIP_refl : UIP_ -> UIP_refl_.
@@ -216,7 +217,7 @@ Section Equivalences.
 
   (** We finally recover from K the Invariance by Substitution of
       Reflexive Equality Proofs *)
-  
+
   Lemma Streicher_K__eq_rect_eq : Streicher_K_ -> Eq_rect_eq.
   Proof.
     intro Streicher_K; red; intros.
@@ -233,20 +234,20 @@ Section Equivalences.
     Typically, [eq_rect_eq] allows to prove UIP and Streicher's K what
     does not seem possible with [eq_rec_eq]. In particular, the proof of [UIP]
     requires to use [eq_rect_eq] on [fun y -> x=y] which is in [Type] but not
-    in [Set].  
+    in [Set].
 *)
 
 End Equivalences.
 
 Section Corollaries.
-  
+
   Variable U:Type.
-  
+
   (** UIP implies the injectivity of equality on dependent pairs in Type *)
- 
+
  Definition Inj_dep_pair :=
    forall (P:U -> Type) (p:U) (x y:P p), existT P p x = existT P p y -> x = y.
- 
+
  Lemma eq_dep_eq__inj_pair2 : Eq_dep_eq U -> Inj_dep_pair.
  Proof.
    intro eq_dep_eq; red; intros.
@@ -260,7 +261,7 @@ End Corollaries.
 Notation Inj_dep_pairS := Inj_dep_pair.
 Notation Inj_dep_pairT := Inj_dep_pair.
 Notation eq_dep_eq__inj_pairT2 := eq_dep_eq__inj_pair2.
- 
+
 
 (************************************************************************)
 (** * Definition of the functor that builds properties of dependent equalities assuming axiom eq_rect_eq *)
@@ -274,11 +275,11 @@ Module Type EqdepElimination.
 End EqdepElimination.
 
 Module EqdepTheory (M:EqdepElimination).
-  
+
   Section Axioms.
-    
+
     Variable U:Type.
-    
+
 (** Invariance by Substitution of Reflexive Equality Proofs *)
 
 Lemma eq_rect_eq :

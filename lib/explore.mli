@@ -1,23 +1,23 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: explore.mli 5920 2004-07-16 20:01:26Z herbelin $ i*)
+(*i $Id: explore.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*s Search strategies. *)
 
 (*s A search problem implements the following signature [SearchProblem].
     [state] is the type of states of the search tree.
-    [branching] is the branching function; if [branching s] returns an 
+    [branching] is the branching function; if [branching s] returns an
     empty list, then search from [s] is aborted; successors of [s] are
     recursively searched in the order they appear in the list.
-    [success] determines whether a given state is a success. 
+    [success] determines whether a given state is a success.
 
-    [pp] is a pretty-printer for states used in debugging versions of the 
+    [pp] is a pretty-printer for states used in debugging versions of the
     search functions. *)
 
 module type SearchProblem = sig
@@ -33,7 +33,7 @@ module type SearchProblem = sig
 end
 
 (*s Functor [Make] returns some search functions given a search problem.
-    Search functions raise [Not_found] if no success is found. 
+    Search functions raise [Not_found] if no success is found.
     States are always visited in the order they appear in the
     output of [branching] (whatever the search method is).
     Debugging versions of the search functions print the position of the

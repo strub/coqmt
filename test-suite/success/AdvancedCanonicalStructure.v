@@ -21,7 +21,6 @@ Parameter eq_img : forall (i1:img) (i2:img),
   eqB (ib i1) (ib i2) -> eqA (ia i1) (ia i2).
 
 Lemma phi_img (a:A) : img.
-  intro a.
   exists  a (phi a).
   refine ( refl_equal _).
 Defined.
@@ -54,7 +53,7 @@ Open Scope type_scope.
 
 Section type_reification.
 
-Inductive term :Type := 
+Inductive term :Type :=
    Fun : term -> term -> term
  | Prod : term -> term -> term
  | Bool : term
@@ -63,18 +62,18 @@ Inductive term :Type :=
  | TYPE :term
  | Var : Type -> term.
 
-Fixpoint interp (t:term) := 
-  match t with 
+Fixpoint interp (t:term) :=
+  match t with
     Bool => bool
   | SET => Set
   | PROP => Prop
-  | TYPE => Type   
+  | TYPE => Type
   | Fun a b => interp a -> interp b
   | Prod a b => interp a * interp b
   | Var x => x
 end.
 
-Record interp_pair :Type := 
+Record interp_pair :Type :=
   { repr:>term;
     abs:>Type;
     link: abs = interp repr }.
@@ -95,25 +94,25 @@ thus thesis using rewrite (link a);rewrite (link b);reflexivity.
 end proof.
 Qed.
 
-Canonical Structure ProdCan (a b:interp_pair) := 
+Canonical Structure ProdCan (a b:interp_pair) :=
   Build_interp_pair (Prod a b) (a * b) (prod_interp a b).
 
-Canonical Structure FunCan (a b:interp_pair) := 
+Canonical Structure FunCan (a b:interp_pair) :=
   Build_interp_pair (Fun a b) (a -> b) (fun_interp a b).
 
-Canonical Structure BoolCan := 
+Canonical Structure BoolCan :=
   Build_interp_pair Bool bool (refl_equal _).
 
-Canonical Structure VarCan (x:Type) := 
+Canonical Structure VarCan (x:Type) :=
   Build_interp_pair (Var x) x (refl_equal _).
 
-Canonical Structure SetCan := 
+Canonical Structure SetCan :=
   Build_interp_pair SET Set (refl_equal _).
 
-Canonical Structure PropCan := 
+Canonical Structure PropCan :=
   Build_interp_pair PROP Prop (refl_equal _).
 
-Canonical Structure TypeCan := 
+Canonical Structure TypeCan :=
   Build_interp_pair TYPE Type (refl_equal _).
 
 (* Print Canonical Projections. *)
@@ -140,5 +139,5 @@ End type_reification.
 
 
 
- 
+
 

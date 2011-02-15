@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: pfedit.mli 11745 2009-01-04 18:43:08Z herbelin $ i*)
+(*i $Id: pfedit.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -78,9 +78,12 @@ val get_undo : unit -> int option
     systematically apply at initialization time (e.g. to start the
     proof of mutually dependent theorems) *)
 
-val start_proof : 
+type lemma_possible_guards = int list list
+
+val start_proof :
   identifier -> goal_kind -> named_context_val -> constr ->
-    ?init_tac:tactic -> ?compute_guard:bool -> declaration_hook -> unit
+  ?init_tac:tactic -> ?compute_guard:lemma_possible_guards -> 
+  declaration_hook -> unit
 
 (* [restart_proof ()] restarts the current focused proof from the beginning
    or fails if no proof is focused *)
@@ -107,8 +110,10 @@ val suspend_proof : unit -> unit
     it fails if there is no current proof of if it is not completed;
     it also tells if the guardness condition has to be inferred. *)
 
-val cook_proof : (Refiner.pftreestate -> unit) -> 
-  identifier * (Entries.definition_entry * bool * goal_kind * declaration_hook)
+val cook_proof : (Refiner.pftreestate -> unit) ->
+  identifier *
+  (Entries.definition_entry * lemma_possible_guards * goal_kind * 
+   declaration_hook)
 
 (* To export completed proofs to xml *)
 val set_xml_cook_proof : (goal_kind * pftreestate -> unit) -> unit
@@ -190,5 +195,13 @@ val traverse_prev_unproven : unit -> unit
 
 (* These two functions make it possible to implement more elaborate
    proof and goal management, as it is done, for instance in pcoq *)
+
 val traverse_to : int list -> unit
 val mutate : (pftreestate -> pftreestate) -> unit
+
+
+(* [build_by_tactic typ tac] returns a term of type [typ] by calling [tac] *)
+
+val build_constant_by_tactic : named_context_val -> types -> tactic ->
+  Entries.definition_entry
+val build_by_tactic : types -> tactic -> constr

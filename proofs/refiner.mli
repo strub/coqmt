@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: refiner.mli 11735 2009-01-02 17:22:31Z herbelin $ i*)
+(*i $Id: refiner.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Term
@@ -80,6 +80,9 @@ val tclTHEN          : tactic -> tactic -> tactic
    convenient than [tclTHEN] when [n] is large *)
 val tclTHENLIST      : tactic list -> tactic
 
+(* [tclMAP f [x1..xn]] builds [(f x1);(f x2);...(f xn)] *)
+val tclMAP           : ('a -> tactic) -> 'a list -> tactic
+
 (* [tclTHEN_i tac1 tac2 gls] applies the tactic [tac1] to [gls] and applies
    [(tac2 i)] to the [i]$^{th}$ resulting subgoal (starting from 1) *)
 val tclTHEN_i        : tactic -> (int -> tactic) -> tactic
@@ -131,7 +134,7 @@ val tclTHENLASTn    : tactic -> tactic array -> tactic
 val tclTHENFIRSTn   : tactic -> tactic array -> tactic
 
 (* A special exception for levels for the Fail tactic *)
-exception FailError of int * Pp.std_ppcmds
+exception FailError of int * Pp.std_ppcmds Lazy.t
 
 (* Takes an exception and either raise it at the next
    level or do nothing. *)
@@ -148,6 +151,7 @@ val tclTHENTRY       : tactic -> tactic -> tactic
 val tclCOMPLETE      : tactic -> tactic
 val tclAT_LEAST_ONCE : tactic -> tactic
 val tclFAIL          : int -> Pp.std_ppcmds -> tactic
+val tclFAIL_lazy     : int -> Pp.std_ppcmds Lazy.t -> tactic
 val tclDO            : int -> tactic -> tactic
 val tclPROGRESS      : tactic -> tactic
 val tclWEAK_PROGRESS : tactic -> tactic
@@ -155,14 +159,14 @@ val tclNOTSAMEGOAL   : tactic -> tactic
 val tclINFO          : tactic -> tactic
 
 (* [tclIFTHENELSE tac1 tac2 tac3 gls] first applies [tac1] to [gls] then,
-   if it succeeds, applies [tac2] to the resulting subgoals, 
+   if it succeeds, applies [tac2] to the resulting subgoals,
    and if not applies [tac3] to the initial goal [gls] *)
 val tclIFTHENELSE    : tactic -> tactic -> tactic -> tactic
 val tclIFTHENSELSE   : tactic -> tactic list -> tactic ->tactic
 val tclIFTHENSVELSE   : tactic -> tactic array -> tactic ->tactic
 
 (* [tclIFTHENTRYELSEMUST tac1 tac2 gls] applies [tac1] then [tac2]. If [tac1]
-   has been successful, then [tac2] may fail. Otherwise, [tac2] must succeed. 
+   has been successful, then [tac2] may fail. Otherwise, [tac2] must succeed.
    Equivalent to [(tac1;try tac2)||tac2] *)
 
 val tclIFTHENTRYELSEMUST : tactic -> tactic -> tactic
@@ -181,6 +185,11 @@ val then_tactic_list   : tactic_list -> tactic_list -> tactic_list
 val tactic_list_tactic : tactic_list -> tactic
 val goal_goal_list     : 'a sigma -> 'a list sigma
 
+(* [tclWITHHOLES solve_holes tac (sigma,c)] applies [tac] to [c] which
+   may have unresolved holes; if [solve_holes] these holes must be
+   resolved after application of the tactic; [sigma] must be an
+   extension of the sigma of the goal *)
+val tclWITHHOLES : bool -> ('a -> tactic) -> evar_map -> 'a -> tactic
 
 (*s Functions for handling the state of the proof editor. *)
 
@@ -195,7 +204,7 @@ val top_goal_of_pftreestate : pftreestate -> goal sigma
 val nth_goal_of_pftreestate : int -> pftreestate -> goal sigma
 
 val traverse : int -> pftreestate -> pftreestate
-val map_pftreestate : 
+val map_pftreestate :
   (evar_map ref -> proof_tree -> proof_tree) -> pftreestate -> pftreestate
 val solve_nth_pftreestate : int -> tactic -> pftreestate -> pftreestate
 val solve_pftreestate : tactic -> pftreestate -> pftreestate
@@ -206,7 +215,7 @@ val weak_undo_pftreestate : pftreestate -> pftreestate
 
 val mk_pftreestate : goal -> pftreestate
 val extract_open_proof : evar_map -> proof_tree -> constr * (int * types) list
-val extract_open_pftreestate : pftreestate -> constr * Termops.metamap
+val extract_open_pftreestate : pftreestate -> constr * Termops.meta_type_map
 val extract_pftreestate : pftreestate -> constr
 val first_unproven : pftreestate -> pftreestate
 val last_unproven : pftreestate -> pftreestate
@@ -217,12 +226,12 @@ val next_unproven : pftreestate -> pftreestate
 val prev_unproven : pftreestate -> pftreestate
 val top_of_tree : pftreestate -> pftreestate
 val match_rule : (rule -> bool) -> pftreestate -> bool
-val up_until_matching_rule : (rule -> bool) -> 
+val up_until_matching_rule : (rule -> bool) ->
   pftreestate -> pftreestate
-val up_to_matching_rule : (rule -> bool) -> 
+val up_to_matching_rule : (rule -> bool) ->
   pftreestate -> pftreestate
 val change_rule : (rule -> rule) -> pftreestate -> pftreestate
-val change_constraints_pftreestate 
+val change_constraints_pftreestate
   : evar_map -> pftreestate -> pftreestate
 
 
@@ -233,3 +242,6 @@ open Pp
 (*i*)
 val set_info_printer :
   (evar_map -> named_context -> proof_tree -> Pp.std_ppcmds) -> unit
+val set_proof_printer :
+  (evar_map -> named_context -> proof_tree -> Pp.std_ppcmds) -> unit
+val print_pftreestate : pftreestate -> Pp.std_ppcmds

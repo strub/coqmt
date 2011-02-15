@@ -91,11 +91,11 @@ let pr_pid_ctr_map = fun _ _ _ (x, c) ->
 let pr_ne_pid_ctr_map =
   fun prc prlc prt xs ->
     Util.prlist_with_sep
-      Util.pr_coma (pr_pid_ctr_map prc prlc prt) xs
+      Util.pr_comma (pr_pid_ctr_map prc prlc prt) xs
 
 let pr_nelist_constr =
   fun prc _prlc _prt xs ->
-    Util.prlist_with_sep Util.pr_coma prc xs
+    Util.prlist_with_sep Util.pr_comma prc xs
 
 ARGUMENT EXTEND pid_ctr_map
     TYPED AS pid_ctr_map

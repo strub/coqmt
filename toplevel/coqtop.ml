@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: coqtop.ml 11830 2009-01-22 06:45:13Z notin $ *)
+(* $Id: coqtop.ml 13358 2010-07-29 23:10:17Z herbelin $ *)
 
 open Pp
 open Util
@@ -21,7 +21,7 @@ open Coqinit
 
 let get_version_date () =
   try
-    let coqlib = Envars.coqlib () in 
+    let coqlib = Envars.coqlib () in
     let ch = open_in (Filename.concat coqlib "revision") in
     let ver = input_line ch in
     let rev = input_line ch in
@@ -37,7 +37,7 @@ let output_context = ref false
 
 let memory_stat = ref false
 
-let print_memory_stat () = 
+let print_memory_stat () =
   if !memory_stat then
     Format.printf "total heap size = %d kbytes\n" (heap_size_kb ())
 
@@ -47,7 +47,7 @@ let engagement = ref None
 let set_engagement c = engagement := Some c
 let engage () =
   match !engagement with Some c -> Global.set_engagement c | None -> ()
-  
+
 let set_batch_mode () = batch_mode := true
 
 let toplevel_default_name = make_dirpath [id_of_string "Top"]
@@ -72,22 +72,19 @@ let set_outputstate s = outputstate:=s
 let outputstate () = if !outputstate <> "" then extern_state !outputstate
 
 let set_default_include d = push_include (d,Nameops.default_root_prefix)
-let set_default_rec_include d = push_rec_include(d,Nameops.default_root_prefix)
 let set_include d p =
   let p = dirpath_of_string p in
-  Library.check_coq_overwriting p;
   push_include (d,p)
 let set_rec_include d p =
-  let p = dirpath_of_string p in 
-  Library.check_coq_overwriting p;
+  let p = dirpath_of_string p in
   push_rec_include(d,p)
- 
+
 let load_vernacular_list = ref ([] : (string * bool) list)
 let add_load_vernacular verb s =
   load_vernacular_list := ((make_suffix s ".v"),verb) :: !load_vernacular_list
 let load_vernacular () =
   List.iter
-    (fun (s,b) -> 
+    (fun (s,b) ->
       if Flags.do_beautify () then
 	with_option beautify_file (Vernac.load_vernac b) s
       else
@@ -96,7 +93,7 @@ let load_vernacular () =
 
 let load_vernacular_obj = ref ([] : string list)
 let add_vernac_obj s = load_vernacular_obj := s :: !load_vernacular_obj
-let load_vernac_obj () = 
+let load_vernac_obj () =
   List.iter (fun f -> Library.require_library_from_file None f None)
     (List.rev !load_vernacular_obj)
 
@@ -109,7 +106,7 @@ let require () =
 let compile_list = ref ([] : (bool * string) list)
 let add_compile verbose s =
   set_batch_mode ();
-  Flags.make_silent true; 
+  Flags.make_silent true;
   compile_list := (verbose,s) :: !compile_list
 let compile_files () =
   let init_state = States.freeze() in
@@ -123,6 +120,12 @@ let compile_files () =
 	 else
 	   Vernac.compile v f)
       (List.rev !compile_list)
+
+let set_compat_version = function
+  | "8.2" -> compat_version := Some V8_2
+  | "8.1" -> warning "Compatibility with version 8.1 not supported."
+  | "8.0" -> warning "Compatibility with version 8.0 not supported."
+  | s -> error ("Unknown compatibility version \""^s^"\".")
 
 let re_exec_version = ref ""
 let set_byte () = re_exec_version := "byte"
@@ -145,11 +148,11 @@ let re_exec is_ide =
   if (is_native && s = "byte") || ((not is_native) && s = "opt")
   then begin
     let s = if s = "" then if is_native then "opt" else "byte" else s in
-    let newprog = 
+    let newprog =
       let dir = Filename.dirname prog in
       let coqtop = if is_ide then "coqide." else "coqtop." in
       let com = coqtop ^ s ^ Coq_config.exec_extension in
-      if dir <> "." then Filename.concat dir com else com 
+      if dir <> "." then Filename.concat dir com else com
     in
     Sys.argv.(0) <- newprog;
     Unix.handle_unix_error (Unix.execvp newprog) Sys.argv
@@ -186,12 +189,12 @@ let parse_args is_ide =
   let glob_opt = ref false in
   let rec parse = function
     | [] -> ()
-    | "-with-geoproof" :: s :: rem -> 
+    | "-with-geoproof" :: s :: rem ->
 	if s = "yes" then Coq_config.with_geoproof := true
 	else if s = "no" then Coq_config.with_geoproof := false
 	else usage ();
 	parse rem
-    | "-impredicative-set" :: rem -> 
+    | "-impredicative-set" :: rem ->
         set_engagement Declarations.ImpredicativeSet; parse rem
 
     | ("-I"|"-include") :: d :: "-as" :: p :: rem -> set_include d p; parse rem
@@ -218,13 +221,13 @@ let parse_args is_ide =
     | "-full" :: rem -> warning "option -full deprecated\n"; parse rem
 
     | "-batch" :: rem -> set_batch_mode (); parse rem
-    | "-boot" :: rem -> boot := true; no_load_rc (); parse rem	     
+    | "-boot" :: rem -> boot := true; no_load_rc (); parse rem
     | "-quality" :: rem -> term_quality := true; no_load_rc (); parse rem
     | "-outputstate" :: s :: rem -> set_outputstate s; parse rem
     | "-outputstate" :: []       -> usage ()
 
     | "-nois" :: rem -> set_inputstate ""; parse rem
-	     
+
     | ("-inputstate"|"-is") :: s :: rem -> set_inputstate s; parse rem
     | ("-inputstate"|"-is") :: []       -> usage ()
 
@@ -234,11 +237,11 @@ let parse_args is_ide =
     | "-load-ml-source" :: f :: rem -> Mltop.dir_ml_use f; parse rem
     | "-load-ml-source" :: []       -> usage ()
 
-    | ("-load-vernac-source"|"-l") :: f :: rem -> 
+    | ("-load-vernac-source"|"-l") :: f :: rem ->
 	add_load_vernacular false f; parse rem
     | ("-load-vernac-source"|"-l") :: []       -> usage ()
 
-    | ("-load-vernac-source-verbose"|"-lv") :: f :: rem -> 
+    | ("-load-vernac-source-verbose"|"-lv") :: f :: rem ->
 	add_load_vernacular true f; parse rem
     | ("-load-vernac-source-verbose"|"-lv") :: []       -> usage ()
 
@@ -270,12 +273,15 @@ let parse_args is_ide =
 
     | "-debug" :: rem -> set_debug (); parse rem
 
+    | "-compat" :: v :: rem -> set_compat_version v; parse rem
+    | "-compat" :: []       -> usage ()
+
     | "-vm" :: rem -> use_vm := true; parse rem
     | "-emacs" :: rem -> Flags.print_emacs := true; Pp.make_pp_emacs(); parse rem
-    | "-emacs-U" :: rem -> Flags.print_emacs := true; 
+    | "-emacs-U" :: rem -> Flags.print_emacs := true;
 	Flags.print_emacs_safechar := true; Pp.make_pp_emacs(); parse rem
-	    
-    | "-unicode" :: rem -> Flags.unicode_syntax := true; parse rem
+
+    | "-unicode" :: rem -> add_require "Utf8_core"; parse rem
 
     | "-coqlib" :: d :: rem -> Flags.coqlib_spec:=true; Flags.coqlib:=d; parse rem
     | "-coqlib" :: [] -> usage ()
@@ -296,7 +302,9 @@ let parse_args is_ide =
     | "-user" :: u :: rem -> set_rcuser u; parse rem
     | "-user" :: []       -> usage ()
 
-    | "-notactics" :: rem -> remove_top_ml (); parse rem
+    | "-notactics" :: rem ->
+	warning "Obsolete option \"-notactics\".";
+	remove_top_ml (); parse rem
 
     | "-just-parsing" :: rem -> Vernac.just_parsing := true; parse rem
 
@@ -312,7 +320,7 @@ let parse_args is_ide =
 
     | "-no-hash-consing" :: rem -> Flags.hash_cons_proofs := false; parse rem
 
-    | s :: rem -> 
+    | s :: rem ->
 	if is_ide then begin
 	  ide_args := s :: !ide_args;
 	  parse rem
@@ -322,7 +330,7 @@ let parse_args is_ide =
   in
   try
     parse (List.tl (Array.to_list Sys.argv))
-  with 
+  with
     | UserError(_,s) as e -> begin
 	try
 	  Stream.empty s; exit 1
@@ -359,17 +367,19 @@ let init is_ide =
       exit 1
   end;
   if !batch_mode then
-    (flush_all(); 
+    (flush_all();
      if !output_context then
        Pp.ppnl (with_option raw_print Prettyp.print_full_pure_context ());
-     Profile.print_profile (); 
+     Profile.print_profile ();
      exit 0);
   Lib.declare_initial_state ()
+
+let init_toplevel () = init false
 
 let init_ide () = init true; List.rev !ide_args
 
 let start () =
-  init false;
+  init_toplevel ();
   Toplevel.loop();
   (* Initialise and launch the Ocaml toplevel *)
   Coqinit.init_ocaml_path();

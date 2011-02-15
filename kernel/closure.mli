@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: closure.mli 11897 2009-02-09 19:28:02Z barras $ i*)
+(*i $Id: closure.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Pp
@@ -24,7 +24,7 @@ val with_stats: 'a Lazy.t -> 'a
 
 (*s Delta implies all consts (both global (= by
   [kernel_name]) and local (= by [Rel] or [Var])), all evars, and letin's.
-  Rem: reduction of a Rel/Var bound to a term is Delta, but reduction of 
+  Rem: reduction of a Rel/Var bound to a term is Delta, but reduction of
   a LetIn expression is Letin reduction *)
 
 
@@ -102,7 +102,7 @@ type fconstr
 type fterm =
   | FRel of int
   | FAtom of constr (* Metas and Sorts *)
-  | FCast of fconstr * cast_kind * fconstr 
+  | FCast of fconstr * cast_kind * fconstr
   | FFlex of table_key
   | FInd of inductive
   | FConstruct of constructor
@@ -192,9 +192,7 @@ val whd_stack :
 (* [unfold_reference] unfolds references in a [fconstr] *)
 val unfold_reference : clos_infos -> table_key -> fconstr option
 
-(* [mind_equiv] checks whether two inductive types are intentionally equal *)
-val mind_equiv : env -> inductive -> inductive -> bool
-val mind_equiv_infos : clos_infos -> inductive -> inductive -> bool
+val eq_table_key : table_key -> table_key -> bool
 
 (* Extraction of terms for DP *)
 module DP : sig

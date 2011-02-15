@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: matching.mli 11739 2009-01-02 19:33:19Z herbelin $ i*)
+(*i $Id: matching.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -34,8 +34,8 @@ val matches : constr_pattern -> constr -> patvar_map
    in [c] that matches the bound variables in [pat]; if several bound
    variables or metavariables have the same name, the metavariable,
    or else the rightmost bound variable, takes precedence *)
-val extended_matches : 
-  constr_pattern -> constr -> bound_ident_map * patvar_map
+val extended_matches :
+  constr_pattern -> constr -> bound_ident_map * extended_patvar_map
 
 (* [is_matching pat c] just tells if [c] matches against [pat] *)
 val is_matching : constr_pattern -> constr -> bool
@@ -59,14 +59,14 @@ type subterm_matching_result =
 val match_subterm : constr_pattern -> constr -> subterm_matching_result
 
 (* [match_appsubterm pat c] returns the substitution and the context
-   corresponding to the first **closed** subterm of [c] matching [pat], 
+   corresponding to the first **closed** subterm of [c] matching [pat],
    considering application contexts as well. It also returns a
    continuation that looks for the next matching subterm.
    It raises PatternMatchingFailure if no subterm matches the pattern *)
 val match_appsubterm : constr_pattern -> constr -> subterm_matching_result
 
 (* [match_subterm_gen] calls either [match_subterm] or [match_appsubterm] *)
-val match_subterm_gen : bool (* true = with app context *) -> 
+val match_subterm_gen : bool (* true = with app context *) ->
    constr_pattern -> constr -> subterm_matching_result
 
 (* [is_matching_appsubterm pat c] tells if a subterm of [c] matches

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: cooking.ml 10877 2008-04-30 21:58:41Z herbelin $ i*)
+(*i $Id: cooking.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Pp
 open Util
@@ -19,19 +19,19 @@ open Reduction
 
 (*s Cooking the constants. *)
 
-type work_list = identifier array Cmap.t * identifier array KNmap.t
+type work_list = identifier array Cmap.t * identifier array Mindmap.t
 
-let dirpath_prefix p = match repr_dirpath p with
+let pop_dirpath p = match repr_dirpath p with
   | [] -> anomaly "dirpath_prefix: empty dirpath"
   | _::l -> make_dirpath l
 
-let pop_kn kn =
-  let (mp,dir,l) = Names.repr_kn kn in
-  Names.make_kn mp (dirpath_prefix dir) l
+let pop_mind kn =
+  let (mp,dir,l) = Names.repr_mind kn in
+  Names.make_mind mp (pop_dirpath dir) l
 
-let pop_con con = 
+let pop_con con =
   let (mp,dir,l) = Names.repr_con con in
-  Names.make_con mp (dirpath_prefix dir) l
+  Names.make_con mp (pop_dirpath dir) l
 
 type my_global_reference =
   | ConstRef of constant
@@ -47,10 +47,10 @@ let share r (cstl,knl) =
   with Not_found ->
   let f,l =
     match r with
-    | IndRef (kn,i) -> 
-	mkInd (pop_kn kn,i), KNmap.find kn knl
-    | ConstructRef ((kn,i),j) -> 
-	mkConstruct ((pop_kn kn,i),j), KNmap.find kn knl
+    | IndRef (kn,i) ->
+	mkInd (pop_mind kn,i), Mindmap.find kn knl
+    | ConstructRef ((kn,i),j) ->
+	mkConstruct ((pop_mind kn,i),j), Mindmap.find kn knl
     | ConstRef cst ->
 	mkConst (pop_con cst), Cmap.find cst cstl in
   let c = mkApp (f, Array.map mkVar l) in
@@ -60,7 +60,7 @@ let share r (cstl,knl) =
 
 let update_case_info ci modlist =
   try
-    let ind, n = 
+    let ind, n =
       match kind_of_term (share (IndRef ci.ci_ind) modlist) with
       | App (f,l) -> (destInd f, Array.length l)
       | Ind ind -> ind, 0
@@ -69,7 +69,7 @@ let update_case_info ci modlist =
   with Not_found ->
     ci
 
-let empty_modlist = (Cmap.empty, KNmap.empty)
+let empty_modlist = (Cmap.empty, Mindmap.empty)
 
 let expmod_constr modlist c =
   let rec substrec c =
@@ -80,19 +80,19 @@ let expmod_constr modlist c =
       | Ind ind ->
 	  (try
 	    share (IndRef ind) modlist
-	   with 
+	   with
 	    | Not_found -> map_constr substrec c)
-	  
+
       | Construct cstr ->
 	  (try
 	    share (ConstructRef cstr) modlist
-	   with 
+	   with
 	    | Not_found -> map_constr substrec c)
-	  
+
       | Const cst ->
 	  (try
 	    share (ConstRef cst) modlist
-	   with 
+	   with
 	    | Not_found -> map_constr substrec c)
 
   | _ -> map_constr substrec c
@@ -112,7 +112,7 @@ type recipe = {
   d_abstract : named_context;
   d_modlist : work_list }
 
-let on_body f = 
+let on_body f =
   Option.map (fun c -> Declarations.from_val (f (Declarations.force c)))
 
 let cook_constant env r =
@@ -120,7 +120,7 @@ let cook_constant env r =
   let hyps = Sign.map_named_context (expmod_constr r.d_modlist) r.d_abstract in
   let body =
     on_body (fun c ->
-      abstract_constant_body (expmod_constr r.d_modlist c) hyps) 
+      abstract_constant_body (expmod_constr r.d_modlist c) hyps)
       cb.const_body in
   let typ = match cb.const_type with
     | NonPolymorphicType t ->

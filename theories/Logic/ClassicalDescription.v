@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ClassicalDescription.v 11481 2008-10-20 19:23:51Z herbelin $ i*)
+(*i $Id: ClassicalDescription.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file provides classical logic and definite description, which is
     equivalent to providing classical logic and Church's iota operator *)
@@ -30,12 +30,12 @@ Axiom constructive_definite_description :
 
 Theorem excluded_middle_informative : forall P:Prop, {P} + {~ P}.
 Proof.
-apply 
-  (constructive_definite_descr_excluded_middle 
+apply
+  (constructive_definite_descr_excluded_middle
    constructive_definite_description classic).
 Qed.
 
-Theorem classical_definite_description : 
+Theorem classical_definite_description :
   forall (A : Type) (P : A->Prop), inhabited A ->
   { x : A | (exists! x : A, P x) -> P x }.
 Proof.
@@ -54,7 +54,7 @@ Qed.
 Definition iota (A : Type) (i:inhabited A) (P : A->Prop) : A
   := proj1_sig (classical_definite_description P i).
 
-Definition iota_spec (A : Type) (i:inhabited A) (P : A->Prop) : 
+Definition iota_spec (A : Type) (i:inhabited A) (P : A->Prop) :
   (exists! x:A, P x) -> P (iota i P)
   := proj2_sig (classical_definite_description P i).
 

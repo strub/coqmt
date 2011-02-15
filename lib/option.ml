@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: option.ml 11576 2008-11-10 19:13:15Z msozeau $ i*)
+(*i $Id: option.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Module implementing basic combinators for OCaml option type.
    It tries follow closely the style of OCaml standard library.
@@ -20,7 +20,7 @@
 let has_some = function
   | None -> false
   | _ -> true
-  
+
 exception IsNone
 
 (** [get x] returns [y] where [x] is [Some y]. It raises IsNone
@@ -34,11 +34,11 @@ let make x = Some x
 
 (** [init b x] returns [Some x] if [b] is [true] and [None] otherwise. *)
 let init b x =
-  if b then 
+  if b then
     Some x
   else
     None
-    
+
 
 (** [flatten x] is [Some y] if [x] is [Some (Some y)] and [None] otherwise. *)
 let flatten = function
@@ -48,7 +48,7 @@ let flatten = function
 
 (** {6 "Iterators"} ***)
 
-(** [iter f x] executes [f y] if [x] equals [Some y]. It does nothing 
+(** [iter f x] executes [f y] if [x] equals [Some y]. It does nothing
     otherwise. *)
 let iter f = function
   | Some y -> f y
@@ -60,7 +60,7 @@ exception Heterogeneous
 (** [iter2 f x y] executes [f z w] if [x] equals [Some z] and [y] equals
     [Some w]. It does nothing if both [x] and [y] are [None]. And raises
     [Heterogeneous] otherwise. *)
-let iter2 f x y = 
+let iter2 f x y =
   match x,y with
   | Some z, Some w -> f z w
   | None,None -> ()
@@ -92,10 +92,16 @@ let fold_left2 f a x y =
   | _ -> raise Heterogeneous
 
 (** [fold_right f x a] is [f y a] if [x] is [Some y], and [a] otherwise. *)
-let fold_right f x a = 
+let fold_right f x a =
   match x with
   | Some y -> f y a
   | _ -> a
+
+(** [fold_map f a x] is [a, f y] if [x] is [Some y], and [a] otherwise. *)
+let fold_map f a x =
+  match x with
+  | Some y -> let a, z = f a y in a, Some z
+  | _ -> a, None
 
 (** [cata f a x] is [a] if [x] is [None] and [f y] if [x] is [Some y]. *)
 let cata f a = function
@@ -112,20 +118,20 @@ let default a = function
 (** [lift f x] is the same as [map f x]. *)
 let lift = map
 
-(** [lift_right f a x] is [Some (f a y)] if [x] is [Some y], and 
+(** [lift_right f a x] is [Some (f a y)] if [x] is [Some y], and
     [None] otherwise. *)
 let lift_right f a = function
   | Some y -> Some (f a y)
   | _ -> None
 
-(** [lift_left f x a] is [Some (f y a)] if [x] is [Some y], and 
+(** [lift_left f x a] is [Some (f y a)] if [x] is [Some y], and
     [None] otherwise. *)
 let lift_left f x a =
   match x with
   | Some y -> Some (f y a)
   | _ -> None
 
-(** [lift2 f x y] is [Some (f z w)] if [x] equals [Some z] and [y] equals 
+(** [lift2 f x y] is [Some (f z w)] if [x] equals [Some z] and [y] equals
     [Some w]. It is [None] otherwise. *)
 let lift2 f x y =
   match x,y with
@@ -137,18 +143,18 @@ let lift2 f x y =
 (** {6 Operations with Lists} *)
 
 module List =
- struct 
+ struct
   (** [List.cons x l] equals [y::l] if [x] is [Some y] and [l] otherwise. *)
   let cons x l =
     match x with
     | Some y -> y::l
     | _ -> l
- 
+
   (** [List.flatten l] is the list of all the [y]s such that [l] contains
       [Some y] (in the same order). *)
   let rec flatten = function
     | x::l -> cons x (flatten l)
-    | [] -> [] 
+    | [] -> []
 end
 
 
@@ -157,8 +163,8 @@ end
 
 module Misc =
  struct
-  (** [Misc.compare f x y] lifts the equality predicate [f] to 
-      option types. That is, if both [x] and [y] are [None] then 
+  (** [Misc.compare f x y] lifts the equality predicate [f] to
+      option types. That is, if both [x] and [y] are [None] then
       it returns [true], if they are bothe [Some _] then
       [f] is called. Otherwise it returns [false]. *)
    let compare f x y =

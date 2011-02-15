@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: record.mli 11809 2009-01-20 11:39:55Z aspiwack $ i*)
+(*i $Id: record.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -24,18 +24,20 @@ open Libnames
 
 val declare_projections :
   inductive -> ?kind:Decl_kinds.definition_object_kind -> ?name:identifier ->
-  bool list -> manual_explicitation list list -> rel_context -> 
+  bool list -> manual_explicitation list list -> rel_context ->
   (name * bool) list * constant option list
 
-val declare_structure : Decl_kinds.recursivity_kind -> 
-  identifier -> identifier -> 
+val declare_structure : Decl_kinds.recursivity_kind ->
+  bool (*infer?*) -> identifier -> identifier ->
   manual_explicitation list -> rel_context -> (* params *) constr -> (* arity *)
-  Impargs.manual_explicitation list list -> Sign.rel_context -> (* fields *)
+  Impargs.manual_explicitation list list -> rel_context -> (* fields *)
   ?kind:Decl_kinds.definition_object_kind -> ?name:identifier ->
   bool -> (* coercion? *)
   bool list -> (* field coercions *)
+  Evd.evar_map ->
   inductive
 
 val definition_structure :
-  inductive_kind*Decl_kinds.recursivity_kind *lident with_coercion * local_binder list *
-  (local_decl_expr with_coercion with_notation) list * identifier * sorts option -> global_reference
+  inductive_kind * Decl_kinds.recursivity_kind * bool(*infer?*)* lident with_coercion * local_binder list *
+  (local_decl_expr with_coercion with_notation) list *
+  identifier * constr_expr option -> global_reference

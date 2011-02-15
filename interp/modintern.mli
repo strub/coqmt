@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: modintern.mli 11582 2008-11-12 19:49:57Z notin $ i*)
+(*i $Id: modintern.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Declarations
@@ -18,11 +18,18 @@ open Names
 open Topconstr
 (*i*)
 
-(* Module expressions and module types are interpreted relatively to 
+(* Module expressions and module types are interpreted relatively to
    eventual functor or funsig arguments. *)
 
-val interp_modtype : env -> module_type_ast -> module_struct_entry
+val interp_modtype : env -> module_ast -> module_struct_entry
 
 val interp_modexpr : env -> module_ast -> module_struct_entry
+
+(* The following function tries to interprete an ast as a module,
+   and in case of failure, interpretes this ast as a module type.
+   The boolean is true for a module, false for a module type *)
+
+val interp_modexpr_or_modtype : env -> module_ast ->
+ module_struct_entry * bool
 
 val lookup_module : qualid located -> module_path

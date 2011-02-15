@@ -1,0 +1,87 @@
+
+## tags for binaries
+
+<scripts/coqmktop.{native,byte}> : use_str, use_unix, use_gramlib
+<scripts/coqc.{native,byte}> : use_unix, use_gramlib
+<tools/coqdep_boot.{native,byte}> : use_unix
+<tools/coqdep.{native,byte}> : use_unix, use_gramlib
+<tools/coq_tex.{native,byte}> : use_str
+<tools/coq_makefile.{native,byte}> : use_str
+<tools/coqdoc/main.{native,byte}> : use_str
+<checker/main.{native,byte}> : use_str, use_unix, use_gramlib
+<plugins/micromega/csdpcert.{native,byte}> : use_nums, use_unix
+
+## tags for ide
+
+<ide/**/*.{ml,mli}>: thread, ide
+
+## tags for grammar.cm*
+
+<parsing/grammar.{cma,cmxa}> : use_nums, use_unix
+
+## tags for camlp4 files 
+
+<**/*.ml4>: is_ml4
+
+"toplevel/mltop.ml4": is_mltop, use_macro
+
+"parsing/lexer.ml4": use_macro
+"lib/compat.ml4": use_macro
+"lib/refutpat.ml4": use_extend, use_MLast
+"parsing/g_xml.ml4": use_extend
+"parsing/q_constr.ml4": use_extend, use_MLast
+"parsing/argextend.ml4": use_extend, use_MLast
+"parsing/tacextend.ml4": use_extend, use_MLast
+"parsing/g_prim.ml4": use_extend
+"parsing/g_ltac.ml4": use_extend
+"parsing/pcoq.ml4": use_extend, use_macro
+"parsing/q_util.ml4": use_MLast
+"parsing/vernacextend.ml4": use_extend, use_MLast
+"parsing/g_constr.ml4": use_extend
+"parsing/g_tactic.ml4": use_extend
+"parsing/g_proofs.ml4": use_extend
+"parsing/q_coqast.ml4": use_MLast, use_macro
+
+"toplevel/whelp.ml4": use_grammar
+"parsing/g_vernac.ml4": use_grammar, use_extend
+"parsing/g_decl_mode.ml4": use_grammar, use_extend, use_MLast
+"tactics/extraargs.ml4": use_grammar
+"tactics/extratactics.ml4": use_grammar
+"tactics/class_tactics.ml4": use_grammar
+"tactics/eauto.ml4": use_grammar
+"tactics/tauto.ml4": use_grammar
+"tactics/eqdecide.ml4": use_grammar
+"tactics/hipattern.ml4": use_grammar, use_constr
+"tactics/rewrite.ml4": use_grammar
+
+"library/decproc_lib.ml4": use_extend, use_extprint
+
+<plugins/**/*.ml4>: use_grammar
+"plugins/subtac/g_subtac.ml4": use_extend
+
+## sub-directory inclusion
+
+# Note: "checker" is deliberately not included
+# Note: same for "config" (we create a special coq_config.ml)
+
+"parsing": include
+"ide": include
+"ide/utils": include
+"interp": include
+"kernel": include
+"kernel/byterun": include
+"lib": include
+"library": include
+"parsing": include
+"plugins": include
+"pretyping": include
+"proofs": include
+"scripts": include
+"states": include
+"tactics": include
+"theories": include
+"tools": include
+"tools/coqdoc": include
+"toplevel": include
+
+<plugins/**>: include

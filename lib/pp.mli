@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: pp.mli 10803 2008-04-16 09:30:05Z cek $ i*)
+(*i $Id: pp.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Pp_control
@@ -85,7 +85,7 @@ val warning_with : Format.formatter -> string -> unit
 val warn_with : Format.formatter -> std_ppcmds -> unit
 val pp_flush_with : Format.formatter -> unit -> unit
 
-val set_warning_function : (Format.formatter -> std_ppcmds -> unit) -> unit 
+val set_warning_function : (Format.formatter -> std_ppcmds -> unit) -> unit
 
 (*s Pretty-printing functions \emph{with flush}. *)
 

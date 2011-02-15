@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ideutils.mli 11006 2008-05-28 10:42:45Z jnarboux $ i*)
+(*i $Id: ideutils.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 val async : ('a -> unit) -> 'a -> unit
 val sync  : ('a -> 'b) -> 'a -> 'b
@@ -14,6 +14,7 @@ val sync  : ('a -> 'b) -> 'a -> 'b
 (* avoid running two instances of a function concurrently *)
 val mutex : string -> ('a -> unit) -> 'a -> unit
 
+val doc_url : unit -> string
 val browse : (string -> unit) -> string -> unit
 val browse_keyword : (string -> unit) -> string -> unit
 val byte_offset_to_char_offset : string -> int -> int
@@ -57,22 +58,15 @@ val print_list : (formatter -> 'a -> unit) -> formatter -> 'a list -> unit
 val run_command : (string -> unit) -> string -> Unix.process_status*string
 
 
-val prime : Glib.unichar
-val underscore : Glib.unichar
-val arobase : Glib.unichar
-val bn : Glib.unichar
-val space : Glib.unichar
-val tab : Glib.unichar
 
-
-val status : GMisc.statusbar option ref 
-val push_info : (string -> unit) ref
-val pop_info : (unit -> unit) ref
-val flash_info : (?delay:int -> string -> unit) ref
+val status : GMisc.statusbar
+val push_info : string -> unit
+val pop_info : unit -> unit
+val flash_info : ?delay:int -> string -> unit
 
 val set_location : (string -> unit) ref
 
-val pulse : (unit -> unit) ref
+val pbar : GRange.progress_bar
 
 
 (*

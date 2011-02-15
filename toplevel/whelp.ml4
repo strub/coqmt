@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,7 +8,7 @@
 
 (*i camlp4deps: "parsing/grammar.cma" i*)
 
-(* $Id: whelp.ml4 11309 2008-08-06 10:30:35Z herbelin $ *)
+(* $Id: whelp.ml4 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Flags
 open Pp
@@ -30,7 +30,7 @@ open Refiner
 open Tacmach
 open Syntax_def
 
-(* Coq interface to the Whelp query engine developed at 
+(* Coq interface to the Whelp query engine developed at
    the University of Bologna *)
 
 let whelp_server_name = ref "http://mowgli.cs.unibo.it:58080"
@@ -39,18 +39,18 @@ let getter_server_name = ref "http://mowgli.cs.unibo.it:58081"
 open Goptions
 
 let _ =
-  declare_string_option 
+  declare_string_option
     { optsync  = false;
       optname  = "Whelp server";
-      optkey   = (SecondaryTable ("Whelp","Server"));
+      optkey   = ["Whelp";"Server"];
       optread  = (fun () -> !whelp_server_name);
       optwrite = (fun s -> whelp_server_name := s) }
 
 let _ =
-  declare_string_option 
+  declare_string_option
     { optsync  = false;
       optname  = "Whelp getter";
-      optkey   = (SecondaryTable ("Whelp","Getter"));
+      optkey   = ["Whelp";"Getter"];
       optread  = (fun () -> !getter_server_name);
       optwrite = (fun s -> getter_server_name := s) }
 
@@ -61,7 +61,7 @@ let make_whelp_request req c =
 let b = Buffer.create 16
 
 let url_char c =
-  if 'A' <= c & c <= 'Z' or 'a' <= c & c <= 'z' or 
+  if 'A' <= c & c <= 'Z' or 'a' <= c & c <= 'z' or
      '0' <= c & c <= '9' or c ='.'
   then Buffer.add_char b c
   else Buffer.add_string b (Printf.sprintf "%%%2X" (Char.code c))
@@ -71,7 +71,7 @@ let url_string s = String.iter url_char s
 let rec url_list_with_sep sep f = function
   | [] -> ()
   | [a] -> f a
-  | a::l -> f a; url_string sep; url_list_with_sep sep f l 
+  | a::l -> f a; url_string sep; url_list_with_sep sep f l
 
 let url_id id = url_string (string_of_id id)
 
@@ -81,10 +81,10 @@ let uri_of_dirpath dir =
 let error_whelp_unknown_reference ref =
   let qid = Nametab.shortest_qualid_of_global Idset.empty ref in
   errorlabstrm ""
-    (strbrk "Definitions of the current session, like " ++ pr_qualid qid ++ 
+    (strbrk "Definitions of the current session, like " ++ pr_qualid qid ++
      strbrk ", are not supported in Whelp.")
 
-let uri_of_repr_kn ref (mp,dir,l) = 
+let uri_of_repr_kn ref (mp,dir,l) =
   match mp with
     | MPfile sl ->
         uri_of_dirpath (id_of_label l :: repr_dirpath dir @ repr_dirpath sl)
@@ -109,10 +109,10 @@ let uri_of_global ref =
   | VarRef id -> error ("Unknown Whelp reference: "^(string_of_id id)^".")
   | ConstRef cst ->
       uri_of_repr_kn ref (repr_con cst); url_string ".con"
-  | IndRef (kn,i) -> 
-      uri_of_repr_kn ref (repr_kn kn); uri_of_ind_pointer [1;i+1]
+  | IndRef (kn,i) ->
+      uri_of_repr_kn ref (repr_mind kn); uri_of_ind_pointer [1;i+1]
   | ConstructRef ((kn,i),j) ->
-      uri_of_repr_kn ref (repr_kn kn); uri_of_ind_pointer [1;i+1;j]
+      uri_of_repr_kn ref (repr_mind kn); uri_of_ind_pointer [1;i+1;j]
 
 let whelm_special = id_of_string "WHELM_ANON_VAR"
 
@@ -124,16 +124,16 @@ let uri_of_binding f (id,c) = url_id id; url_string "\\Assign "; f c
 
 let uri_params f = function
   | [] -> ()
-  | l -> url_string "\\subst"; 
+  | l -> url_string "\\subst";
          url_bracket (url_list_with_sep ";" (uri_of_binding f)) l
 
 let get_discharged_hyp_names sp = List.map basename (get_discharged_hyps sp)
 
 let section_parameters = function
   | RRef (_,(ConstructRef ((induri,_),_) | IndRef (induri,_))) ->
-      get_discharged_hyp_names (sp_of_global (IndRef(induri,0)))
+      get_discharged_hyp_names (path_of_global (IndRef(induri,0)))
   | RRef (_,(ConstRef cst as ref)) ->
-      get_discharged_hyp_names (sp_of_global ref)
+      get_discharged_hyp_names (path_of_global ref)
   | _ -> []
 
 let merge vl al =
@@ -151,7 +151,7 @@ let rec uri_of_constr c =
   | _ -> url_paren (fun () -> match c with
   | RApp (_,f,args) ->
       let inst,rest = merge (section_parameters f) args in
-      uri_of_constr f; url_char ' '; uri_params uri_of_constr inst; 
+      uri_of_constr f; url_char ' '; uri_params uri_of_constr inst;
       url_list_with_sep " " uri_of_constr rest
   | RLambda (_,na,k,ty,c) ->
       url_string "\\lambda "; url_of_name na; url_string ":";
@@ -170,7 +170,7 @@ let rec uri_of_constr c =
       error "Whelp does not support pattern-matching and (co-)fixpoint."
   | RVar _ | RRef _ | RHole _ | REvar _ | RSort _ | RCast (_,_, CastCoerce) ->
       anomaly "Written w/o parenthesis"
-  | RPatVar _ | RDynamic _ -> 
+  | RPatVar _ | RDynamic _ ->
       anomaly "Found constructors not supported in constr") ()
 
 let make_string f x = Buffer.reset b; f x; Buffer.contents b
@@ -185,14 +185,14 @@ let whelp_constr req c =
   send_whelp req (make_string uri_of_constr c)
 
 let whelp_constr_expr req c =
-  let (sigma,env)= get_current_context () in
+  let (sigma,env)= Lemmas.get_current_context () in
   let _,c = interp_open_constr sigma env c in
   whelp_constr req c
 
 let whelp_locate s =
   send_whelp "locate" s
 
-let whelp_elim ind = 
+let whelp_elim ind =
   send_whelp "elim" (make_string uri_of_global (IndRef ind))
 
 let on_goal f =
@@ -215,13 +215,13 @@ VERNAC ARGUMENT EXTEND whelp_constr_request
 END
 
 VERNAC COMMAND EXTEND Whelp
-| [ "Whelp" "Locate" string(s) ] -> [ whelp_locate s ] 
-| [ "Whelp" "Locate" preident(s) ] -> [ whelp_locate s ] 
-| [ "Whelp" "Elim" global(r) ] -> [ whelp_elim (inductive_of_reference_with_alias r) ] 
+| [ "Whelp" "Locate" string(s) ] -> [ whelp_locate s ]
+| [ "Whelp" "Locate" preident(s) ] -> [ whelp_locate s ]
+| [ "Whelp" "Elim" global(r) ] -> [ whelp_elim (Smartlocate.global_inductive_with_alias r) ]
 | [ "Whelp" whelp_constr_request(req) constr(c) ] -> [ whelp_constr_expr req c]
 END
 
 VERNAC COMMAND EXTEND WhelpHint
-| [ "Whelp" "Hint" constr(c) ] -> [ whelp_constr_expr "hint" c ] 
-| [ "Whelp" "Hint" ] -> [ on_goal (whelp_constr "hint") ] 
+| [ "Whelp" "Hint" constr(c) ] -> [ whelp_constr_expr "hint" c ]
+| [ "Whelp" "Hint" ] -> [ on_goal (whelp_constr "hint") ]
 END

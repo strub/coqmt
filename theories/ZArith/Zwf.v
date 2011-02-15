@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: Zwf.v 9245 2006-10-17 12:53:34Z notin $ *)
+(* $Id: Zwf.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 Require Import ZArith_base.
 Require Export Wf_nat.
@@ -15,7 +15,7 @@ Open Local Scope Z_scope.
 
 (** Well-founded relations on Z. *)
 
-(** We define the following family of relations on [Z x Z]: 
+(** We define the following family of relations on [Z x Z]:
 
     [x (Zwf c) y]   iff   [x < y & c <= y]
  *)

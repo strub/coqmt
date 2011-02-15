@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Relation_Operators.v 11481 2008-10-20 19:23:51Z herbelin $ i*)
+(*i $Id: Relation_Operators.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (************************************************************************)
 (** *                   Bruno Barras, Cristina Cornes                   *)
@@ -17,7 +17,6 @@
 (************************************************************************)
 
 Require Import Relation_Definitions.
-Require Import List.
 
 (** * Some operators to build relations *)
 
@@ -65,7 +64,7 @@ Section Reflexive_Transitive_Closure.
 
   Inductive clos_refl_trans_1n (x: A) : A -> Prop :=
     | rt1n_refl : clos_refl_trans_1n x x
-    | rt1n_trans (y z:A) : 
+    | rt1n_trans (y z:A) :
          R x y -> clos_refl_trans_1n y z -> clos_refl_trans_1n x z.
 
   (** Alternative definition by transitive extension on the right *)
@@ -79,10 +78,10 @@ End Reflexive_Transitive_Closure.
 
 (** ** Reflexive-symmetric-transitive closure *)
 
-Section Reflexive_Symetric_Transitive_Closure.
+Section Reflexive_Symmetric_Transitive_Closure.
   Variable A : Type.
   Variable R : relation A.
-  
+
   (** Definition by direct reflexive-symmetric-transitive closure *)
 
   Inductive clos_refl_sym_trans : relation A :=
@@ -96,18 +95,18 @@ Section Reflexive_Symetric_Transitive_Closure.
   (** Alternative definition by symmetric-transitive extension on the left *)
 
   Inductive clos_refl_sym_trans_1n (x: A) : A -> Prop :=
-    | rts1n_refl : clos_refl_sym_trans_1n x x
-    | rts1n_trans (y z:A) : R x y \/ R y x ->
+    | rst1n_refl : clos_refl_sym_trans_1n x x
+    | rst1n_trans (y z:A) : R x y \/ R y x ->
          clos_refl_sym_trans_1n y z -> clos_refl_sym_trans_1n x z.
 
   (** Alternative definition by symmetric-transitive extension on the right *)
 
   Inductive clos_refl_sym_trans_n1 (x: A) : A -> Prop :=
-    | rtsn1_refl : clos_refl_sym_trans_n1 x x
-    | rtsn1_trans (y z:A) : R y z \/ R z y -> 
+    | rstn1_refl : clos_refl_sym_trans_n1 x x
+    | rstn1_trans (y z:A) : R y z \/ R z y ->
          clos_refl_sym_trans_n1 x y -> clos_refl_sym_trans_n1 x z.
 
-End Reflexive_Symetric_Transitive_Closure.
+End Reflexive_Symmetric_Transitive_Closure.
 
 (** ** Converse of a relation *)
 
@@ -139,7 +138,7 @@ Inductive le_AsB : A + B -> A + B -> Prop :=
   | le_ab (x:A) (y:B) : le_AsB (inl _ x) (inr _ y)
   | le_bb (x y:B) : leB x y -> le_AsB (inr _ x) (inr _ y).
 
-End Disjoint_Union. 
+End Disjoint_Union.
 
 (** ** Lexicographic order on dependent pairs *)
 
@@ -187,14 +186,15 @@ Section Swap.
     | sp_swap x y (p:A * A) : symprod A A R R (x, y) p -> swapprod (y, x) p.
 End Swap.
 
+Local Open Scope list_scope.
 
 Section Lexicographic_Exponentiation.
-  
+
   Variable A : Set.
   Variable leA : A -> A -> Prop.
   Let Nil := nil (A:=A).
   Let List := list A.
-  
+
   Inductive Ltl : List -> List -> Prop :=
     | Lt_nil (a:A) (x:List) : Ltl Nil (a :: x)
     | Lt_hd (a b:A) : leA a b -> forall x y:list A, Ltl (a :: x) (b :: y)
@@ -207,7 +207,7 @@ Section Lexicographic_Exponentiation.
         leA x y -> Desc (l ++ y :: Nil) -> Desc ((l ++ y :: Nil) ++ x :: Nil).
 
   Definition Pow : Set := sig Desc.
-  
+
   Definition lex_exp (a b:Pow) : Prop := Ltl (proj1_sig a) (proj1_sig b).
 
 End Lexicographic_Exponentiation.
@@ -215,3 +215,11 @@ End Lexicographic_Exponentiation.
 Hint Unfold transp union: sets v62.
 Hint Resolve t_step rt_step rt_refl rst_step rst_refl: sets v62.
 Hint Immediate rst_sym: sets v62.
+
+(* begin hide *)
+(* Compatibility *)
+Notation rts1n_refl := rst1n_refl (only parsing).
+Notation rts1n_trans := rst1n_trans (only parsing).
+Notation rtsn1_refl := rstn1_refl (only parsing).
+Notation rtsn1_trans := rstn1_trans (only parsing).
+(* end hide *)

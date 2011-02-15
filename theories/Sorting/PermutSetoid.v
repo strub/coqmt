@@ -1,60 +1,321 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: PermutSetoid.v 10739 2008-04-01 14:45:20Z herbelin $ i*)
+(*i $Id: PermutSetoid.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-Require Import Omega Relations Multiset Permutation SetoidList.
+Require Import Omega Relations Multiset SetoidList.
+
+(** This file is deprecated, use [Permutation.v] instead.
+
+    Indeed, this file defines a notion of permutation based on
+    multisets (there exists a permutation between two lists iff every
+    elements have the same multiplicity in the two lists) which
+    requires a more complex apparatus (the equipment of the domain
+    with a decidable equality) than [Permutation] in [Permutation.v].
+
+    The relation between the two relations are in lemma
+    [permutation_Permutation].
+
+    File [PermutEq] concerns Leibniz equality : it shows in particular
+    that [List.Permutation] and [permutation] are equivalent in this context.
+*)
 
 Set Implicit Arguments.
 
-(** This file contains additional results about permutations 
-     with respect to an setoid equality (i.e. an equivalence relation). 
-*)
+Local Notation "[ ]" := nil.
+Local Notation "[ a ; .. ; b ]" := (a :: .. (b :: []) ..).
 
-Section Perm.
+Section Permut.
+
+(** * From lists to multisets *)
 
 Variable A : Type.
 Variable eqA : relation A.
+Hypothesis eqA_equiv : Equivalence eqA.
 Hypothesis eqA_dec : forall x y:A, {eqA x y} + {~ eqA x y}.
 
-Notation permutation := (permutation _ eqA_dec).
-Notation list_contents := (list_contents _ eqA_dec).
+Let emptyBag := EmptyBag A.
+Let singletonBag := SingletonBag _ eqA_dec.
 
-(** The following lemmas need some knowledge on [eqA] *)
+(** contents of a list *)
 
-Variable eqA_refl : forall x, eqA x x.
-Variable eqA_sym : forall x y, eqA x y -> eqA y x.
-Variable eqA_trans : forall x y z, eqA x y -> eqA y z -> eqA x z.
+Fixpoint list_contents (l:list A) : multiset A :=
+  match l with
+  | [] => emptyBag
+  | a :: l => munion (singletonBag a) (list_contents l)
+  end.
+
+Lemma list_contents_app :
+  forall l m:list A,
+    meq (list_contents (l ++ m)) (munion (list_contents l) (list_contents m)).
+Proof.
+  simple induction l; simpl in |- *; auto with datatypes.
+  intros.
+  apply meq_trans with
+    (munion (singletonBag a) (munion (list_contents l0) (list_contents m)));
+    auto with datatypes.
+Qed.
+
+(** * [permutation]: definition and basic properties *)
+
+Definition permutation (l m:list A) := meq (list_contents l) (list_contents m).
+
+Lemma permut_refl : forall l:list A, permutation l l.
+Proof.
+  unfold permutation in |- *; auto with datatypes.
+Qed.
+
+Lemma permut_sym :
+  forall l1 l2 : list A, permutation l1 l2 -> permutation l2 l1.
+Proof.
+  unfold permutation, meq; intros; apply sym_eq; trivial.
+Qed.
+
+Lemma permut_trans :
+  forall l m n:list A, permutation l m -> permutation m n -> permutation l n.
+Proof.
+  unfold permutation in |- *; intros.
+  apply meq_trans with (list_contents m); auto with datatypes.
+Qed.
+
+Lemma permut_cons_eq :
+  forall l m:list A,
+    permutation l m -> forall a a', eqA a a' -> permutation (a :: l) (a' :: m).
+Proof.
+  unfold permutation; simpl; intros.
+  apply meq_trans with (munion (singletonBag a') (list_contents l)).
+  apply meq_left, meq_singleton; auto.
+  auto with datatypes.
+Qed.
+
+Lemma permut_cons :
+  forall l m:list A,
+    permutation l m -> forall a:A, permutation (a :: l) (a :: m).
+Proof.
+  unfold permutation; simpl; auto with datatypes.
+Qed.
+
+Lemma permut_app :
+  forall l l' m m':list A,
+    permutation l l' -> permutation m m' -> permutation (l ++ m) (l' ++ m').
+Proof.
+  unfold permutation in |- *; intros.
+  apply meq_trans with (munion (list_contents l) (list_contents m));
+    auto using permut_cons, list_contents_app with datatypes.
+  apply meq_trans with (munion (list_contents l') (list_contents m'));
+    auto using permut_cons, list_contents_app with datatypes.
+  apply meq_trans with (munion (list_contents l') (list_contents m));
+    auto using permut_cons, list_contents_app with datatypes.
+Qed.
+
+Lemma permut_add_inside_eq :
+  forall a a' l1 l2 l3 l4, eqA a a' ->
+    permutation (l1 ++ l2) (l3 ++ l4) ->
+    permutation (l1 ++ a :: l2) (l3 ++ a' :: l4).
+Proof.
+  unfold permutation, meq in *; intros.
+  specialize H0 with a0.
+  repeat rewrite list_contents_app in *; simpl in *.
+  destruct (eqA_dec a a0) as [Ha|Ha]; rewrite H in Ha;
+    decide (eqA_dec a' a0) with Ha; simpl; auto with arith.
+  do 2 rewrite <- plus_n_Sm; f_equal; auto.
+Qed.
+
+Lemma permut_add_inside :
+  forall a l1 l2 l3 l4,
+    permutation (l1 ++ l2) (l3 ++ l4) ->
+    permutation (l1 ++ a :: l2) (l3 ++ a :: l4).
+Proof.
+  unfold permutation, meq in *; intros.
+  generalize (H a0); clear H.
+  do 4 rewrite list_contents_app.
+  simpl.
+  destruct (eqA_dec a a0); simpl; auto with arith.
+  do 2 rewrite <- plus_n_Sm; f_equal; auto.
+Qed.
+
+Lemma permut_add_cons_inside_eq :
+  forall a a' l l1 l2, eqA a a' ->
+    permutation l (l1 ++ l2) ->
+    permutation (a :: l) (l1 ++ a' :: l2).
+Proof.
+  intros;
+  replace (a :: l) with ([] ++ a :: l); trivial;
+    apply permut_add_inside_eq; trivial.
+Qed.
+
+Lemma permut_add_cons_inside :
+  forall a l l1 l2,
+    permutation l (l1 ++ l2) ->
+    permutation (a :: l) (l1 ++ a :: l2).
+Proof.
+  intros;
+    replace (a :: l) with ([] ++ a :: l); trivial;
+	apply permut_add_inside; trivial.
+Qed.
+
+Lemma permut_middle :
+  forall (l m:list A) (a:A), permutation (a :: l ++ m) (l ++ a :: m).
+Proof.
+  intros; apply permut_add_cons_inside; auto using permut_sym, permut_refl.
+Qed.
+
+Lemma permut_sym_app :
+  forall l1 l2, permutation (l1 ++ l2) (l2 ++ l1).
+Proof.
+  intros l1 l2;
+    unfold permutation, meq;
+	intro a; do 2 rewrite list_contents_app; simpl;
+	  auto with arith.
+Qed.
+
+Lemma permut_rev :
+  forall l, permutation l (rev l).
+Proof.
+  induction l.
+  simpl; trivial using permut_refl.
+  simpl.
+  apply permut_add_cons_inside.
+  rewrite <- app_nil_end. trivial.
+Qed.
+
+(** * Some inversion results. *)
+Lemma permut_conv_inv :
+  forall e l1 l2, permutation (e :: l1) (e :: l2) -> permutation l1 l2.
+Proof.
+  intros e l1 l2; unfold permutation, meq; simpl; intros H a;
+    generalize (H a); apply plus_reg_l.
+Qed.
+
+Lemma permut_app_inv1 :
+  forall l l1 l2, permutation (l1 ++ l) (l2 ++ l) -> permutation l1 l2.
+Proof.
+  intros l l1 l2; unfold permutation, meq; simpl;
+    intros H a; generalize (H a); clear H.
+  do 2 rewrite list_contents_app.
+  simpl.
+  intros; apply plus_reg_l with (multiplicity (list_contents l) a).
+  rewrite plus_comm; rewrite H; rewrite plus_comm.
+  trivial.
+Qed.
 
 (** we can use [multiplicity] to define [InA] and [NoDupA]. *)
 
-Lemma multiplicity_InA : 
+Fact if_eqA_then : forall a a' (B:Type)(b b':B),
+ eqA a a' -> (if eqA_dec a a' then b else b') = b.
+Proof.
+  intros. destruct eqA_dec as [_|NEQ]; auto.
+  contradict NEQ; auto.
+Qed.
+
+Lemma permut_app_inv2 :
+  forall l l1 l2, permutation (l ++ l1) (l ++ l2) -> permutation l1 l2.
+Proof.
+  intros l l1 l2; unfold permutation, meq; simpl;
+    intros H a; generalize (H a); clear H.
+  do 2 rewrite list_contents_app.
+  simpl.
+  intros; apply plus_reg_l with (multiplicity (list_contents l) a).
+  trivial.
+Qed.
+
+Lemma permut_remove_hd_eq :
+  forall l l1 l2 a b, eqA a b ->
+    permutation (a :: l) (l1 ++ b :: l2) -> permutation l (l1 ++ l2).
+Proof.
+  unfold permutation, meq; simpl; intros l l1 l2 a b Heq H a0.
+  specialize H with a0.
+  rewrite list_contents_app in *; simpl in *.
+  apply plus_reg_l with (if eqA_dec a a0 then 1 else 0).
+  rewrite H; clear H.
+  symmetry; rewrite plus_comm, <- ! plus_assoc; f_equal.
+  rewrite plus_comm.
+  destruct (eqA_dec a a0) as [Ha|Ha]; rewrite Heq in Ha;
+    decide (eqA_dec b a0) with Ha; reflexivity.
+Qed.
+
+Lemma permut_remove_hd :
+  forall l l1 l2 a,
+    permutation (a :: l) (l1 ++ a :: l2) -> permutation l (l1 ++ l2).
+Proof.
+  eauto using permut_remove_hd_eq, Equivalence_Reflexive.
+Qed.
+
+Fact if_eqA_else : forall a a' (B:Type)(b b':B),
+ ~eqA a a' -> (if eqA_dec a a' then b else b') = b'.
+Proof.
+  intros. decide (eqA_dec a a') with H; auto.
+Qed.
+
+Fact if_eqA_refl : forall a (B:Type)(b b':B),
+ (if eqA_dec a a then b else b') = b.
+Proof.
+  intros; apply (decide_left (eqA_dec a a)); auto with *.
+Qed.
+
+(** PL: Inutilisable dans un rewrite sans un change prealable. *)
+
+Global Instance if_eqA (B:Type)(b b':B) :
+ Proper (eqA==>eqA==>@eq _) (fun x y => if eqA_dec x y then b else b').
+Proof.
+ intros x x' Hxx' y y' Hyy'.
+ intros; destruct (eqA_dec x y) as [H|H];
+  destruct (eqA_dec x' y') as [H'|H']; auto.
+ contradict H'; transitivity x; auto with *; transitivity y; auto with *.
+ contradict H; transitivity x'; auto with *; transitivity y'; auto with *.
+Qed.
+
+Fact if_eqA_rewrite_l : forall a1 a1' a2 (B:Type)(b b':B),
+ eqA a1 a1' -> (if eqA_dec a1 a2 then b else b') =
+               (if eqA_dec a1' a2 then b else b').
+Proof.
+ intros; destruct (eqA_dec a1 a2) as [A1|A1];
+  destruct (eqA_dec a1' a2) as [A1'|A1']; auto.
+ contradict A1'; transitivity a1; eauto with *.
+ contradict A1; transitivity a1'; eauto with *.
+Qed.
+
+Fact if_eqA_rewrite_r : forall a1 a2 a2' (B:Type)(b b':B),
+ eqA a2 a2' -> (if eqA_dec a1 a2 then b else b') =
+               (if eqA_dec a1 a2' then b else b').
+Proof.
+ intros; destruct (eqA_dec a1 a2) as [A2|A2];
+  destruct (eqA_dec a1 a2') as [A2'|A2']; auto.
+ contradict A2'; transitivity a2; eauto with *.
+ contradict A2; transitivity a2'; eauto with *.
+Qed.
+
+
+Global Instance multiplicity_eqA (l:list A) :
+ Proper (eqA==>@eq _) (multiplicity (list_contents l)).
+Proof.
+  intros x x' Hxx'.
+  induction l as [|y l Hl]; simpl; auto.
+  rewrite (@if_eqA_rewrite_r y x x'); auto.
+Qed.
+
+Lemma multiplicity_InA :
   forall l a, InA eqA a l <-> 0 < multiplicity (list_contents l) a.
 Proof.
   induction l.
   simpl.
   split; inversion 1.
   simpl.
-  split; intros.
-  inversion_clear H.
-  destruct (eqA_dec a a0) as [_|H1]; auto with arith.
-  destruct H1; auto.
-  destruct (eqA_dec a a0); auto with arith.
-  simpl; rewrite <- IHl; auto.
-  destruct (eqA_dec a a0) as [H0|H0]; auto.
-  simpl in H.
-  constructor 2; rewrite IHl; auto.
+  intros a'; split; intros H. inversion_clear H.
+  apply (decide_left (eqA_dec a a')); auto with *.
+  destruct (eqA_dec a a'); auto with *. simpl; rewrite <- IHl; auto.
+  destruct (eqA_dec a a'); auto with *. right. rewrite IHl; auto.
 Qed.
 
 Lemma multiplicity_InA_O :
   forall l a, ~ InA eqA a l -> multiplicity (list_contents l) a = 0.
 Proof.
-  intros l a; rewrite multiplicity_InA; 
+  intros l a; rewrite multiplicity_InA;
     destruct (multiplicity (list_contents l) a); auto with arith.
   destruct 1; auto with arith.
 Qed.
@@ -65,7 +326,7 @@ Proof.
   intros l a; rewrite multiplicity_InA; auto with arith.
 Qed.
 
-Lemma multiplicity_NoDupA : forall l, 
+Lemma multiplicity_NoDupA : forall l,
   NoDupA eqA l <-> (forall a, multiplicity (list_contents l) a <= 1).
 Proof.
   induction l.
@@ -74,23 +335,18 @@ Proof.
   split; simpl.
   inversion_clear 1.
   rewrite IHl in H1.
-  intros; destruct (eqA_dec a a0) as [H2|H2]; simpl; auto.
+  intros; destruct (eqA_dec a a0) as [EQ|NEQ]; simpl; auto with *.
+  rewrite <- EQ.
   rewrite multiplicity_InA_O; auto.
-  contradict H0.
-  apply InA_eqA with a0; auto.
   intros; constructor.
   rewrite multiplicity_InA.
-  generalize (H a).
-  destruct (eqA_dec a a) as [H0|H0].
-  destruct (multiplicity (list_contents l) a); auto with arith.
-  simpl; inversion 1. 
-  inversion H3.
-  destruct H0; auto.
+  specialize (H a).
+  rewrite if_eqA_refl in H.
+  clear IHl; omega.
   rewrite IHl; intros.
-  generalize (H a0); auto with arith.
-  destruct (eqA_dec a a0); simpl; auto with arith.
+  specialize (H a0); auto with *.
+  destruct (eqA_dec a a0); simpl; auto with *.
 Qed.
-
 
 (** Permutation is compatible with InA. *)
 Lemma permut_InA_InA :
@@ -98,22 +354,22 @@ Lemma permut_InA_InA :
 Proof.
   intros l1 l2 e.
   do 2 rewrite multiplicity_InA.
-  unfold Permutation.permutation, meq.
+  unfold permutation, meq.
   intros H;rewrite H; auto.
 Qed.
 
 Lemma permut_cons_InA :
   forall l1 l2 e, permutation (e :: l1) l2 -> InA eqA e l2.
 Proof.
-  intros; apply (permut_InA_InA (e:=e) H); auto.
+  intros; apply (permut_InA_InA (e:=e) H); auto with *.
 Qed.
 
 (** Permutation of an empty list. *)
 Lemma permut_nil :
-  forall l, permutation l nil -> l = nil.
+  forall l, permutation l [] -> l = [].
 Proof.
   intro l; destruct l as [ | e l ]; trivial.
-  assert (InA eqA e (e::l)) by auto.
+  assert (InA eqA e (e::l)) by (auto with *).
   intro Abs; generalize (permut_InA_InA Abs H).
   inversion 1.
 Qed.
@@ -121,16 +377,16 @@ Qed.
 (** Permutation for short lists. *)
 
 Lemma permut_length_1:
-  forall a b, permutation (a :: nil) (b :: nil)  -> eqA a b.
+  forall a b, permutation [a] [b] -> eqA a b.
 Proof.
-  intros a b; unfold Permutation.permutation, meq; intro P;
-  generalize (P b); clear P; simpl.
-  destruct (eqA_dec b b) as [H|H]; [ | destruct H; auto].
-  destruct (eqA_dec a b); simpl; auto; intros; discriminate.
+  intros a b; unfold permutation, meq.
+  intro P; specialize (P b); simpl in *.
+  rewrite if_eqA_refl in *.
+  destruct (eqA_dec a b); simpl; auto; discriminate.
 Qed.
 
 Lemma permut_length_2 :
-  forall a1 b1 a2 b2, permutation (a1 :: b1 :: nil) (a2 :: b2 :: nil) ->
+  forall a1 b1 a2 b2, permutation [a1; b1] [a2; b2] ->
     (eqA a1 a2) /\ (eqA b1 b2) \/ (eqA a1 b2) /\ (eqA a2 b1).
 Proof.
   intros a1 b1 a2 b2 P.
@@ -139,22 +395,19 @@ Proof.
   left; split; auto.
   apply permut_length_1.
   red; red; intros.
-  generalize (P a); clear P; simpl.
-  destruct (eqA_dec a1 a) as [H2|H2]; 
-    destruct (eqA_dec a2 a) as [H3|H3]; auto.
-  destruct H3; apply eqA_trans with a1; auto.
-  destruct H2; apply eqA_trans with a2; auto.
+  specialize (P a). simpl in *.
+  rewrite (@if_eqA_rewrite_l a1 a2 a) in P by auto.
+  (** Bug omega: le "set" suivant ne devrait pas etre necessaire *)
+  set (u:= if eqA_dec a2 a then 1 else 0) in *; omega.
   right.
   inversion_clear H0; [|inversion H].
   split; auto.
   apply permut_length_1.
   red; red; intros.
-  generalize (P a); clear P; simpl.
-  destruct (eqA_dec a1 a) as [H2|H2]; 
-    destruct (eqA_dec b2 a) as [H3|H3]; auto.
-  simpl; rewrite <- plus_n_Sm; inversion 1; auto.
-  destruct H3; apply eqA_trans with a1; auto.
-  destruct H2; apply eqA_trans with b2; auto.
+  specialize (P a); simpl in *.
+  rewrite (@if_eqA_rewrite_l a1 b2 a) in P by auto.
+  (** Bug omega: idem *)
+  set (u:= if eqA_dec b2 a then 1 else 0) in *; omega.
 Qed.
 
 (** Permutation is compatible with length. *)
@@ -171,68 +424,131 @@ Proof.
   rewrite <- app_length.
   apply IHl1.
   apply permut_remove_hd with b.
-  apply permut_tran with (a::l1); auto.
-  revert H1; unfold Permutation.permutation, meq; simpl.
+  apply permut_trans with (a::l1); auto.
+  revert H1; unfold permutation, meq; simpl.
   intros; f_equal; auto.
-  destruct (eqA_dec b a0) as [H2|H2]; 
-    destruct (eqA_dec a a0) as [H3|H3]; auto.
-  destruct H3; apply eqA_trans with b; auto.
-  destruct H2; apply eqA_trans with a; auto.
+  rewrite (@if_eqA_rewrite_l a b a0); auto.
 Qed.
 
-Lemma NoDupA_equivlistA_permut : 
-  forall l l', NoDupA eqA l -> NoDupA eqA l' -> 
+Lemma NoDupA_equivlistA_permut :
+  forall l l', NoDupA eqA l -> NoDupA eqA l' ->
     equivlistA eqA l l' -> permutation l l'.
 Proof.
   intros.
   red; unfold meq; intros.
-  rewrite multiplicity_NoDupA in H, H0. 
+  rewrite multiplicity_NoDupA in H, H0.
   generalize (H a) (H0 a) (H1 a); clear H H0 H1.
   do 2 rewrite multiplicity_InA.
   destruct 3; omega.
 Qed.
 
+End Permut.
 
-Variable B : Type.
+Section Permut_map.
+
+Variables A B : Type.
+
+Variable eqA : relation A.
+Hypothesis eqA_dec : forall x y:A, {eqA x y} + {~ eqA x y}.
+Hypothesis eqA_equiv : Equivalence eqA.
+
 Variable eqB : B->B->Prop.
-Variable eqB_dec : forall x y:B, { eqB x y }+{ ~eqB x y }. 
-Variable eqB_trans : forall x y z, eqB x y -> eqB y z -> eqB x z.
+Hypothesis eqB_dec : forall x y:B, { eqB x y }+{ ~eqB x y }.
+Hypothesis eqB_trans : Transitive eqB.
 
 (** Permutation is compatible with map. *)
 
 Lemma permut_map :
-  forall f, 
-    (forall x y, eqA x y -> eqB (f x) (f y)) ->
-    forall l1 l2, permutation l1 l2 -> 
-      Permutation.permutation _ eqB_dec (map f l1) (map f l2).
+  forall f,
+    (Proper (eqA==>eqB) f) ->
+    forall l1 l2, permutation _ eqA_dec l1 l2 ->
+      permutation _ eqB_dec (map f l1) (map f l2).
 Proof.
   intros f; induction l1.
-  intros l2 P; rewrite (permut_nil (permut_sym P)); apply permut_refl.
+  intros l2 P; rewrite (permut_nil eqA_equiv (permut_sym P)); apply permut_refl.
   intros l2 P.
   simpl.
-  assert (H0:=permut_cons_InA P).
+  assert (H0:=permut_cons_InA eqA_equiv P).
   destruct (InA_split H0) as (h2,(b,(t2,(H1,H2)))).
   subst l2.
   rewrite map_app.
   simpl.
-  apply permut_tran with (f b :: map f l1).
-  revert H1; unfold Permutation.permutation, meq; simpl.
+  apply permut_trans with (f b :: map f l1).
+  revert H1; unfold permutation, meq; simpl.
   intros; f_equal; auto.
-  destruct (eqB_dec (f b) a0) as [H2|H2]; 
+  destruct (eqB_dec (f b) a0) as [H2|H2];
     destruct (eqB_dec (f a) a0) as [H3|H3]; auto.
-  destruct H3; apply eqB_trans with (f b); auto.
-  destruct H2; apply eqB_trans with (f a); auto.
+  destruct H3; transitivity (f b); auto with *.
+  destruct H2; transitivity (f a); auto with *.
   apply permut_add_cons_inside.
   rewrite <- map_app.
   apply IHl1; auto.
-  apply permut_remove_hd with b.
-  apply permut_tran with (a::l1); auto.
-  revert H1; unfold Permutation.permutation, meq; simpl.
+  apply permut_remove_hd with b; trivial.
+  apply permut_trans with (a::l1); auto.
+  revert H1; unfold permutation, meq; simpl.
   intros; f_equal; auto.
-  destruct (eqA_dec b a0) as [H2|H2]; 
-    destruct (eqA_dec a a0) as [H3|H3]; auto.
-  destruct H3; apply eqA_trans with b; auto.
-  destruct H2; apply eqA_trans with a; auto.
+  rewrite (@if_eqA_rewrite_l _ _ eqA_equiv eqA_dec a b a0); auto.
 Qed.
 
-End Perm.
+End Permut_map.
+
+Require Import Permutation TheoryList.
+
+Section Permut_permut.
+
+Variable A : Type.
+
+Variable eqA : relation A.
+Hypothesis eqA_dec : forall x y:A, {eqA x y} + {~ eqA x y}.
+Hypothesis eqA_equiv : Equivalence eqA.
+
+Lemma Permutation_impl_permutation : forall l l',
+  Permutation l l' -> permutation _ eqA_dec l l'.
+Proof.
+  induction 1.
+    apply permut_refl.
+    apply permut_cons; auto using Equivalence_Reflexive.
+    change (x :: y :: l) with ([x] ++ y :: l);
+      apply permut_add_cons_inside; simpl;
+      apply permut_cons_eq; auto using Equivalence_Reflexive, permut_refl.
+    apply permut_trans with l'; trivial.
+Qed.
+
+Lemma permut_eqA : forall l l', Forall2 eqA l l' -> permutation _ eqA_dec l l'.
+Proof.
+  induction 1.
+    apply permut_refl.
+    apply permut_cons_eq; trivial.
+Qed.
+
+Lemma permutation_Permutation : forall l l',
+  permutation _ eqA_dec l l' <->
+  exists l'', Permutation l l'' /\ Forall2 eqA l'' l'.
+Proof.
+  split; intro H.
+  (* -> *)
+  induction l in l', H |- *.
+    exists []; apply permut_sym, permut_nil in H as ->; auto using Forall2.
+    pose proof H as H'.
+    apply permut_cons_InA, InA_split in H
+      as (l1 & y & l2 & Heq & ->); trivial.
+    apply permut_remove_hd_eq, IHl in H'
+      as (l'' & IHP & IHA); clear IHl; trivial.
+    apply Forall2_app_inv_r in IHA as (l1'' & l2'' & Hl1 & Hl2 & ->).
+    exists (l1'' ++ a :: l2''); split.
+      apply Permutation_cons_app; trivial.
+      apply Forall2_app, Forall2_cons; trivial.
+  (* <- *)
+  destruct H as (l'' & H & Heq).
+  apply permut_trans with l''.
+    apply Permutation_impl_permutation; trivial.
+    apply permut_eqA; trivial.
+Qed.
+
+End Permut_permut.
+
+(* begin hide *)
+(** For compatibilty *)
+Notation permut_right := permut_cons (only parsing).
+Notation permut_tran := permut_trans (only parsing).
+(* end hide *)

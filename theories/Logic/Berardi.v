@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Berardi.v 8122 2006-03-04 19:26:40Z herbelin $ i*)
+(*i $Id: Berardi.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file formalizes Berardi's paradox which says that in
    the calculus of constructions, excluded middle (EM) and axiom of
@@ -67,10 +67,10 @@ Section Retracts.
 
 Variables A B : Prop.
 
-Record retract : Prop := 
+Record retract : Prop :=
   {i : A -> B; j : B -> A; inv : forall a:A, j (i a) = a}.
 
-Record retract_cond : Prop := 
+Record retract_cond : Prop :=
   {i2 : A -> B; j2 : B -> A; inv2 : retract -> forall a:A, j2 (i2 a) = a}.
 
 
@@ -94,7 +94,7 @@ Proof.
 intros A B.
 destruct (EM (retract (pow A) (pow B))) as [(f0,g0,e) | hf].
   exists f0 g0; trivial.
-  exists (fun (x:pow A) (y:B) => F) (fun (x:pow B) (y:A) => F); intros; 
+  exists (fun (x:pow A) (y:B) => F) (fun (x:pow B) (y:A) => F); intros;
     destruct hf; auto.
 Qed.
 

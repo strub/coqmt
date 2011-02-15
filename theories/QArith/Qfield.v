@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Qfield.v 11208 2008-07-04 16:57:46Z letouzey $ i*)
+(*i $Id: Qfield.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Field.
 Require Export QArith_base.
@@ -73,15 +73,15 @@ Ltac Qpow_tac t :=
   | _ => NotConstant
   end.
 
-Add Field Qfield : Qsft 
- (decidable Qeq_bool_eq, 
+Add Field Qfield : Qsft
+ (decidable Qeq_bool_eq,
   completeness Qeq_eq_bool,
-  constants [Qcst], 
+  constants [Qcst],
   power_tac Qpower_theory [Qpow_tac]).
 
 (** Exemple of use: *)
 
-Section Examples. 
+Section Examples.
 
 Let ex1 : forall x y z : Q, (x+y)*z ==  (x*z)+(y*z).
   intros.
@@ -89,7 +89,7 @@ Let ex1 : forall x y z : Q, (x+y)*z ==  (x*z)+(y*z).
 Qed.
 
 Let ex2 : forall x y : Q, x+y == y+x.
-  intros. 
+  intros.
   ring.
 Qed.
 

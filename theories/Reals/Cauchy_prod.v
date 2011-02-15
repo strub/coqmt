@@ -1,12 +1,12 @@
-  (************************************************************************)
-  (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-  (* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
-  (*   \VV/  **************************************************************)
-  (*    //   *      This file is distributed under the terms of the       *)
-  (*         *       GNU Lesser General Public License Version 2.1        *)
-  (************************************************************************)
+(************************************************************************)
+(*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(*   \VV/  **************************************************************)
+(*    //   *      This file is distributed under the terms of the       *)
+(*         *       GNU Lesser General Public License Version 2.1        *)
+(************************************************************************)
 
-  (*i $Id: Cauchy_prod.v 9245 2006-10-17 12:53:34Z notin $ i*)
+  (*i $Id: Cauchy_prod.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -47,7 +47,7 @@ Theorem cauchy_finite :
     sum_f_R0
     (fun k:nat =>
       sum_f_R0 (fun l:nat => An (S (l + k)) * Bn (N - l)%nat)
-      (pred (N - k))) (pred N). 
+      (pred (N - k))) (pred N).
 Proof.
   intros; induction  N as [| N HrecN].
   elim (lt_irrefl _ H).
@@ -124,7 +124,7 @@ Proof.
       (fun k:nat =>
 	sum_f_R0 (fun l:nat => An (S (S (l + k))) * Bn (N - l)%nat)
         (pred (pred (N - k)))) (pred (pred N)));
-    set (Z2 := sum_f_R0 (fun i:nat => Bn (S i)) (pred N)); 
+    set (Z2 := sum_f_R0 (fun i:nat => Bn (S i)) (pred N));
       ring.
   rewrite
     (sum_N_predN

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: libnames.ml 11878 2009-02-03 12:48:18Z soubiran $ i*)
+(*i $Id: libnames.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Pp
 open Util
@@ -23,23 +23,48 @@ type global_reference =
   | ConstructRef of constructor
 
 let isVarRef = function VarRef _ -> true | _ -> false
+let isConstRef = function ConstRef _ -> true | _ -> false
+let isIndRef = function IndRef _ -> true | _ -> false
+let isConstructRef = function ConstructRef _ -> true | _ -> false
+
+let eq_gr gr1 gr2 =
+  match gr1,gr2 with 
+      ConstRef con1, ConstRef con2 ->
+	eq_constant con1 con2
+    | IndRef kn1,IndRef kn2 -> eq_ind kn1 kn2
+    | ConstructRef kn1,ConstructRef kn2 -> eq_constructor kn1 kn2
+    | _,_ -> gr1=gr2
+
+let destVarRef = function VarRef ind -> ind | _ -> failwith "destVarRef"
+let destConstRef = function ConstRef ind -> ind | _ -> failwith "destConstRef"
+let destIndRef = function IndRef ind -> ind | _ -> failwith "destIndRef"
+let destConstructRef = function ConstructRef ind -> ind | _ -> failwith "destConstructRef"
 
 let subst_constructor subst ((kn,i),j as ref) =
-  let kn' = subst_kn subst kn in 
+  let kn' = subst_ind subst kn in
     if kn==kn' then ref, mkConstruct ref
     else ((kn',i),j), mkConstruct ((kn',i),j)
-      
+
 let subst_global subst ref = match ref with
   | VarRef var -> ref, mkVar var
   | ConstRef kn ->
      let kn',t = subst_con subst kn in
       if kn==kn' then ref, mkConst kn else ConstRef kn', t
   | IndRef (kn,i) ->
-      let kn' = subst_kn subst kn in
+      let kn' = subst_ind subst kn in
       if kn==kn' then ref, mkInd (kn,i) else IndRef(kn',i), mkInd (kn',i)
   | ConstructRef ((kn,i),j as c) ->
       let c',t = subst_constructor subst c in
 	if c'==c then ref,t else ConstructRef c', t
+
+let canonical_gr = function
+  | ConstRef con -> 
+      ConstRef(constant_of_kn(canonical_con con))
+  | IndRef (kn,i) ->
+      IndRef(mind_of_kn(canonical_mind kn),i)
+  | ConstructRef ((kn,i),j )->
+	  ConstructRef((mind_of_kn(canonical_mind kn),i),j)
+  | VarRef id ->  VarRef id
 
 let global_of_constr c = match kind_of_term c with
   | Const sp -> ConstRef sp
@@ -57,16 +82,32 @@ let constr_of_global = function
 let constr_of_reference = constr_of_global
 let reference_of_constr = global_of_constr
 
-module RefOrdered =
-  struct
-    type t = global_reference
-    let compare = Pervasives.compare
-  end
-
+(* outside of the kernel, names are ordered on their canonical part *)
+module RefOrdered = struct
+  type t = global_reference
+  let compare x y = 
+    let make_name = function
+      | ConstRef con -> 
+	  ConstRef(constant_of_kn(canonical_con con))
+      | IndRef (kn,i) ->
+	  IndRef(mind_of_kn(canonical_mind kn),i)
+      | ConstructRef ((kn,i),j )->
+	  ConstructRef((mind_of_kn(canonical_mind kn),i),j)
+      | VarRef id ->  VarRef id
+    in
+	Pervasives.compare (make_name x) (make_name y)
+end
+  
 module Refset = Set.Make(RefOrdered)
 module Refmap = Map.Make(RefOrdered)
+  
+(* Extended global references *)
 
-let inductives_table = ref Indmap.empty
+type syndef_name = kernel_name
+
+type extended_global_reference =
+  | TrueGlobal of global_reference
+  | SynDef of syndef_name
 
 (**********************************************)
 
@@ -75,10 +116,10 @@ let pr_dirpath sl = (str (string_of_dirpath sl))
 (*s Operations on dirpaths *)
 
 (* Pop the last n module idents *)
-let extract_dirpath_prefix n dir =
+let pop_dirpath_n n dir =
   make_dirpath (list_skipn n (repr_dirpath dir))
 
-let dirpath_prefix p = match repr_dirpath p with
+let pop_dirpath p = match repr_dirpath p with
   | [] -> anomaly "dirpath_prefix: empty dirpath"
   | _::l -> make_dirpath l
 
@@ -101,24 +142,8 @@ let add_dirpath_prefix id d = make_dirpath (repr_dirpath d @ [id])
 let split_dirpath d =
   let l = repr_dirpath d in (make_dirpath (List.tl l), List.hd l)
 
-let extend_dirpath p id = make_dirpath (id :: repr_dirpath p)
+let add_dirpath_suffix p id = make_dirpath (id :: repr_dirpath p)
 
-
-(*
-let path_of_constructor env ((sp,tyi),ind) =
-   let mib = Environ.lookup_mind sp env in
-   let mip = mib.mind_packets.(tyi) in 
-   let (pa,_) = repr_path sp in 
-   Names.make_path pa (mip.mind_consnames.(ind-1))
-
-let path_of_inductive env (sp,tyi) =
-  if tyi = 0 then sp
-  else
-    let mib = Environ.lookup_mind sp env in
-    let mip = mib.mind_packets.(tyi) in 
-    let (pa,_) = repr_path sp in 
-    Names.make_path pa (mip.mind_typename) 
-*)
 (* parsing *)
 let parse_dir s =
   let len = String.length s in
@@ -127,24 +152,27 @@ let parse_dir s =
     if n >= len then dirs else
     let pos =
       try
-	String.index_from s n '.' 
+	String.index_from s n '.'
       with Not_found -> len
     in
     if pos = n then error (s ^ " is an invalid path.");
     let dir = String.sub s n (pos-n) in
-    decoupe_dirs ((id_of_string dir)::dirs) (pos+1)	  
+    decoupe_dirs ((id_of_string dir)::dirs) (pos+1)
   in
     decoupe_dirs [] 0
 
 let dirpath_of_string s =
   make_dirpath (if s = "" then [] else parse_dir s)
 
+let string_of_dirpath = Names.string_of_dirpath
+
+
 module Dirset = Set.Make(struct type t = dir_path let compare = compare end)
 module Dirmap = Map.Make(struct type t = dir_path let compare = compare end)
 
 (*s Section paths are absolute names *)
 
-type section_path = {
+type full_path = {
   dirpath : dir_path ;
   basename : identifier }
 
@@ -165,7 +193,7 @@ let sp_ord sp1 sp2 =
 
 module SpOrdered =
   struct
-    type t = section_path
+    type t = full_path
     let compare = sp_ord
   end
 
@@ -183,41 +211,33 @@ let path_of_string s =
   with
     | Invalid_argument _ -> invalid_arg "path_of_string"
 
-let pr_sp sp = str (string_of_path sp) 
+let pr_path sp = str (string_of_path sp)
 
 let restrict_path n sp =
   let dir, s = repr_path sp in
   let dir' = list_firstn n (repr_dirpath dir) in
   make_path (make_dirpath dir') s
 
-type extended_global_reference =
-  | TrueGlobal of global_reference
-  | SyntacticDef of kernel_name
-
-let encode_kn dir id = make_kn (MPfile dir) empty_dirpath (label_of_id id)
+let encode_mind dir id = make_mind (MPfile dir) empty_dirpath (label_of_id id)
 
 let encode_con dir id = make_con (MPfile dir) empty_dirpath (label_of_id id)
 
-let decode_kn kn = 
+let decode_mind kn =
   let rec dir_of_mp = function
     | MPfile dir -> repr_dirpath dir
     | MPbound mbid -> 
 	let _,_,dp = repr_mbid mbid in
 	let id = id_of_mbid mbid in
 	  id::(repr_dirpath dp)
-    | MPself msid -> 
-	let _,_,dp = repr_msid msid in
-	let id = id_of_msid msid in
-	  id::(repr_dirpath dp) 
     | MPdot(mp,l) -> (id_of_label l)::(dir_of_mp mp)
   in
-  let mp,sec_dir,l = repr_kn kn in
+  let mp,sec_dir,l = repr_mind kn in
     if (repr_dirpath sec_dir) = [] then
      (make_dirpath (dir_of_mp mp)),id_of_label l
     else
       anomaly "Section part should be empty!"
 
-let decode_con kn = 
+let decode_con kn =
   let mp,sec_dir,l = repr_con kn in
     match mp,(repr_dirpath sec_dir) with
 	MPfile dir,[] -> (dir,id_of_label l)
@@ -225,31 +245,31 @@ let decode_con kn =
       | _ -> anomaly "Section part should be empty!"
 
 (*s qualified names *)
-type qualid = section_path
+type qualid = full_path
 
 let make_qualid = make_path
 let repr_qualid = repr_path
 
 let string_of_qualid = string_of_path
-let pr_qualid = pr_sp
+let pr_qualid = pr_path
 
 let qualid_of_string = path_of_string
 
-let qualid_of_sp sp = sp
-let make_short_qualid id = make_qualid empty_dirpath id
-let qualid_of_dirpath dir = 
+let qualid_of_path sp = sp
+let qualid_of_ident id = make_qualid empty_dirpath id
+let qualid_of_dirpath dir =
   let (l,a) = split_dirpath dir in
   make_qualid l a
 
-type object_name = section_path * kernel_name
+type object_name = full_path * kernel_name
 
 type object_prefix = dir_path * (module_path * dir_path)
 
-let make_oname (dirpath,(mp,dir)) id = 
+let make_oname (dirpath,(mp,dir)) id =
   make_path dirpath id, make_kn mp dir (label_of_id id)
 
 (* to this type are mapped dir_path's in the nametab *)
-type global_dir_reference = 
+type global_dir_reference =
   | DirOpenModule of object_prefix
   | DirOpenModtype of object_prefix
   | DirOpenSection of object_prefix
@@ -265,19 +285,19 @@ type global_dir_reference =
           ModTypeRef kn'
 *)
 
-type reference = 
+type reference =
   | Qualid of qualid located
   | Ident of identifier located
 
 let qualid_of_reference = function
   | Qualid (loc,qid) -> loc, qid
-  | Ident (loc,id) -> loc, make_short_qualid id
+  | Ident (loc,id) -> loc, qualid_of_ident id
 
 let string_of_reference = function
   | Qualid (loc,qid) -> string_of_qualid qid
   | Ident (loc,id) -> string_of_id id
 
-let pr_reference = function 
+let pr_reference = function
   | Qualid (_,qid) -> pr_qualid qid
   | Ident (_,id) -> pr_id id
 
@@ -289,14 +309,19 @@ let loc_of_reference = function
 
 let pop_con con =
   let (mp,dir,l) = repr_con con in
-  Names.make_con mp (dirpath_prefix dir) l
+  Names.make_con mp (pop_dirpath dir) l
 
 let pop_kn kn =
-  let (mp,dir,l) = repr_kn kn in
-  Names.make_kn mp (dirpath_prefix dir) l
+  let (mp,dir,l) = repr_mind kn in
+  Names.make_mind mp (pop_dirpath dir) l
 
 let pop_global_reference = function
   | ConstRef con -> ConstRef (pop_con con)
   | IndRef (kn,i) -> IndRef (pop_kn kn,i)
   | ConstructRef ((kn,i),j) -> ConstructRef ((pop_kn kn,i),j)
   | VarRef id -> anomaly "VarRef not poppable"
+
+(* Deprecated synonyms *)
+
+let make_short_qualid = qualid_of_ident
+let qualid_of_sp = qualid_of_path

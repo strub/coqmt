@@ -1,15 +1,15 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: ZArith_base.v 8032 2006-02-12 21:20:48Z herbelin $ *)
+(* $Id: ZArith_base.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (** Library for manipulating integers based on binary encoding.
-    These are the basic modules, required by [Omega] and [Ring] for instance. 
+    These are the basic modules, required by [Omega] and [Ring] for instance.
     The full library is [ZArith]. *)
 
 Require Export BinPos.
@@ -18,9 +18,9 @@ Require Export BinInt.
 Require Export Zcompare.
 Require Export Zorder.
 Require Export Zeven.
+Require Export Zminmax.
 Require Export Zmin.
 Require Export Zmax.
-Require Export Zminmax.
 Require Export Zabs.
 Require Export Znat.
 Require Export auxiliary.

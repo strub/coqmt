@@ -4,12 +4,11 @@ open Term
 (* Environments *)
 
 type globals = {
-  env_constants : Declarations.constant_body Cmap.t;
-  env_inductives : Declarations.mutual_inductive_body KNmap.t;
+  env_constants : Declarations.constant_body Cmap_env.t;
+  env_inductives : Declarations.mutual_inductive_body Mindmap_env.t;
+  env_inductives_eq : kernel_name KNmap.t;
   env_modules : Declarations.module_body MPmap.t;
-  env_modtypes : Declarations.module_type_body MPmap.t;
-  env_alias : module_path MPmap.t;
-}
+  env_modtypes : Declarations.module_type_body MPmap.t}
 type stratification = {
   env_universes : Univ.universes;
   env_engagement : Declarations.engagement option;
@@ -59,19 +58,18 @@ val constant_opt_value : env -> constant -> constr option
 val evaluable_constant : constant -> env -> bool
 
 (* Inductives *)
+val mind_equiv : env -> inductive -> inductive -> bool
+
 val lookup_mind :
   mutual_inductive -> env -> Declarations.mutual_inductive_body
-val scrape_mind : env -> mutual_inductive -> mutual_inductive
+
 val add_mind :
   mutual_inductive -> Declarations.mutual_inductive_body -> env -> env
-val mind_equiv : env -> inductive -> inductive -> bool
 
 (* Modules *)
 val add_modtype :
   module_path -> Declarations.module_type_body -> env -> env
 val shallow_add_module :
   module_path -> Declarations.module_body -> env -> env
-val register_alias : module_path -> module_path -> env -> env
-val scrape_alias : module_path -> env -> module_path
 val lookup_module : module_path -> env -> Declarations.module_body
 val lookup_modtype : module_path -> env -> Declarations.module_type_body

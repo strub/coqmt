@@ -64,26 +64,26 @@ Open Scope nat_scope.
 
 Inductive znat : Set := Zpos (n : nat) | Zneg (m : nat).
 Coercion Zpos: nat >-> znat.
- 
+
 Delimit Scope znat_scope with znat.
 Open Scope znat_scope.
- 
+
 Variable addz : znat -> znat -> znat.
 Notation "z1 + z2" := (addz z1 z2) : znat_scope.
 
   (* Check that "3+3", where 3 is in nat and the coercion to znat is implicit,
-     is printed the same way, and not "S 2 + S 2" as if numeral printing was 
+     is printed the same way, and not "S 2 + S 2" as if numeral printing was
      only tested with coercion still present *)
 
 Check (3+3).
 
 (**********************************************************************)
 (* Check recursive notations                                          *)
- 
+
 Require Import List.
 Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..).
 Check [1;2;4].
-  
+
 Reserved Notation "( x ; y , .. , z )" (at level 0).
 Notation "( x ; y , .. , z )" := (pair .. (pair x y) .. z).
 Check (1;2,4).
@@ -102,7 +102,7 @@ Check (pred 3).
 Check (fun n => match n with 0 => 0 | S n => n end).
 Check (fun n => match n with S p as x => p | y => 0 end).
 
-Notation "'ifn' x 'is' 'succ' n 'then' t 'else' u" := 
+Notation "'ifn' x 'is' 'succ' n 'then' t 'else' u" :=
   (match x with O => u | S n => t end) (at level 0, u at level 0).
 Check fun x => ifn x is succ n then n else 0.
 
@@ -119,6 +119,51 @@ Require Import ZArith.
 Open Scope Z_scope.
 Notation "- 4" := (-2 + -2).
 Check -4.
+
+(**********************************************************************)
+(* Check ill-formed recursive notations *)
+
+(* Recursive variables not part of a recursive pattern *)
+Fail Notation "( x , y , .. , z )" := (pair x .. (pair y z) ..).
+
+(* No recursive notation *)
+Fail Notation "( x , y , .. , z )" := (pair x (pair y z)).
+
+(* Left-unbound variable *)
+Fail Notation "( x , y , .. , z )" := (pair x .. (pair y w) ..).
+
+(* Right-unbound variable *)
+Fail Notation "( x , y , .. , z )" := (pair y .. (pair z 0) ..).
+
+(* Not the right kind of recursive pattern *)
+Fail Notation "( x , y , .. , z )" := (ex (fun z => .. (ex (fun y => x)) ..)).
+Fail Notation "( x -- y , .. , z )" := (pair y .. (pair z 0) ..)
+  (y closed binder, z closed binder).
+
+(* No separator allowed with open binders *)
+Fail Notation "( x -- y , .. , z )" := (ex (fun z => .. (ex (fun y => x)) ..))
+  (y binder, z binder).
+
+(* Ends of pattern do not match *)
+Fail Notation "( x , y , .. , z )" := (pair y .. (pair (plus z) 0) ..).
+Fail Notation "( x , y , .. , z )" := (pair y .. (plus z 0) ..).
+Fail Notation "( x1 , x2 , y , .. , z )" := (y y .. (x2 z 0) ..).
+Fail Notation "( x1 , x2 , y , .. , z )" := (x1 y .. (x2 z 0) ..).
+
+(* Ends of pattern are the same *)
+Fail Notation "( x , y , .. , z )" := (pair .. (pair (pair y z) x) .. x).
+
+(**********************************************************************)
+(* Check preservation of scopes at printing time *)
+
+Notation SUM := sum.
+Check SUM (nat*nat) nat.
+
+(**********************************************************************)
+(* Check preservation of implicit arguments at printing time *)
+
+Notation FST := fst.
+Check FST (0;1).
 
 (**********************************************************************)
 (* Check notations for references with activated or deactivated       *)
@@ -151,6 +196,12 @@ Notation "[| x , y , .. , z ; a , b , .. , c |]" :=
   (pair (pair .. (pair x y) .. z) (pair .. (pair a b) .. c)).
 Check [|1,2,3;4,5,6|].
 
+Notation "[| t * ( x , y , .. , z ) ; ( a , b , .. , c )  * u |]" :=
+  (pair (pair .. (pair (pair t x) (pair t y)) .. (pair t z))
+        (pair .. (pair (pair a u) (pair b u)) .. (pair c u)))
+  (t at level 39).
+Check [|0*(1,2,3);(4,5,6)*false|].
+
 (**********************************************************************)
 (* Test recursive notations involving applications                    *)
 (* Caveat: does not work for applied constant because constants are   *)
@@ -159,3 +210,38 @@ Check [|1,2,3;4,5,6|].
 
 Notation "{| f ; x ; .. ; y |}" := ( .. (f x) .. y).
 Check fun f => {| f; 0; 1; 2 |} : Z.
+
+(**********************************************************************)
+(* Check printing of notations from other modules *)
+
+(* 1- Non imported case *)
+
+Require make_notation.
+
+Check plus.
+Check S.
+Check mult.
+Check le.
+
+(* 2- Imported case *)
+
+Import make_notation.
+
+Check plus.
+Check S.
+Check mult.
+Check le.
+
+(* Check notations in cases patterns *)
+
+Notation SOME := Some.
+Notation NONE := None.
+Check (fun x => match x with SOME x => x | NONE => 0 end).
+
+Notation NONE2 := (@None _).
+Notation SOME2 := (@Some _).     
+Check (fun x => match x with SOME2 x => x | NONE2 => 0 end).
+
+Notation NONE3 := @None.
+Notation SOME3 := @Some.     
+Check (fun x => match x with SOME3 x => x | NONE3 => 0 end).

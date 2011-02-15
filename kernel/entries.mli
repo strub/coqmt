@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: entries.mli 10664 2008-03-14 11:27:37Z soubiran $ i*)
+(*i $Id: entries.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -61,34 +61,32 @@ type definition_entry = {
   const_entry_opaque : bool;
   const_entry_boxed  : bool }
 
-type parameter_entry = types*bool  (*inline flag*)
+type parameter_entry = types * bool  (*inline flag*)
 
-type constant_entry = 
+type constant_entry =
   | DefinitionEntry of definition_entry
   | ParameterEntry of parameter_entry
 
 (*s Modules *)
 
+
 type specification_entry = 
     SPEconst of constant_entry
   | SPEmind of mutual_inductive_entry
   | SPEmodule of module_entry
-  | SPEalias of module_path
   | SPEmodtype of module_struct_entry
 
-and module_struct_entry = 
+and module_struct_entry =
     MSEident of module_path
   | MSEfunctor of mod_bound_id * module_struct_entry * module_struct_entry
   | MSEwith of module_struct_entry * with_declaration
   | MSEapply of module_struct_entry * module_struct_entry
 
-and with_declaration = 
+and with_declaration =
     With_Module of identifier list * module_path
   | With_Definition of identifier list * constr
 
-and module_structure = (label * specification_entry) list
-
-and module_entry = 
+and module_entry =
     { mod_entry_type : module_struct_entry option;
       mod_entry_expr : module_struct_entry option}
 

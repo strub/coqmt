@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: proof_type.mli 12168 2009-06-06 21:34:37Z herbelin $ i*)
+(*i $Id: proof_type.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Environ
@@ -32,7 +32,7 @@ type prim_rule =
   | FixRule of identifier * int * (identifier * int * constr) list * int
   | Cofix of identifier * (identifier * constr) list * int
   | Refine of constr
-  | Convert_concl of types * cast_kind 
+  | Convert_concl of types * cast_kind
   | Convert_hyp of named_declaration
   | Thin of identifier list
   | ThinBody of identifier list
@@ -58,7 +58,7 @@ type prim_rule =
                                     lc     : [Set of evars occurring
                                               in the type of evar] } };
                ...
-               number of last evar, 
+               number of last evar,
                it = { evar_concl = [the type of evar]
                       evar_hyps = [the context of the evar]
                       evar_body = [the body of the Evar if any]
@@ -69,11 +69,11 @@ type prim_rule =
 \end{verbatim}
 *)
 
-(*s Proof trees. 
-  [ref] = [None] if the goal has still to be proved, 
+(*s Proof trees.
+  [ref] = [None] if the goal has still to be proved,
   and [Some (r,l)] if the rule [r] was applied to the goal
-  and gave [l] as subproofs to be completed. 
-  if [ref = (Some(Nested(Tactic t,p),l))] then [p] is the proof 
+  and gave [l] as subproofs to be completed.
+  if [ref = (Some(Nested(Tactic t,p),l))] then [p] is the proof
   that the goal can be proven if the goals in [l] are solved. *)
 type proof_tree = {
   open_subgoals : int;
@@ -82,11 +82,11 @@ type proof_tree = {
 
 and rule =
   | Prim of prim_rule
-  | Nested of compound_rule * proof_tree 
+  | Nested of compound_rule * proof_tree
   | Decl_proof of bool
   | Daimon
 
-and compound_rule= 
+and compound_rule=
   (* the boolean of Tactic tells if the default tactic is used *)
   | Tactic of tactic_expr * bool
   | Proof_instr of bool * proof_instr
@@ -98,47 +98,48 @@ and tactic = goal sigma -> (goal list sigma * validation)
 and validation = (proof_tree list -> proof_tree)
 
 and tactic_expr =
-  (open_constr,
+  (constr,
    constr_pattern,
    evaluable_global_reference,
    inductive,
    ltac_constant,
    identifier,
-   glob_tactic_expr)
+   glob_tactic_expr,
+   tlevel)
      Tacexpr.gen_tactic_expr
 
 and atomic_tactic_expr =
-  (open_constr,
+  (constr,
    constr_pattern,
    evaluable_global_reference,
    inductive,
    ltac_constant,
    identifier,
-   glob_tactic_expr)
+   glob_tactic_expr,
+   tlevel)
      Tacexpr.gen_atomic_tactic_expr
 
 and tactic_arg =
-  (open_constr,
+  (constr,
    constr_pattern,
    evaluable_global_reference,
    inductive,
    ltac_constant,
    identifier,
-   glob_tactic_expr)
+   glob_tactic_expr,
+   tlevel)
      Tacexpr.gen_tactic_arg
 
-type hyp_location = identifier Tacexpr.raw_hyp_location
-
-type ltac_call_kind = 
+type ltac_call_kind =
   | LtacNotationCall of string
   | LtacNameCall of ltac_constant
   | LtacAtomCall of glob_atomic_tactic_expr * atomic_tactic_expr option ref
   | LtacVarCall of identifier * glob_tactic_expr
   | LtacConstrInterp of rawconstr *
-      ((identifier * constr) list * (identifier * identifier option) list)
+      (extended_patvar_map * (identifier * identifier option) list)
 
-type ltac_trace = (loc * ltac_call_kind) list
+type ltac_trace = (int * loc * ltac_call_kind) list
 
-exception LtacLocated of (ltac_call_kind * ltac_trace * loc) * exn
+exception LtacLocated of (int * ltac_call_kind * ltac_trace * loc) * exn
 
 val abstract_tactic_box : atomic_tactic_expr option ref ref

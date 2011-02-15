@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tacmach.mli 12168 2009-06-06 21:34:37Z herbelin $ i*)
+(*i $Id: tacmach.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -21,6 +21,7 @@ open Refiner
 open Redexpr
 open Tacexpr
 open Rawterm
+open Pattern
 (*i*)
 
 (* Operations for handling terms under a local typing context. *)
@@ -51,7 +52,7 @@ val pf_global             : goal sigma -> identifier -> constr
 val pf_parse_const        : goal sigma -> string -> constr
 val pf_type_of            : goal sigma -> constr -> types
 val pf_check_type         : goal sigma -> constr -> types -> unit
-val hnf_type_of           : goal sigma -> constr -> types
+val pf_hnf_type_of        : goal sigma -> constr -> types
 
 val pf_interp_constr      : goal sigma -> Topconstr.constr_expr -> constr
 val pf_interp_type        : goal sigma -> Topconstr.constr_expr -> types
@@ -66,12 +67,12 @@ val pf_reduction_of_red_expr : goal sigma -> red_expr -> constr -> constr
 
 
 val pf_apply : (env -> evar_map -> 'a) -> goal sigma -> 'a
-val pf_reduce : 
+val pf_reduce :
   (env -> evar_map -> constr -> constr) ->
     goal sigma -> constr -> constr
 
 val pf_whd_betadeltaiota       : goal sigma -> constr -> constr
-val pf_whd_betadeltaiota_stack : goal sigma -> constr -> constr * constr list 
+val pf_whd_betadeltaiota_stack : goal sigma -> constr -> constr * constr list
 val pf_hnf_constr              : goal sigma -> constr -> constr
 val pf_red_product             : goal sigma -> constr -> constr
 val pf_nf                      : goal sigma -> constr -> constr
@@ -85,6 +86,9 @@ val pf_unfoldn    : (Termops.occurrences * evaluable_global_reference) list
 val pf_const_value : goal sigma -> constant -> constr
 val pf_conv_x      : goal sigma -> constr -> constr -> bool
 val pf_conv_x_leq  : goal sigma -> constr -> constr -> bool
+
+val pf_matches     : goal sigma -> constr_pattern -> constr -> patvar_map
+val pf_is_matching : goal sigma -> constr_pattern -> constr -> bool
 
 type transformation_tactic = proof_tree -> (goal list * validation)
 
@@ -106,7 +110,7 @@ val weak_undo_pftreestate   : pftreestate -> pftreestate
 val solve_nth_pftreestate   : int -> tactic -> pftreestate -> pftreestate
 val solve_pftreestate       : tactic -> pftreestate -> pftreestate
 val mk_pftreestate          : goal -> pftreestate
-val extract_open_pftreestate : pftreestate -> constr * Termops.metamap
+val extract_open_pftreestate : pftreestate -> constr * Termops.meta_type_map
 val extract_pftreestate     : pftreestate -> constr
 val first_unproven          : pftreestate -> pftreestate
 val last_unproven           : pftreestate -> pftreestate
@@ -135,12 +139,8 @@ val move_hyp_no_check         :
 val rename_hyp_no_check       : (identifier*identifier) list -> tactic
 val order_hyps : identifier list -> tactic
 val mutual_fix      :
-  identifier -> int -> (identifier * int * constr) list -> tactic
-val mutual_cofix    : identifier -> (identifier * constr) list -> tactic
-val mutual_fix_with_index :
   identifier -> int -> (identifier * int * constr) list -> int -> tactic
-val mutual_cofix_with_index : 
-  identifier -> (identifier * constr) list -> int -> tactic
+val mutual_cofix    : identifier -> (identifier * constr) list -> int -> tactic
 
 (*s The most primitive tactics with consistency and type checking *)
 

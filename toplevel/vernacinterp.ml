@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: vernacinterp.ml 11309 2008-08-06 10:30:35Z herbelin $ *)
+(* $Id: vernacinterp.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -27,24 +27,24 @@ let vernac_tab =
     (string, Tacexpr.raw_generic_argument list -> unit -> unit) Hashtbl.t)
 
 let vinterp_add s f =
-  try 
+  try
     Hashtbl.add vernac_tab s f
   with Failure _ ->
     errorlabstrm "vinterp_add"
       (str"Cannot add the vernac command " ++ str s ++ str" twice.")
 
 let overwriting_vinterp_add s f =
-  begin 
-    try 
-      let _ = Hashtbl.find vernac_tab s in Hashtbl.remove vernac_tab s 
+  begin
+    try
+      let _ = Hashtbl.find vernac_tab s in Hashtbl.remove vernac_tab s
     with Not_found -> ()
   end;
   Hashtbl.add vernac_tab s f
 
 let vinterp_map s =
-  try 
+  try
     Hashtbl.find vernac_tab s
-  with Not_found -> 
+  with Not_found ->
     errorlabstrm "Vernac Interpreter"
       (str"Cannot find vernac command " ++ str s ++ str".")
 
@@ -62,7 +62,6 @@ let call (opn,converted_args) =
     hunk()
   with
     | Drop -> raise Drop
-    | ProtectedLoop -> raise ProtectedLoop
     | e ->
         if !Flags.debug then
 	  msgnl (str"Vernac Interpreter " ++ str !loc);

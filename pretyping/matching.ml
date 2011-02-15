@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: matching.ml 11735 2009-01-02 17:22:31Z herbelin $ *)
+(* $Id: matching.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (*i*)
 open Util
@@ -48,9 +48,10 @@ type bound_ident_map = (identifier * identifier) list
 
 exception PatternMatchingFailure
 
-let constrain (n,m) (names,terms as subst) =
+let constrain (n,(ids,m as x)) (names,terms as subst) =
   try
-    if eq_constr m (List.assoc n terms) then subst
+    let (ids',m') = List.assoc n terms in
+    if ids = ids' && eq_constr m m' then subst
     else raise PatternMatchingFailure
   with
       Not_found ->
@@ -58,14 +59,14 @@ let constrain (n,m) (names,terms as subst) =
           Flags.if_verbose Pp.warning
               ("Collision between bound variable "^string_of_id n^
                  " and a metavariable of same name.");
-        (names,(n,m)::terms)
+        (names,(n,x)::terms)
 
 let add_binders na1 na2 (names,terms as subst) =
   match na1, na2 with
   | Name id1, Name id2 ->
       if List.mem_assoc id1 names then
         (Flags.if_verbose Pp.warning
-          ("Collision between bound variables of name"^string_of_id id1);
+          ("Collision between bound variables of name "^string_of_id id1);
          (names,terms))
       else
         (if List.mem_assoc id1 terms then
@@ -75,15 +76,15 @@ let add_binders na1 na2 (names,terms as subst) =
          ((id1,id2)::names,terms));
   | _ -> subst
 
-let build_lambda toabstract stk (m : constr) = 
-  let rec buildrec m p_0 p_1 = match p_0,p_1 with 
+let build_lambda toabstract stk (m : constr) =
+  let rec buildrec m p_0 p_1 = match p_0,p_1 with
     | (_, []) -> m
-    | (n, (na,t)::tl) -> 
+    | (n, (_,na,t)::tl) ->
 	if List.mem n toabstract then
           buildrec (mkLambda (na,t,m)) (n+1) tl
-        else 
+        else
 	  buildrec (lift (-1) m) (n+1) tl
-  in 
+  in
   buildrec m 1 stk
 
 let memb_metavars m n =
@@ -98,7 +99,58 @@ let same_case_structure (_,cs1,ind,_) ci2 br1 br2 =
   | Some ind -> ind = ci2.ci_ind
   | None -> cs1 = ci2.ci_cstr_nargs
 
-let matches_core convert allow_partial_app pat c = 
+let rec list_insert f a = function
+  | [] -> [a]
+  | b::l when f a b -> a::b::l
+  | b::l when a = b -> raise PatternMatchingFailure
+  | b::l -> b :: list_insert f a l
+
+let extract_bound_vars =
+  let rec aux k = function
+  | ([],_) -> []
+  | (n::l,(na1,na2,_)::stk) when k = n ->
+      begin match na1,na2 with
+      | Name id1,Name _ -> list_insert (<) id1 (aux (k+1) (l,stk))
+      | Name _,Anonymous -> anomaly "Unnamed bound variable"
+      | Anonymous,_ -> raise PatternMatchingFailure
+      end
+  | (l,_::stk) -> aux (k+1) (l,stk)
+  | (_,[]) -> assert false
+  in aux 1
+
+let dummy_constr = mkProp
+
+let rec make_renaming ids = function
+  | (Name id,Name _,_)::stk ->
+      let renaming = make_renaming ids stk in
+      (try mkRel (list_index id ids) :: renaming
+       with Not_found -> dummy_constr :: renaming)
+  | (_,_,_)::stk ->
+      dummy_constr :: make_renaming ids stk
+  | [] ->
+      []
+
+let merge_binding allow_bound_rels stk n cT subst =
+  let depth = List.length stk in
+  let c =
+    if depth = 0 then
+      (* Optimization *)
+      ([],cT)
+    else
+      let frels = Intset.elements (free_rels cT) in
+      let frels = List.filter (fun i -> i <= depth) frels in
+      if allow_bound_rels then
+	let frels = Sort.list (<) frels in
+	let canonically_ordered_vars = extract_bound_vars (frels,stk) in
+	let renaming = make_renaming canonically_ordered_vars stk in
+	(canonically_ordered_vars, substl renaming cT)
+      else if frels = [] then
+	([],lift (-depth) cT)
+      else
+	raise PatternMatchingFailure in
+  constrain (n,c) subst
+
+let matches_core convert allow_partial_app allow_bound_rels pat c =
   let conv = match convert with
     | None -> eq_constr
     | Some (env,sigma) -> is_conv env sigma in
@@ -114,21 +166,11 @@ let matches_core convert allow_partial_app pat c =
 	      args in
 	  let frels = Intset.elements (free_rels cT) in
 	  if list_subset frels relargs then
-	    constrain (n,build_lambda relargs stk cT) subst
+	    constrain (n,([],build_lambda relargs stk cT)) subst
 	  else
 	    raise PatternMatchingFailure
 
-      | PMeta (Some n), m ->
-	  let depth = List.length stk in
-          if depth = 0 then
-            (* Optimisation *)
-            constrain (n,cT) subst
-          else
-	    let frels = Intset.elements (free_rels cT) in
-            if List.for_all (fun i -> i > depth) frels then
-	      constrain (n,lift (-depth) cT) subst
-            else 
-	      raise PatternMatchingFailure
+      | PMeta (Some n), m -> merge_binding allow_bound_rels stk n cT subst
 
       | PMeta None, m -> subst
 
@@ -153,14 +195,8 @@ let matches_core convert allow_partial_app pat c =
           let p = Array.length args2 - Array.length args1 in
           if p>=0 then
             let args21, args22 = array_chop p args2 in
-            let subst =
-	      let depth = List.length stk in
-              let c = mkApp(c2,args21) in
-	      let frels = Intset.elements (free_rels c) in
-              if List.for_all (fun i -> i > depth) frels then
-	        constrain (n,lift (-depth) c) subst
-              else
-	        raise PatternMatchingFailure in
+	    let c = mkApp(c2,args21) in
+            let subst = merge_binding allow_bound_rels stk n c subst in
             array_fold_left2 (sorec stk) subst args1 args22
           else raise PatternMatchingFailure
 
@@ -169,15 +205,15 @@ let matches_core convert allow_partial_app pat c =
          with Invalid_argument _ -> raise PatternMatchingFailure)
 
       | PProd (na1,c1,d1), Prod(na2,c2,d2) ->
-	  sorec ((na2,c2)::stk)
+	  sorec ((na1,na2,c2)::stk)
             (add_binders na1 na2 (sorec stk subst c1 c2)) d1 d2
 
       | PLambda (na1,c1,d1), Lambda(na2,c2,d2) ->
-	  sorec ((na2,c2)::stk)
+	  sorec ((na1,na2,c2)::stk)
             (add_binders na1 na2 (sorec stk subst c1 c2)) d1 d2
 
       | PLetIn (na1,c1,d1), LetIn(na2,c2,t2,d2) ->
-	  sorec ((na2,t2)::stk)
+	  sorec ((na1,na2,t2)::stk)
             (add_binders na1 na2 (sorec stk subst c1 c2)) d1 d2
 
       | PIf (a1,b1,b1'), Case (ci,_,a2,[|b2;b2'|]) ->
@@ -186,8 +222,10 @@ let matches_core convert allow_partial_app pat c =
 	  let n = rel_context_length ctx in
           let n' = rel_context_length ctx' in
 	  if noccur_between 1 n b2 & noccur_between 1 n' b2' then
-	    let s = List.fold_left (fun l (na,_,t) -> (na,t)::l) stk ctx in
-	    let s' = List.fold_left (fun l (na,_,t) -> (na,t)::l) stk ctx' in
+	    let s =
+	      List.fold_left (fun l (na,_,t) -> (Anonymous,na,t)::l) stk ctx in
+	    let s' =
+	      List.fold_left (fun l (na,_,t) -> (Anonymous,na,t)::l) stk ctx' in
 	    let b1 = lift_pattern n b1 and b1' = lift_pattern n' b1' in
   	    sorec s' (sorec s (sorec stk subst a1 a2) b1 b2) b1' b2'
           else
@@ -195,7 +233,7 @@ let matches_core convert allow_partial_app pat c =
 
       | PCase (ci1,p1,a1,br1), Case (ci2,p2,a2,br2) ->
 	  if same_case_structure ci1 ci2 br1 br2 then
-  	    array_fold_left2 (sorec stk) 
+  	    array_fold_left2 (sorec stk)
 	      (sorec stk (sorec stk subst a1 a2) p1 p2) br1 br2
           else
             raise PatternMatchingFailure
@@ -208,16 +246,20 @@ let matches_core convert allow_partial_app pat c =
   let names,terms = sorec [] ([],[]) pat c in
   (names,Sort.list (fun (a,_) (b,_) -> a<b) terms)
 
-let extended_matches = matches_core None true
+let matches_core_closed convert allow_partial_app pat c =
+  let names,subst = matches_core convert allow_partial_app false pat c in
+  (names, List.map (fun (a,(_,b)) -> (a,b)) subst)
 
-let matches c p = snd (matches_core None true c p)
+let extended_matches = matches_core None true true
+
+let matches c p = snd (matches_core_closed None true c p)
 
 let special_meta = (-1)
 
 (* Tells if it is an authorized occurrence and if the instance is closed *)
 let authorized_occ partial_app closed pat c mk_ctx next =
-  try 
-    let sigma = matches_core None partial_app pat c in
+  try
+    let sigma = matches_core_closed None partial_app pat c in
     if closed && not (List.for_all (fun (_,c) -> closed0 c) (snd sigma))
     then next ()
     else sigma, mk_ctx (mkMeta special_meta), next
@@ -251,7 +293,7 @@ let sub_match ?(partial_app=false) ?(closed=true) pat c =
           if topdown then
             let lc1 = Array.sub lc 0 (Array.length lc - 1) in
             let app = mkApp (c1,lc1) in
-            let mk_ctx = function 
+            let mk_ctx = function
               | [app';c] -> mk_ctx (mkApp (app',[|c|]))
               | _ -> assert false in
 	    try_aux [app;array_last lc] mk_ctx next
@@ -274,7 +316,7 @@ let sub_match ?(partial_app=false) ?(closed=true) pat c =
 	  try_aux (c1::Array.to_list lc) mk_ctx next)
   | Case (ci,hd,c1,lc) ->
       authorized_occ partial_app closed pat c mk_ctx (fun () ->
-        let mk_ctx le = 
+        let mk_ctx le =
           mk_ctx (mkCase (ci,hd,List.hd le,Array.of_list (List.tl le))) in
         try_aux (c1::Array.to_list lc) mk_ctx next)
   | Construct _ | Fix _ | Ind _|CoFix _ |Evar _|Const _
@@ -310,7 +352,7 @@ let is_matching_appsubterm ?(closed=true) pat c =
   with PatternMatchingFailure -> false
 
 let matches_conv env sigma c p =
-  snd (matches_core (Some (env,sigma)) false c p)
+  snd (matches_core_closed (Some (env,sigma)) false c p)
 
 let is_matching_conv env sigma pat n =
   try let _ = matches_conv env sigma pat n in true

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: nbtermdn.mli 6427 2004-12-07 17:41:10Z sacerdot $ i*)
+(*i $Id: nbtermdn.mli 13332 2010-07-26 22:12:43Z msozeau $ i*)
 
 (*i*)
 open Term
@@ -15,24 +15,37 @@ open Libnames
 (*i*)
 
 (* Named, bounded-depth, term-discrimination nets. *)
+module Make :
+  functor (Y:Map.OrderedType) ->
+sig
+  
+  module Term_dn : sig     
+    type term_label = 
+      | GRLabel of global_reference
+      | ProdLabel 
+      | LambdaLabel
+      | SortLabel
+  end 
+    
+  type 'na t
+  type 'na frozen_t
+    
+  val create : unit -> 'na t
+    
+  val add : 'na t -> ('na * (constr_pattern * Y.t)) -> unit
+  val rmv : 'na t -> 'na -> unit
+  val in_dn : 'na t -> 'na -> bool
+  val remap : 'na t -> 'na -> (constr_pattern * Y.t) -> unit
+    
+  val lookup : 'na t -> constr -> (constr_pattern * Y.t) list
+  val app : ('na -> (constr_pattern * Y.t) -> unit) -> 'na t -> unit
+    
+  val dnet_depth : int ref
+    
 
-type ('na,'a) t
-type ('na,'a) frozen_t
-
-val create : unit -> ('na,'a) t
-
-val add : ('na,'a) t -> ('na * (constr_pattern * 'a)) -> unit
-val rmv : ('na,'a) t -> 'na -> unit
-val in_dn : ('na,'a) t -> 'na -> bool
-val remap : ('na,'a) t -> 'na -> (constr_pattern * 'a) -> unit
-
-val lookup : ('na,'a) t -> constr -> (constr_pattern * 'a) list
-val app : ('na -> (constr_pattern * 'a) -> unit) -> ('na,'a) t -> unit
-
-val dnet_depth : int ref
-
-val freeze : ('na,'a) t -> ('na,'a) frozen_t
-val unfreeze : ('na,'a) frozen_t -> ('na,'a) t -> unit
-val empty : ('na,'a) t -> unit
-val to2lists : ('na,'a) t -> ('na * (constr_pattern * 'a)) list * 
-                             (global_reference option * 'a Btermdn.t) list
+  val freeze : 'na t -> 'na frozen_t
+  val unfreeze : 'na frozen_t -> 'na t -> unit
+  val empty : 'na t -> unit
+  val to2lists : 'na t -> ('na * (constr_pattern * Y.t)) list * 
+    (Term_dn.term_label option * Btermdn.Make(Y).t) list
+end

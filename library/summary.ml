@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: summary.ml 5920 2004-07-16 20:01:26Z herbelin $ *)
+(* $Id: summary.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -14,11 +14,9 @@ open Util
 type 'a summary_declaration = {
   freeze_function : unit -> 'a;
   unfreeze_function : 'a -> unit;
-  init_function : unit -> unit;
-  survive_module : bool ;
-  survive_section : bool }
+  init_function : unit -> unit }
 
-let summaries = 
+let summaries =
   (Hashtbl.create 17 : (string, Dyn.t summary_declaration) Hashtbl.t)
 
 let internal_declare_summary sumname sdecl =
@@ -29,45 +27,32 @@ let internal_declare_summary sumname sdecl =
   let ddecl = {
     freeze_function = dyn_freeze;
     unfreeze_function = dyn_unfreeze;
-    init_function = dyn_init;
-    survive_module = sdecl.survive_module;
-    survive_section = sdecl.survive_section } 
+    init_function = dyn_init }
   in
   if Hashtbl.mem summaries sumname then
     anomalylabstrm "Summary.declare_summary"
       (str "Cannot declare a summary twice: " ++ str sumname);
   Hashtbl.add summaries sumname ddecl
 
-let declare_summary sumname decl = 
+let declare_summary sumname decl =
   internal_declare_summary (sumname^"-SUMMARY") decl
 
 type frozen = Dyn.t Stringmap.t
 
 let freeze_summaries () =
   let m = ref Stringmap.empty in
-  Hashtbl.iter 
+  Hashtbl.iter
     (fun id decl -> m := Stringmap.add id (decl.freeze_function()) !m)
     summaries;
   !m
 
 
-let unfreeze_some_summaries p fs = 
+let unfreeze_summaries fs =
   Hashtbl.iter
-    (fun id decl -> 
-       try 
-	 if p decl then
-	   decl.unfreeze_function (Stringmap.find id fs)
+    (fun id decl ->
+       try decl.unfreeze_function (Stringmap.find id fs)
        with Not_found -> decl.init_function())
     summaries
-
-let unfreeze_summaries = 
-  unfreeze_some_summaries (fun _ -> true)
-
-let section_unfreeze_summaries =
-  unfreeze_some_summaries (fun decl -> not decl.survive_section)
-
-let module_unfreeze_summaries =
-  unfreeze_some_summaries (fun decl -> not decl.survive_module)
 
 let init_summaries () =
   Hashtbl.iter (fun _ decl -> decl.init_function()) summaries

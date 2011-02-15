@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: term.mli 11309 2008-08-06 10:30:35Z herbelin $ i*)
+(*i $Id: term.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -42,7 +42,7 @@ type metavariable = int
 (*s Case annotation *)
 type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle
 type case_printing =
-  { ind_nargs : int; (* number of real args of the inductive type *)
+  { ind_nargs : int; (* length of the arity of the inductive type *)
     style     : case_style }
 (* the integer is the number of real args, needed for reduction *)
 type case_info =
@@ -63,13 +63,13 @@ val eq_constr : constr -> constr -> bool
 
 (* [types] is the same as [constr] but is intended to be used for
    documentation to indicate that such or such function specifically works
-   with {\em types} (i.e. terms of type a sort). 
+   with {\em types} (i.e. terms of type a sort).
    (Rem:plurial form since [type] is a reserved ML keyword) *)
 
 type types = constr
 
 (*s Functions for dealing with constr terms.
-  The following functions are intended to simplify and to uniform the 
+  The following functions are intended to simplify and to uniform the
   manipulation of terms. Some of these functions may be overlapped with
   previous ones. *)
 
@@ -96,9 +96,9 @@ val mkType : Univ.universe -> types
 
 
 (* This defines the strategy to use for verifiying a Cast *)
-type cast_kind = VMcast | DEFAULTcast 
+type cast_kind = VMcast | DEFAULTcast
 
-(* Constructs the term [t1::t2], i.e. the term $t_1$ casted with the 
+(* Constructs the term [t1::t2], i.e. the term $t_1$ casted with the
    type $t_2$ (that means t2 is declared as the type of t1). *)
 val mkCast : constr * cast_kind * constr -> constr
 
@@ -122,7 +122,7 @@ val mkNamedLetIn : identifier -> constr -> types -> constr -> constr
    $(f~t_1~\dots~t_n)$. *)
 val mkApp : constr * constr array -> constr
 
-(* Constructs a constant *) 
+(* Constructs a constant *)
 (* The array of terms correspond to the variables introduced in the section *)
 val mkConst : constant -> constr
 
@@ -132,7 +132,7 @@ val mkConst : constant -> constr
 (* The array of terms correspond to the variables introduced in the section *)
 val mkInd : inductive -> constr
 
-(* Constructs the jth constructor of the ith (co)inductive type of the 
+(* Constructs the jth constructor of the ith (co)inductive type of the
    block named kn. The array of terms correspond to the variables
    introduced in the section *)
 val mkConstruct : constructor -> constr
@@ -162,8 +162,8 @@ val mkFix : fixpoint -> constr
       [typarray = [|t1,...tn|]]
       [bodies   = [b1,.....bn]] \par\noindent
    then [mkCoFix (i, (typsarray, funnames, bodies))]
-   constructs the ith function of the block  
-   
+   constructs the ith function of the block
+
     [CoFixpoint f1 = b1
      with       f2 = b2
      ...
@@ -208,11 +208,12 @@ type ('constr, 'types) kind_of_term =
    term *)
 
 val kind_of_term : constr -> (constr, types) kind_of_term
+val kind_of_term2 : constr -> ((constr,types) kind_of_term,constr) kind_of_term
 
 (* Experimental *)
 type ('constr, 'types) kind_of_type =
   | SortType   of sorts
-  | CastType   of 'types * 'types 
+  | CastType   of 'types * 'types
   | ProdType   of name * 'types * 'types
   | LetInType  of name * 'constr * 'types * 'types
   | AtomicType of 'constr * 'constr array
@@ -226,6 +227,7 @@ val isVar  : constr -> bool
 val isInd  : constr -> bool
 val isEvar : constr -> bool
 val isMeta : constr -> bool
+val isEvar_or_Meta : constr -> bool
 val isSort : constr -> bool
 val isCast : constr -> bool
 val isApp : constr -> bool
@@ -245,7 +247,7 @@ val is_Type : constr -> bool
 val iskind : constr -> bool
 val is_small : sorts -> bool
 
-(*s Term destructors. 
+(*s Term destructors.
    Destructor operations are partial functions and
    raise [invalid_arg "dest*"] if the term has not the expected form. *)
 
@@ -258,7 +260,7 @@ val destMeta : constr -> metavariable
 (* Destructs a variable *)
 val destVar : constr -> identifier
 
-(* Destructs a sort. [is_Prop] recognizes the sort \textsf{Prop}, whether 
+(* Destructs a sort. [is_Prop] recognizes the sort \textsf{Prop}, whether
    [isprop] recognizes both \textsf{Prop} and \textsf{Set}. *)
 val destSort : constr -> sorts
 
@@ -298,7 +300,7 @@ val destConstruct : constr -> constructor
 (* Destructs a term <p>Case c of lc1 | lc2 .. | lcn end *)
 val destCase : constr -> case_info * constr * constr * constr array
 
-(* Destructs the $i$th function of the block  
+(* Destructs the $i$th function of the block
    $\mathit{Fixpoint} ~ f_1 ~ [ctx_1] = b_1
     \mathit{with}     ~ f_2 ~ [ctx_2] = b_2
     \dots
@@ -330,6 +332,18 @@ val fold_named_declaration :
 val fold_rel_declaration :
   (constr -> 'a -> 'a) -> rel_declaration -> 'a -> 'a
 
+(*s Contexts of declarations referred to by de Bruijn indices *)
+
+(* In [rel_context], more recent declaration is on top *)
+type rel_context = rel_declaration list
+
+val empty_rel_context : rel_context
+val add_rel_decl : rel_declaration -> rel_context -> rel_context
+
+val lookup_rel : int -> rel_context -> rel_declaration
+val rel_context_length : rel_context -> int
+val rel_context_nhyps : rel_context -> int
+
 (* Constructs either [(x:t)c] or [[x=b:t]c] *)
 val mkProd_or_LetIn : rel_declaration -> types -> types
 val mkNamedProd_or_LetIn : named_declaration -> types -> types
@@ -352,7 +366,7 @@ val applistc : constr -> constr list -> constr
 val appvect : constr * constr array -> constr
 val appvectc : constr -> constr array -> constr
 
-(* [prodn n l b] = $(x_1:T_1)..(x_n:T_n)b$ 
+(* [prodn n l b] = $(x_1:T_1)..(x_n:T_n)b$
    where $l = [(x_n,T_n);\dots;(x_1,T_1);Gamma]$ *)
 val prodn : int -> (name * constr) list -> constr -> constr
 
@@ -367,15 +381,15 @@ val lamn : int -> (name * constr) list -> constr -> constr
 
 (* [compose_lam l b] = $[x_1:T_1]..[x_n:T_n]b$
    where $l = [(x_n,T_n);\dots;(x_1,T_1)]$.
-   Inverse of [decompose_lam] *)
+   Inverse of [it_destLam] *)
 val compose_lam : (name * constr) list -> constr -> constr
 
-(* [to_lambda n l] 
+(* [to_lambda n l]
    = $[x_1:T_1]...[x_n:T_n]T$
    where $l = (x_1:T_1)...(x_n:T_n)T$ *)
 val to_lambda : int -> constr -> constr
 
-(* [to_prod n l] 
+(* [to_prod n l]
    = $(x_1:T_1)...(x_n:T_n)T$
    where $l = [x_1:T_1]...[x_n:T_n]T$ *)
 val to_prod : int -> constr -> constr
@@ -385,6 +399,9 @@ val to_prod : int -> constr -> constr
 (* [prod_appvect] $(x1:B1;...;xn:Bn)B a1...an \rightarrow B[a1...an]$ *)
 val prod_appvect : constr -> constr array -> constr
 val prod_applist : constr -> constr list -> constr
+
+val it_mkLambda_or_LetIn : constr -> rel_context -> constr
+val it_mkProd_or_LetIn : types -> rel_context -> types
 
 (*s Other term destructors. *)
 
@@ -397,21 +414,52 @@ val decompose_prod : constr -> (name*constr) list * constr
    $([(x_n,T_n);...;(x_1,T_1)],T)$, where $T$ is not a lambda. *)
 val decompose_lam : constr -> (name*constr) list * constr
 
-(* Given a positive integer n, transforms a product term 
+(* Given a positive integer n, transforms a product term
    $(x_1:T_1)..(x_n:T_n)T$
    into the pair $([(xn,Tn);...;(x1,T1)],T)$. *)
 val decompose_prod_n : int -> constr -> (name * constr) list * constr
 
-(* Given a positive integer $n$, transforms a lambda term 
+(* Given a positive integer $n$, transforms a lambda term
    $[x_1:T_1]..[x_n:T_n]T$ into the pair $([(x_n,T_n);...;(x_1,T_1)],T)$ *)
 val decompose_lam_n : int -> constr -> (name * constr) list * constr
+
+(* Extract the premisses and the conclusion of a term of the form
+   "(xi:Ti) ... (xj:=cj:Tj) ..., T" where T is not a product nor a let *)
+val decompose_prod_assum : types -> rel_context * types
+
+(* Idem with lambda's *)
+val decompose_lam_assum : constr -> rel_context * constr
+
+(* Idem but extract the first [n] premisses *)
+val decompose_prod_n_assum : int -> types -> rel_context * types
+val decompose_lam_n_assum : int -> constr -> rel_context * constr
 
 (* [nb_lam] $[x_1:T_1]...[x_n:T_n]c$ where $c$ is not an abstraction
    gives $n$ (casts are ignored) *)
 val nb_lam : constr -> int
 
-(* similar to [nb_lam], but gives the number of products instead *)
+(* Similar to [nb_lam], but gives the number of products instead *)
 val nb_prod : constr -> int
+
+(* Returns the premisses/parameters of a type/term (let-in included) *)
+val prod_assum : types -> rel_context
+val lam_assum : constr -> rel_context
+
+(* Returns the first n-th premisses/parameters of a type/term (let included)*)
+val prod_n_assum : int -> types -> rel_context
+val lam_n_assum : int -> constr -> rel_context
+
+(* Remove the premisses/parameters of a type/term *)
+val strip_prod : types -> types
+val strip_lam : constr -> constr
+
+(* Remove the first n-th premisses/parameters of a type/term *)
+val strip_prod_n : int -> types -> types
+val strip_lam_n : int -> constr -> constr
+
+(* Remove the premisses/parameters of a type/term (including let-in) *)
+val strip_prod_assum : types -> types
+val strip_lam_assum : constr -> constr
 
 (* flattens application lists *)
 val collapse_appl : constr -> constr
@@ -426,6 +474,21 @@ val under_casts : (constr -> constr) -> constr -> constr
 
 (* Apply a function under components of Cast if any *)
 val under_outer_cast : (constr -> constr) -> constr -> constr
+
+(*s An "arity" is a term of the form [[x1:T1]...[xn:Tn]s] with [s] a sort.
+    Such a term can canonically be seen as the pair of a context of types
+    and of a sort *)
+
+type arity = rel_context * sorts
+
+(* Build an "arity" from its canonical form *)
+val mkArity : arity -> types
+
+(* Destructs an "arity" into its canonical form *)
+val destArity : types -> arity
+
+(* Tells if a term has the form of an arity *)
+val isArity : types -> bool
 
 (*s Occur checks *)
 
@@ -532,11 +595,11 @@ val compare_constr : (constr -> constr -> bool) -> constr -> constr -> bool
 
 val hcons_constr:
   (constant -> constant) *
-  (kernel_name -> kernel_name) *
+  (mutual_inductive -> mutual_inductive) *
   (dir_path -> dir_path) *
   (name -> name) *
   (identifier -> identifier) *
-  (string -> string) 
+  (string -> string)
   ->
     (constr -> constr) *
     (types -> types)

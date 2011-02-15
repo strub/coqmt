@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Classical_Prop.v 8892 2006-06-04 17:59:53Z herbelin $ i*)
+(*i $Id: Classical_Prop.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Classical Propositional Logic *)
 
@@ -22,7 +22,7 @@ unfold not in |- *; intros; elim (classic p); auto.
 intro NP; elim (H NP).
 Qed.
 
-(** Peirce's law states [forall P Q:Prop, ((P -> Q) -> P) -> P]. 
+(** Peirce's law states [forall P Q:Prop, ((P -> Q) -> P) -> P].
     Thanks to [forall P, False -> P], it is equivalent to the
     following form *)
 
@@ -95,11 +95,11 @@ Proof proof_irrelevance_cci classic.
 (* classical_left  transforms |- A \/ B into ~B |- A *)
 (* classical_right transforms |- A \/ B into ~A |- B *)
 
-Ltac classical_right :=  match goal with 
+Ltac classical_right :=  match goal with
  | _:_ |-?X1 \/ _ => (elim (classic X1);intro;[left;trivial|right])
 end.
 
-Ltac classical_left := match goal with 
+Ltac classical_left := match goal with
 | _:_ |- _ \/?X1 => (elim (classic X1);intro;[right;trivial|left])
 end.
 
@@ -107,7 +107,7 @@ Require Export EqdepFacts.
 
 Module Eq_rect_eq.
 
-Lemma eq_rect_eq : 
+Lemma eq_rect_eq :
   forall (U:Type) (p:U) (Q:U -> Type) (x:Q p) (h:p = p), x = eq_rect p Q x p h.
 Proof.
 intros; rewrite proof_irrelevance with (p1:=h) (p2:=refl_equal p); reflexivity.

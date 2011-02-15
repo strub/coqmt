@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -21,8 +21,8 @@ Module ProofIrrelevanceTheory (M:ProofIrrelevance).
   (** Proof-irrelevance implies uniqueness of reflexivity proofs *)
 
   Module Eq_rect_eq.
-    Lemma eq_rect_eq : 
-      forall (U:Type) (p:U) (Q:U -> Type) (x:Q p) (h:p = p), 
+    Lemma eq_rect_eq :
+      forall (U:Type) (p:U) (Q:U -> Type) (x:Q p) (h:p = p),
         x = eq_rect p Q x p h.
     Proof.
       intros; rewrite M.proof_irrelevance with (p1:=h) (p2:=refl_equal p).

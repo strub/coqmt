@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Union.v 9642 2007-02-12 10:31:53Z herbelin $ i*)
+(*i $Id: Union.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Author: Bruno Barras *)
 
@@ -17,9 +17,9 @@ Require Import Transitive_Closure.
 Section WfUnion.
   Variable A : Type.
   Variables R1 R2 : relation A.
-  
+
   Notation Union := (union A R1 R2).
-  
+
   Remark strip_commut :
     commut A R1 R2 ->
     forall x y:A,
@@ -29,7 +29,7 @@ Section WfUnion.
     induction 2 as [x y| x y z H0 IH1 H1 IH2]; intros.
     elim H with y x z; auto with sets; intros x0 H2 H3.
     exists x0; auto with sets.
-    
+
     elim IH1 with z0; auto with sets; intros.
     elim IH2 with x0; auto with sets; intros.
     exists x1; auto with sets.
@@ -50,7 +50,7 @@ Section WfUnion.
     elim H8; intros.
     apply H6; auto with sets.
     apply t_trans with x0; auto with sets.
-    
+
     elim strip_commut with x x0 y0; auto with sets; intros.
     apply Acc_inv_trans with x1; auto with sets.
     unfold union in |- *.
@@ -63,7 +63,7 @@ Section WfUnion.
     apply Acc_intro; auto with sets.
   Qed.
 
-  
+
   Theorem wf_union :
     commut A R1 R2 -> well_founded R1 -> well_founded R2 -> well_founded Union.
   Proof.

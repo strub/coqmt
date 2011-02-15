@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -24,7 +24,7 @@
 (* in Summer 1995. Several developments by E. Ledinot were an inspiration.  *)
 (****************************************************************************)
 
-(*i $Id: Relations_2_facts.v 10637 2008-03-07 23:52:56Z letouzey $ i*)
+(*i $Id: Relations_2_facts.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Relations_1.
 Require Export Relations_1_facts.
@@ -140,7 +140,7 @@ intros U R H' x b H'0; elim H'0.
 intros x0 a H'1; exists a; auto with sets.
 intros x0 y z H'1 H'2 H'3 a H'4.
 red in H'.
-specialize H' with (x := x0) (a := a) (b := y); lapply H'; 
+specialize H' with (x := x0) (a := a) (b := y); lapply H';
  [ intro H'8; lapply H'8;
     [ intro H'9; try exact H'9; clear H'8 H' | clear H'8 H' ]
  | clear H' ]; auto with sets.

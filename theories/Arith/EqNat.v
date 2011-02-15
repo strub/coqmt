@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: EqNat.v 9966 2007-07-10 23:54:53Z letouzey $ i*)
+(*i $Id: EqNat.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Equality on natural numbers *)
 
@@ -16,7 +16,7 @@ Implicit Types m n x y : nat.
 
 (** * Propositional equality  *)
 
-Fixpoint eq_nat n m {struct n} : Prop :=
+Fixpoint eq_nat n m : Prop :=
   match n, m with
     | O, O => True
     | O, S _ => False
@@ -68,7 +68,7 @@ Defined.
 
 (** * Boolean equality on [nat] *)
 
-Fixpoint beq_nat n m {struct n} : bool :=
+Fixpoint beq_nat n m : bool :=
   match n, m with
     | O, O => true
     | O, S _ => false
@@ -98,4 +98,19 @@ Qed.
 Lemma beq_nat_false : forall x y, beq_nat x y = false -> x<>y.
 Proof.
  induction x; destruct y; simpl; auto; intros; discriminate.
+Qed.
+
+Lemma beq_nat_true_iff : forall x y, beq_nat x y = true <-> x=y.
+Proof.
+ split. apply beq_nat_true.
+ intros; subst; symmetry; apply beq_nat_refl.
+Qed.
+
+Lemma beq_nat_false_iff : forall x y, beq_nat x y = false <-> x<>y.
+Proof.
+ intros x y.
+ split. apply beq_nat_false.
+ generalize (beq_nat_true_iff x y).
+ destruct beq_nat; auto.
+ intros IFF NEQ. elim NEQ. apply IFF; auto.
 Qed.

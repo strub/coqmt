@@ -1,12 +1,12 @@
 #######################################################################
 #  v      #   The Coq Proof Assistant  /  The Coq Development Team    #
-# <O___,, #        INRIA-Rocquencourt  &  LRI-CNRS-Orsay              #
+# <O___,, #        INRIA-Rocquencourt  &  LRI-CNRS-osay              #
 #   \VV/  #############################################################
 #    //   #      This file is distributed under the terms of the      #
 #         #       GNU Lesser General Public License Version 2.1       #
 #######################################################################
 
-# $Id: Makefile 12063 2009-04-08 15:38:39Z herbelin $ 
+# $Id: Makefile 13184 2010-06-23 09:19:15Z notin $ 
 
 
 # Makefile for Coq
@@ -16,7 +16,7 @@
 # This is the only Makefile. You won't find Makefiles in sub-directories
 # and this is done on purpose. If you are not yet convinced of the advantages
 # of a single Makefile, please read
-#    http://www.pcug.org.au/~millerp/rmch/recu-make-cons-harm.html
+#    http://miller.emu.id.au/pmiller/books/rmch/
 # before complaining.
 # 
 # When you are working in a subdir, you can compile without moving to the
@@ -24,8 +24,50 @@
 # by Emacs' next-error.
 ###########################################################################
 
-export SHELL:=/bin/bash
 
+# Specific command-line options to this Makefile
+#
+# make GOTO_STAGE=N        # perform only stage N (with N=1,2)
+# make VERBOSE=1           # restore the raw echoing of commands
+# make NO_RECALC_DEPS=1    # avoid recomputing dependencies
+# make NO_RECOMPILE_LIB=1  # a coqtop rebuild does not trigger a stdlib rebuild
+#
+# Nota: the 1 above can be replaced by any non-empty value
+# More details in dev/doc/build-system*.txt
+
+
+# FAQ: special features used in this Makefile
+#
+# * Order-only dependencies: |
+#
+# Dependencies placed after a bar (|) should be built before
+# the current rule, but having one of them is out-of-date do not
+# trigger a rebuild of the current rule.
+# See http://www.gnu.org/software/make/manual/make.html#Prerequisite-Types
+#
+# * Annotation before commands: +/-/@
+#
+# a command starting by - is always successful (errors are ignored)
+# a command starting by + is runned even if option -n is given to make
+# a command starting by @ is not echoed before being runned
+#
+# * Custom functions
+#
+# Definition via "define foo" followed by commands (arg is $(1) etc)
+# Call via "$(call foo,arg1)"
+#
+# * Useful builtin functions
+#
+# $(subst ...), $(patsubst ...), $(shell ...), $(foreach ...)
+#
+# * Behavior of -include
+#
+# If the file given to -include doesn't exist, make tries to build it,
+# but doesn't care if this build fails. This can be quite surprising,
+# see in particular the -include in Makefile.stage*
+
+# !! Before using FIND_VCS_CLAUSE, please read how you should in the !!
+# !! FIND_VCS_CLAUSE section of dev/doc/build-system.dev.txt         !!
 export FIND_VCS_CLAUSE:='(' \
   -name '{arch}' -o \
   -name '.svn' -o \
@@ -33,9 +75,10 @@ export FIND_VCS_CLAUSE:='(' \
   -name '.git' -o \
   -name '.bzr' -o \
   -name 'debian' -o \
-  -name "$${GIT_DIR}" \
-')' -prune -type f -o
-export PRUNE_CHECKER := -wholename ./checker/\* -prune -or
+  -name "$${GIT_DIR}" -o \
+  -name '_build' \
+')' -prune -o
+export PRUNE_CHECKER := -wholename ./checker/\* -prune -o
 
 FIND_PRINTF_P:=-print | sed 's|^\./||'
 
@@ -45,19 +88,23 @@ export GENMLFILES:=$(LEXFILES:.mll=.ml) $(YACCFILES:.mly=.ml) \
   scripts/tolink.ml kernel/copcodes.ml
 export GENMLIFILES:=$(YACCFILES:.mly=.mli)
 export GENHFILES:=kernel/byterun/coq_jumptbl.h
-export GENVFILES:=theories/Numbers/Natural/BigN/NMake.v
+export GENVFILES:=theories/Numbers/Natural/BigN/NMake_gen.v
 export GENFILES:=$(GENMLFILES) $(GENMLIFILES) $(GENHFILES) $(GENVFILES)
 export MLFILES  := $(shell find . $(FIND_VCS_CLAUSE) '(' -name '*.ml'  ')' $(FIND_PRINTF_P) | \
-  while read f; do if [ ! -e "$${f}4" ]; then echo "$$f"; fi; done) \
+  while read f; do if ! [ -e "$${f}4" ]; then echo "$$f"; fi; done) \
   $(GENMLFILES)
 export MLIFILES := $(shell find . $(FIND_VCS_CLAUSE) '(' -name '*.mli' ')' $(FIND_PRINTF_P)) \
   $(GENMLIFILES)
+export MLLIBFILES := $(shell find . $(FIND_VCS_CLAUSE) '(' -name '*.mllib' ')' $(FIND_PRINTF_P))
 export ML4FILES := $(shell find . $(FIND_VCS_CLAUSE) '(' -name '*.ml4' ')' $(FIND_PRINTF_P))
 #export VFILES   := $(shell find . $(FIND_VCS_CLAUSE) '(' -name '*.v'   ')' $(FIND_PRINTF_P)) \
 #  $(GENVFILES)
-export CFILES   := $(shell find kernel/byterun $(FIND_VCS_CLAUSE) -name '*.c')
+export CFILES   := $(shell find kernel/byterun $(FIND_VCS_CLAUSE) '(' -name '*.c' ')' -print)
 
 export ML4FILESML:= $(ML4FILES:.ml4=.ml)
+
+# Nota: do not use the name $(MAKEFLAGS), it has a particular behavior
+MAKEFLGS:=--warn-undefined-variable --no-builtin-rules
 
 include Makefile.common
 
@@ -84,7 +131,7 @@ define stage-template
 	@echo '****************** Entering stage$(1) ******************'
 	@echo '*****************************************************'
 	@echo '*****************************************************'
-	+$(MAKE) -f Makefile.stage$(1) "$@"
+	+$(MAKE) $(MAKEFLGS) -f Makefile.stage$(1) "$@"
 endef
 else
 define stage-template
@@ -108,39 +155,34 @@ config/Makefile Makefile.common Makefile.build Makefile: ;
 	$(call stage-template,$(GOTO_STAGE))
 else
 
-.PHONY: stage1 stage2 stage3 world revision
+.PHONY: stage1 stage2 world revision
 
-# This is to remove the built-in rule "%: %.o"
-# Otherwise, "make foo" recurses into stage1, trying to build foo.o .
-%: %.o
-
-%.o: always
+stage1 $(STAGE1_TARGETS) : always
 	$(call stage-template,1)
 
-#STAGE1_TARGETS includes all object files necessary for $(STAGE1)
-stage1 $(STAGE1_TARGETS): always
+ifneq (,$(STAGE1_IMPLICITS))
+$(STAGE1_IMPLICITS) : always
 	$(call stage-template,1)
+endif
 
-CAML_OBJECT_PATTERNS:=%.cmo %.cmx %.cmi %.cma %.cmxa %.dep.ps %.dot
-ifdef CM_STAGE1
-$(CAML_OBJECT_PATTERNS): always
-	$(call stage-template,1)
-
-%.ml4-preprocessed: stage1
+stage2 $(STAGE2_TARGETS) : stage1
 	$(call stage-template,2)
-else
-$(CAML_OBJECT_PATTERNS) %.ml4-preprocessed: stage1
+
+ifneq (,$(STAGE2_IMPLICITS))
+$(STAGE2_IMPLICITS) : stage1
 	$(call stage-template,2)
 endif
 
-stage2 $(STAGE2_TARGETS): stage1
-	$(call stage-template,2)
+# Nota:
+# - world is one of the targets in $(STAGE2_TARGETS), hence launching
+# "make" or "make world" leads to recursion into stage1 then stage2
+# - the aim of stage1 is to build grammar.cma and q_constr.cmo
+# More details in dev/doc/build-system*.txt
 
-%.vo %.glob states/% install-%: stage2
-	$(call stage-template,3)
 
-stage3 $(STAGE3_TARGETS): stage2
-	$(call stage-template,3)
+# This is to remove the built-in rule "%: %.o" :
+%: %.o
+# Otherwise, "make foo" recurses into stage1, trying to build foo.o .
 
 endif #GOTO_STAGE
 
@@ -161,15 +203,16 @@ cruftclean: ml4clean
 indepclean:
 	rm -f $(GENFILES)
 	rm -f $(COQTOPBYTE) $(COQMKTOPBYTE) $(COQCBYTE) $(CHICKENBYTE)
-	rm -f bin/coq-interface$(EXE) bin/coq-parser$(EXE)
 	find . -name '*~' -o -name '*.cm[ioa]' | xargs rm -f
-	find contrib test-suite -name '*.vo' -o -name '*.glob' | xargs rm -f
-	rm -f */*.pp[iox] contrib/*/*.pp[iox]
+	find . -name '*_mod.ml' | xargs rm -f
+	find plugins test-suite -name '*.vo' -o -name '*.glob' | xargs rm -f
+	rm -f */*.pp[iox] plugins/*/*.pp[iox]
 	rm -rf $(SOURCEDOCDIR)
 	rm -f toplevel/mltop.byteml toplevel/mltop.optml
 	rm -f test-suite/check.log
 	rm -f glob.dump
-	rm -f revision
+	rm -f config/revision.ml revision
+	$(MAKE) -C test-suite clean
 
 docclean:
 	rm -f doc/*/*.dvi doc/*/*.aux doc/*/*.log doc/*/*.bbl doc/*/*.blg doc/*/*.toc \
@@ -182,22 +225,23 @@ docclean:
 	  doc/stdlib/library.files.ls
 	rm -f doc/*/*.ps doc/*/*.pdf 
 	rm -rf doc/refman/html doc/stdlib/html doc/faq/html doc/tutorial/tutorial.v.html
-	rm -f doc/stdlib/html/*.html
-	rm -f doc/refman/euclid.ml{,i} doc/refman/heapsort.ml{,i}
+	rm -f doc/refman/euclid.ml doc/refman/euclid.mli
+	rm -f doc/refman/heapsort.ml doc/refman/heapsort.mli
 	rm -f doc/common/version.tex
-	rm -f doc/refman/*.eps doc/refman/Reference-Manual.html
+	rm -f doc/refman/styles.hva doc/refman/cover.html doc/refman/*.eps doc/refman/Reference-Manual.html
 	rm -f doc/coq.tex
 	rm -f doc/refman/styles.hva doc/refman/cover.html 
 
 archclean: clean-ide cleantheories
-	rm -f $(COQTOPEXE) $(COQMKTOP) $(COQC) $(CHICKEN)
+	rm -f $(COQTOPEXE) $(COQMKTOP) $(COQC) $(CHICKEN) $(COQDEPBOOT)
 	rm -f $(COQTOPOPT) $(COQMKTOPOPT) $(COQCOPT) $(CHICKENOPT)
-	rm -f bin/coq-parser.opt$(EXE) bin/coq-interface.opt$(EXE)
-	find . -name '*.cmx' -o -name '*.cmxa' -o -name '*.[soa]' -o -name '*.so' | xargs rm -f
+	find . -name '*.cmx' -o -name '*.cmxs' -o -name '*.cmxa' -o -name '*.[soa]' -o -name '*.so' | xargs rm -f
 	rm -f $(TOOLS) $(CSDPCERT)
+	rm -rf _build myocamlbuild_config.ml
 
 clean-ide:
 	rm -f $(COQIDECMO) $(COQIDECMX) $(COQIDECMO:.cmo=.cmi) $(COQIDEBYTE) $(COQIDEOPT) $(COQIDE)
+	rm -f ide/input_method_lexer.ml
 	rm -f ide/extract_index.ml ide/find_phrase.ml ide/highlight.ml
 	rm -f ide/config_lexer.ml ide/config_parser.mli ide/config_parser.ml
 	rm -f ide/utf8_convert.ml
@@ -209,12 +253,13 @@ ml4depclean:
 	find . -name '*.ml4.d' | xargs rm -f
 
 depclean:
-	find . $(FIND_VCS_CLAUSE) -name '*.d' | xargs rm -f
+	find . $(FIND_VCS_CLAUSE) '(' -name '*.d' ')' -print | xargs rm -f
 
 cleanconfig:
 	rm -f config/Makefile config/coq_config.ml dev/ocamldebug-v7 ide/undo.mli
 
 distclean: clean cleanconfig
+	$(MAKE) -C test-suite distclean
 
 cleantheories:
 	rm -f states/*.coq

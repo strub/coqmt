@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: cooking.mli 9795 2007-04-25 15:13:45Z soubiran $ i*)
+(*i $Id: cooking.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Names
 open Term
@@ -16,7 +16,7 @@ open Univ
 
 (*s Cooking the constants. *)
 
-type work_list = identifier array Cmap.t * identifier array KNmap.t
+type work_list = identifier array Cmap.t * identifier array Mindmap.t
 
 type recipe = {
   d_from : constant_body;
@@ -24,8 +24,8 @@ type recipe = {
   d_modlist : work_list }
 
 val cook_constant :
-  env -> recipe -> 
-    constr_substituted option * constant_type * constraints * bool * bool 
+  env -> recipe ->
+    constr_substituted option * constant_type * constraints * bool * bool
   * bool
 
 (*s Utility functions used in module [Discharge]. *)

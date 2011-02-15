@@ -49,6 +49,9 @@ CAMLP4BIN="CAMLP4BINDIRECTORY"
 # Ocaml version number
 CAMLVERSION=CAMLTAG
 
+# Ocaml libraries
+CAMLLIB="CAMLLIBDIRECTORY"
+
 # Ocaml .h directory
 CAMLHLIB="CAMLLIBDIRECTORY"
 
@@ -131,12 +134,6 @@ COQDOCDIR="COQDOCDIRECTORY"
 # Unix systems and no profiling: strip
 # Win32 systems: true (actually strip is bogus)
 STRIP=STRIPCOMMAND
-
-# Options for fsets (all/basic)
-FSETS=FSETSOPT
-
-# Options for reals (all/basic)
-REALS=REALSOPT
 
 # CoqIde (no/byte/opt)
 HASCOQIDE=COQIDEOPT

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -9,13 +9,11 @@
 (************************************************************************)
 
 Lemma essai : forall x : nat, x = x.
-
  refine
  ((fun x0 : nat => match x0 with
                    | O => _
                    | S p => _
-                   end)
-  :forall x : nat, x = x).  (* x0=x0 et x0=x0 *)
+                   end)).
 
 Restart.
 
@@ -44,7 +42,7 @@ Abort.
 
 (************************************************************************)
 
-Lemma T : nat. 
+Lemma T : nat.
 
  refine (S _).
 
@@ -97,7 +95,7 @@ Abort.
 
 
 (************************************************************************)
-Parameter f : nat * nat -> nat -> nat. 
+Parameter f : nat * nat -> nat -> nat.
 
 Lemma essai : nat.
 
@@ -145,11 +143,10 @@ Lemma essai : forall n : nat, {x : nat | x = S n}.
 Restart.
 
  refine
- ((fun n : nat => match n with
+   (fun n : nat => match n with
                   | O => _
                   | S p => _
-                  end)
-  :forall n : nat, {x : nat | x = S n}).
+                  end).
 
 Restart.
 
@@ -178,10 +175,10 @@ Restart.
     | S p => _
     end).
 
-exists 1. trivial. 
+exists 1. trivial.
 elim (f0 p).
  refine
- (fun (x : nat) (h : x = S p) => exist (fun x : nat => x = S (S p)) (S x) _). 
+ (fun (x : nat) (h : x = S p) => exist (fun x : nat => x = S (S p)) (S x) _).
  rewrite h. auto.
 Qed.
 

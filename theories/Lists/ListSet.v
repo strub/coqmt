@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ListSet.v 10616 2008-03-04 17:33:35Z letouzey $ i*)
+(*i $Id: ListSet.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** A Library for finite sets, implemented as lists *)
 
@@ -27,7 +27,7 @@ Section first_definitions.
 
   Definition empty_set : set := nil.
 
-  Fixpoint set_add (a:A) (x:set) {struct x} : set :=
+  Fixpoint set_add (a:A) (x:set) : set :=
     match x with
     | nil => a :: nil
     | a1 :: x1 =>
@@ -38,7 +38,7 @@ Section first_definitions.
     end.
 
 
-  Fixpoint set_mem (a:A) (x:set) {struct x} : bool :=
+  Fixpoint set_mem (a:A) (x:set) : bool :=
     match x with
     | nil => false
     | a1 :: x1 =>
@@ -47,9 +47,9 @@ Section first_definitions.
         | right _ => set_mem a x1
         end
     end.
- 
+
   (** If [a] belongs to [x], removes [a] from [x]. If not, does nothing *)
-  Fixpoint set_remove (a:A) (x:set) {struct x} : set :=
+  Fixpoint set_remove (a:A) (x:set) : set :=
     match x with
     | nil => empty_set
     | a1 :: x1 =>
@@ -67,20 +67,20 @@ Section first_definitions.
           if set_mem a1 y then a1 :: set_inter x1 y else set_inter x1 y
     end.
 
-  Fixpoint set_union (x y:set) {struct y} : set :=
+  Fixpoint set_union (x y:set) : set :=
     match y with
     | nil => x
     | a1 :: y1 => set_add a1 (set_union x y1)
     end.
-        
+
   (** returns the set of all els of [x] that does not belong to [y] *)
-  Fixpoint set_diff (x y:set) {struct x} : set :=
+  Fixpoint set_diff (x y:set) : set :=
     match x with
     | nil => nil
     | a1 :: x1 =>
         if set_mem a1 y then set_diff x1 y else set_add a1 (set_diff x1 y)
     end.
-   
+
 
   Definition set_In : A -> set -> Prop := In (A:=A).
 
@@ -123,7 +123,7 @@ Section first_definitions.
     case H3; auto.
   Qed.
 
- 
+
   Lemma set_mem_correct1 :
    forall (a:A) (x:set), set_mem a x = true -> set_In a x.
   Proof.
@@ -191,11 +191,11 @@ Section first_definitions.
 
   Lemma set_add_intro :
    forall (a b:A) (x:set), a = b \/ set_In a x -> set_In a (set_add b x).
-  
+
   Proof.
     intros a b x [H1| H2]; auto with datatypes.
   Qed.
- 
+
   Lemma set_add_elim :
    forall (a b:A) (x:set), set_In a (set_add b x) -> a = b \/ set_In a x.
 
@@ -225,7 +225,7 @@ Section first_definitions.
     simple induction x; simpl in |- *.
     discriminate.
     intros; elim (Aeq_dec a a0); intros; discriminate.
-  Qed.   
+  Qed.
 
 
   Lemma set_union_intro1 :
@@ -289,7 +289,7 @@ Section first_definitions.
     elim (set_mem a y); simpl in |- *; intros.
     auto with datatypes.
     absurd (set_In a y); auto with datatypes.
-    elim (set_mem a0 y); [ right; auto with datatypes | auto with datatypes ].     
+    elim (set_mem a0 y); [ right; auto with datatypes | auto with datatypes ].
   Qed.
 
   Lemma set_inter_elim1 :
@@ -324,7 +324,7 @@ Section first_definitions.
      set_In a (set_inter x y) -> set_In a x /\ set_In a y.
   Proof.
     eauto with datatypes.
-  Qed. 
+  Qed.
 
   Lemma set_diff_intro :
    forall (a:A) (x y:set),
@@ -354,7 +354,7 @@ Section first_definitions.
    forall (a:A) (x y:set), set_In a (set_diff x y) -> ~ set_In a y.
   intros a x y; elim x; simpl in |- *.
   intros; contradiction.
-  intros a0 l Hrec. 
+  intros a0 l Hrec.
   apply set_mem_ind2; auto.
   intros H1 H2; case (set_add_elim _ _ _ H2); intros; auto.
   rewrite H; trivial.
@@ -373,24 +373,23 @@ End first_definitions.
 
 Section other_definitions.
 
-  Variables A B : Type.
-
-  Definition set_prod : set A -> set B -> set (A * B) :=
-    list_prod (A:=A) (B:=B).
+  Definition set_prod : forall {A B:Type}, set A -> set B -> set (A * B) :=
+    list_prod.
 
   (** [B^A], set of applications from [A] to [B] *)
-  Definition set_power : set A -> set B -> set (set (A * B)) :=
-    list_power (A:=A) (B:=B).
+  Definition set_power : forall {A B:Type}, set A -> set B -> set (set (A * B)) :=
+    list_power.
 
-  Definition set_map : (A -> B) -> set A -> set B := map (A:=A) (B:=B).
-
-  Definition set_fold_left : (B -> A -> B) -> set A -> B -> B :=
+  Definition set_fold_left {A B:Type} : (B -> A -> B) -> set A -> B -> B :=
     fold_left (A:=B) (B:=A).
 
-  Definition set_fold_right (f:A -> B -> B) (x:set A) 
+  Definition set_fold_right {A B:Type} (f:A -> B -> B) (x:set A)
     (b:B) : B := fold_right f b x.
 
- 
+  Definition set_map {A B:Type} (Aeq_dec : forall x y:B, {x = y} + {x <> y})
+    (f : A -> B) (x : set A) : set B :=
+    set_fold_right (fun a => set_add Aeq_dec (f a)) x (empty_set B).
+
 End other_definitions.
 
 Unset Implicit Arguments.

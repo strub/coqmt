@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -37,8 +37,11 @@ val vm_conv : conv_pb -> constr conversion_function
 
 (************************************************************************)
 
-(* Builds an application node, reducing beta redexes it may produce. *) 
+(* Builds an application node, reducing beta redexes it may produce. *)
 val beta_appvect : constr -> constr array -> constr
+
+(* Builds an application node, reducing the [n] first beta-zeta redexes. *)
+val betazeta_appvect : int -> constr -> constr array -> constr
 
 (* Pseudo-reduction rule  Prod(x,A,B) a --> B[x\a] *)
 val hnf_prod_applist : env -> constr -> constr list -> constr

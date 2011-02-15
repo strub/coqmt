@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Raxioms.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: Raxioms.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*********************************************************)
 (**    Axiomatisation of the classical reals             *)
@@ -40,13 +40,13 @@ Hint Resolve Rplus_opp_r: real v62.
 Axiom Rplus_0_l : forall r:R, 0 + r = r.
 Hint Resolve Rplus_0_l: real.
 
-(***********************************************************)       
+(***********************************************************)
 (** **    Multiplication                                   *)
 (***********************************************************)
 
 (**********)
 Axiom Rmult_comm : forall r1 r2:R, r1 * r2 = r2 * r1.
-Hint Resolve Rmult_comm: real v62. 
+Hint Resolve Rmult_comm: real v62.
 
 (**********)
 Axiom Rmult_assoc : forall r1 r2 r3:R, r1 * r2 * r3 = r1 * (r2 * r3).
@@ -102,7 +102,7 @@ Axiom
 
 Hint Resolve Rlt_asym Rplus_lt_compat_l Rmult_lt_compat_l: real.
 
-(**********************************************************) 
+(**********************************************************)
 (** *    Injection from N to R                            *)
 (**********************************************************)
 
@@ -112,11 +112,11 @@ Boxed Fixpoint INR (n:nat) : R :=
   | O => 0
   | S O => 1
   | S n => INR n + 1
-  end.  
+  end.
 Arguments Scope INR [nat_scope].
 
 
-(**********************************************************) 
+(**********************************************************)
 (** *    Injection from [Z] to [R]                        *)
 (**********************************************************)
 
@@ -126,7 +126,7 @@ Definition IZR (z:Z) : R :=
   | Z0 => 0
   | Zpos n => INR (nat_of_P n)
   | Zneg n => - INR (nat_of_P n)
-  end.  
+  end.
 Arguments Scope IZR [Z_scope].
 
 (**********************************************************)

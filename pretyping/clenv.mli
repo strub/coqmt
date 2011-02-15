@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: clenv.mli 10856 2008-04-27 16:15:34Z herbelin $ i*)
+(*i $Id: clenv.mli 13332 2010-07-26 22:12:43Z msozeau $ i*)
 
 (*i*)
 open Util
@@ -32,7 +32,7 @@ open Unification
  *)
 type clausenv = {
   env      : env;
-  evd      : evar_defs;
+  evd      : evar_map;
   templval : constr freelisted;
   templtyp : constr freelisted }
 
@@ -60,14 +60,14 @@ val mk_clenv_from_env : env -> evar_map -> int option -> constr * types -> claus
 (* linking of clenvs *)
 
 val connect_clenv : evar_info sigma -> clausenv -> clausenv
-val clenv_fchain : 
+val clenv_fchain :
   ?allow_K:bool -> ?flags:unify_flags -> metavariable -> clausenv -> clausenv -> clausenv
 
 (***************************************************************)
 (* Unification with clenvs *)
 
 (* Unifies two terms in a clenv. The boolean is [allow_K] (see [Unification]) *)
-val clenv_unify : 
+val clenv_unify :
   bool -> ?flags:unify_flags -> conv_pb -> constr -> constr -> clausenv -> clausenv
 
 (* unifies the concl of the goal with the type of the clenv *)
@@ -86,7 +86,7 @@ val clenv_pose_metas_as_evars : clausenv -> metavariable list -> clausenv
 (***************************************************************)
 (* Bindings *)
 
-type arg_bindings = open_constr explicit_bindings
+type arg_bindings = constr explicit_bindings
 
 (* bindings where the key is the position in the template of the
    clenv (dependent or not). Positions can be negative meaning to
@@ -94,6 +94,8 @@ type arg_bindings = open_constr explicit_bindings
 val clenv_independent : clausenv -> metavariable list
 val clenv_missing : clausenv -> metavariable list
 
+(** for the purpose of inversion tactics *)
+exception NoSuchBinding
 val clenv_constrain_last_binding : constr -> clausenv -> clausenv
 
 (* defines metas corresponding to the name of the bindings *)
@@ -107,10 +109,13 @@ val clenv_unify_meta_types : ?flags:unify_flags -> clausenv -> clausenv
 (* the optional int tells how many prods of the lemma have to be used *)
 (* use all of them if None *)
 val make_clenv_binding_apply :
-  evar_info sigma -> int option -> constr * constr -> open_constr bindings ->
+  evar_info sigma -> int option -> constr * constr -> constr bindings ->
+   clausenv
+val make_clenv_binding_env_apply :
+  env -> evar_map -> int option -> constr * constr -> constr bindings ->
    clausenv
 val make_clenv_binding :
-  evar_info sigma -> constr * constr -> open_constr bindings -> clausenv
+  evar_info sigma -> constr * constr -> constr bindings -> clausenv
 
 (* [clenv_environments sigma n t] returns [sigma',lmeta,ccl] where
    [lmetas] is a list of metas to be applied to a proof of [t] so that
@@ -122,12 +127,12 @@ val make_clenv_binding :
    [ccl] is [Meta n1=Meta n2]; if [n] is [Some 1], [lmetas] is [Meta n1]
    and [ccl] is [forall y, Meta n1=y -> y=Meta n1] *)
 val clenv_environments :
- evar_defs -> int option -> types -> evar_defs * constr list * types
+ evar_map -> int option -> types -> evar_map * constr list * types
 
 (* [clenv_environments_evars env sigma n t] does the same but returns
    a list of Evar's defined in [env] and extends [sigma] accordingly *)
 val clenv_environments_evars :
- env -> evar_defs -> int option -> types -> evar_defs * constr list * types
+ env -> evar_map -> int option -> types -> evar_map * constr list * types
 
 (* [clenv_conv_leq env sigma t c n] looks for c1...cn s.t. [t <= c c1...cn] *)
 val clenv_conv_leq :

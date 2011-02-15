@@ -20,12 +20,10 @@ construction allows to define ``signatures''.
 {\sentence} & ++= & {\record}\\
   & & \\
 {\record} & ::= &
-   \inductivitytoken {\ident} \sequence{\binderlet}{} \zeroone{{\tt :} {\sort}} \verb.:=. \\
+   {\tt Record} {\ident} \zeroone{\binders} \zeroone{{\tt :} {\sort}} \verb.:=. \\
 && ~~~~\zeroone{\ident}
        \verb!{! \zeroone{\nelist{\field}{;}} \verb!}! \verb:.:\\
   & & \\
-\inductivitytoken & ::= & {\tt Record} $|$ {\tt Structure} $|${\tt Inductive} $|$ {\tt CoInductive} \\
- & & \\
 {\field} & ::= & {\name} : {\type} [ {\tt where} {\it notation} ] \\
  & $|$ & {\name} {\typecstr} := {\term}
 \end{tabular}
@@ -88,7 +86,7 @@ Remark here that the field
 %
 %\medskip
 %\noindent
-%{\tt Inductive {\ident} {\binderlet} : {\sort} := \\
+%{\tt Inductive {\ident} \zeroone{\binders} : {\sort} := \\
 %\mbox{}\hspace{0.4cm} {\ident$_0$} : forall ({\ident$_1$}:{\term$_1$}) .. 
 %({\ident$_n$}:{\term$_n$}), {\ident} {\rm\sl params}.}
 %\medskip
@@ -151,23 +149,6 @@ Eval compute in half.(Rat_bottom_cond).
 Reset Initial.
 \end{coq_eval}
 
-\begin{Variants}
-\item
-Records declared with the keyword {\tt Record} (or {\tt Structure} which is
-equivalent to the former) cannot be recursive. However, records can be declared
-using the keyword {\tt CoInductive} (resp. {\tt Inductive}) instead, making them
-coinductive (resp. inductive) types.
-
-As an example, here is how to define a type of streams over a type A as a type
-with a pair of destructors:
-\begin{coq_example}
-CoInductive stream (A:Type) := 
-  {head : A;
-   tail : stream A}.
-\end{coq_example}
-
-\end{Variants}
-
 \begin{Warnings}
 \item {\tt Warning: {\ident$_i$} cannot be defined.}
 
@@ -180,7 +161,7 @@ CoInductive stream (A:Type) :=
    \item The body of {\ident$_i$} uses an incorrect elimination for
      {\ident} (see Sections~\ref{Fixpoint} and~\ref{Caseexpr}).
    \item The type of the projections {\ident$_i$} depends on previous
-   projections which themselves couldn't be defined.
+   projections which themselves could not be defined.
    \end{enumerate}  
 \end{Warnings}     
 
@@ -200,6 +181,38 @@ CoInductive stream (A:Type) :=
 of the chapter devoted to coercions.
 
 \Rem {\tt Structure} is a synonym of the keyword {\tt Record}.
+
+\Rem Creation of an object of record type can be done by calling {\ident$_0$}
+and passing arguments in the correct order.
+
+\begin{coq_example}
+Record point := { x : nat; y : nat }.
+Definition a := Build_point 5 3.
+\end{coq_example}
+
+The following syntax allows to create objects by using named fields. The
+fields do not have to be in any particular order, nor do they have to be all
+present if the missing ones can be inferred or prompted for (see
+Section~\ref{Program}).
+
+\begin{coq_example}
+Definition b := {| x := 5; y := 3 |}.
+Definition c := {| y := 3; x := 5 |}.
+\end{coq_example}
+
+This syntax can also be used for pattern matching.
+
+\begin{coq_example}
+Eval compute in (
+  match b with
+  | {| y := S n |} => n
+  | _ => 0
+  end).
+\end{coq_example}
+
+\begin{coq_eval}
+Reset Initial.
+\end{coq_eval}
 
 \Rem An experimental syntax for projections based on a dot notation is
 available. The command to activate it is
@@ -362,7 +375,7 @@ for all the arguments. For example, the preceding example can be written:
 Reset fst.
 \end{coq_eval}
 \begin{coq_example}
-Definition fst (A B:Set) (p:A * B) := let 'pair x _ := p in x.
+Definition fst (A B:Set) (p:A*B) := let 'pair x _ := p in x.
 \end{coq_example}
 
 This is useful to match deeper inside tuples and also to use notations
@@ -370,10 +383,10 @@ for the pattern, as the syntax {\tt let 'p := t in b} allows arbitrary
 patterns to do the deconstruction. For example:
 
 \begin{coq_example}
-Definition deep_tuple (A : Set) (x : (A * A) * (A * A)) : A * A * A * A :=
+Definition deep_tuple (A:Set) (x:(A*A)*(A*A)) : A*A*A*A :=
   let '((a,b), (c, d)) := x in (a,b,c,d).
 Notation " x 'with' p " := (exist _ x p) (at level 20).
-Definition proj1_sig' (A :Set) (P : A -> Prop) (t:{ x : A | P x }) : A :=
+Definition proj1_sig' (A:Set) (P:A->Prop) (t:{ x:A | P x }) : A :=
   let 'x with p := t in x.
 \end{coq_example}
 
@@ -782,7 +795,8 @@ defined:
 
 %Complete!!
 The way this recursive function is defined is the subject of several
-papers by Yves Bertot and Antonia Balaa on one hand and  Gilles Barthe, Julien Forest, David Pichardie and Vlad Rusu on the other hand.
+papers by Yves Bertot and Antonia Balaa on the one hand, and Gilles Barthe,
+Julien Forest, David Pichardie, and Vlad Rusu on the other hand.
 
 %Exemples ok ici
 
@@ -806,7 +820,7 @@ subgoals belonging to a Lemma {\ident}{\tt\_tcc}. % These subgoals are independe
 
 The sectioning mechanism allows to organize a proof in structured
 sections. Then local declarations become available (see
-Section~\ref{Simpl-definitions}). 
+Section~\ref{Basic-definitions}).
 
 \subsection{\tt Section {\ident}\comindex{Section}}
 
@@ -822,13 +836,13 @@ This command is used to open a section named {\ident}.
 \subsection{\tt End {\ident}
 \comindex{End}}
 
-This command closes the section named {\ident}. When a section is
-closed, all local declarations (variables and local definitions) are
-{\em discharged}. This means that all global objects defined in the
-section are generalized with respect to all variables and local
-definitions it depends on in the section.  None of the local
-declarations (considered as autonomous declarations) survive the end
-of the section.
+This command closes the section named {\ident}. After closing of the
+section, the local declarations (variables and local definitions) get
+{\em discharged}, meaning that they stop being visible and that all
+global objects defined in the section are generalized with respect to
+the variables and local definitions they each depended on in the
+section.
+
 
 Here is an example :
 \begin{coq_example}
@@ -1116,7 +1130,7 @@ a-priori and a-posteriori.
 
 \subsubsection{Implicit Argument Binders}
 
-In the first setting, one wants to explicitely give the implicit
+In the first setting, one wants to explicitly give the implicit
 arguments of a constant as part of its definition. To do this, one has
 to surround the bindings of implicit arguments by curly braces:
 \begin{coq_eval}
@@ -1183,6 +1197,19 @@ When in a module, tells not to activate the implicit arguments of
 {\qualid} declared by this commands to contexts that requires the
 module.
 
+\item {\tt \zeroone{Global {\sl |} Local} Implicit Arguments {\qualid} \sequence{[ \nelist{\possiblybracketedident}{} ]}{}}
+
+For names of constants, inductive types, constructors, lemmas which
+can only be applied to a fixed number of arguments (this excludes for
+instance constants whose type is polymorphic), multiple lists
+of implicit arguments can be given. These lists must be of different
+length, and, depending on the number of arguments {\qualid} is applied
+to in practice, the longest applicable list of implicit arguments is
+used to select which implicit arguments are inserted.
+
+For printing, the omitted arguments are the ones of the longest list
+of implicit arguments of the sequence.
+
 \end{Variants}
 
 \Example
@@ -1206,6 +1233,8 @@ Fixpoint length (A:Type) (l:list A) : nat :=
 Implicit Arguments map [A B].
 Implicit Arguments length [[A]]. (* A has to be maximally inserted *)
 Check (fun l:list (list nat) => map length l).
+Implicit Arguments map [A B] [A] [].
+Check (fun l => map length l = map (list nat) nat length l).
 \end{coq_example}
 
 \Rem To know which are the implicit arguments of an object, use the command
@@ -1469,6 +1498,9 @@ but succeeds in
 Check Prop = nat.
 \end{coq_example*}
 
+
+
+
 \subsection{Canonical structures
 \comindex{Canonical Structure}}
 
@@ -1568,7 +1600,79 @@ Lemma cons_inj_bool : forall (m n:bool) l, n :: l = m :: l -> n = m.
 \begin{Variants}
 \item {\tt Implicit Type {\ident} : {\type}}\\
 This is useful for declaring the implicit type of a single variable.
+\item
+ {\tt Implicit Types\,%
+(\,{\ident$_{1,1}$}\ldots{\ident$_{1,k_1}$}\,{\tt :}\,{\term$_1$} {\tt )}\,%
+\ldots\,{\tt (}\,{\ident$_{n,1}$}\ldots{\ident$_{n,k_n}$}\,{\tt :}\,%
+{\term$_n$} {\tt )}.}\\ 
+  Adds $n$ blocks of implicit types with different specifications.
 \end{Variants}
+
+
+\subsection{Implicit generalization
+\label{implicit-generalization}
+\comindex{Generalizable Variables}}
+
+Implicit generalization is an automatic elaboration of a statement with
+free variables into a closed statement where these variables are
+quantified explicitly. Implicit generalization is done inside binders
+starting with a \verb|`| and terms delimited by \verb|`{ }| and
+\verb|`( )|, always introducing maximally inserted implicit arguments for
+the generalized variables. Inside implicit generalization
+delimiters, free variables in the current context are automatically
+quantified using a product or a lambda abstraction to generate a closed
+term. In the following statement for example, the variables \texttt{n}
+and \texttt{m} are autamatically generalized and become explicit
+arguments of the lemma as we are using \verb|`( )|:
+
+\begin{coq_example}
+Generalizable All Variables.
+Lemma nat_comm : `(n = n + 0).
+\end{coq_example}
+\begin{coq_eval}
+Abort.
+\end{coq_eval}
+One can control the set of generalizable identifiers with the
+\texttt{Generalizable} vernacular command to avoid unexpected
+generalizations when mistyping identifiers. There are three variants of
+the command:
+
+\begin{quote}
+{\tt Generalizable (All|No) Variable(s)? ({\ident$_1$ \ident$_n$})?.}
+\end{quote}
+
+\begin{Variants}
+\item {\tt Generalizable All Variables.} All variables are candidate for 
+  generalization if they appear free in the context under a
+  generalization delimiter. This may result in confusing errors in
+  case of typos. In such cases, the context will probably contain some
+  unexpected generalized variable.
+
+\item {\tt Generalizable No Variables.} Disable implicit generalization 
+  entirely. This is the default behavior.
+
+\item {\tt Generalizable Variable(s)? {\ident$_1$ \ident$_n$}.} 
+  Allow generalization of the given identifiers only. Calling this
+  command multiple times adds to the allowed identifiers.
+
+\item {\tt Global Generalizable} Allows to export the choice of
+  generalizable variables.
+\end{Variants}
+
+One can also use implicit generalization for binders, in which case the
+generalized variables are added as binders and set maximally implicit.
+\begin{coq_example*}
+Definition id `(x : A) : A := x.
+\end{coq_example*}
+\begin{coq_example}
+Print id.
+\end{coq_example}
+
+The generalizing binders \verb|`{ }| and \verb|`( )| work similarly to
+their explicit counterparts, only binding the generalized variables
+implicitly, as maximally-inserted arguments. In these binders, the
+binding name for the bound object is optional, whereas the type is
+mandatory, dually to regular binders.
 
 \section{Coercions
 \label{Coercions}

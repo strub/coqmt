@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -25,9 +25,19 @@ let out_to = ref MultFiles
 
 let out_channel = ref stdout
 
+let coqdoc_out f =
+  if !output_dir <> "" && Filename.is_relative f then
+    if not (Sys.file_exists !output_dir) then
+      (Printf.eprintf "No such directory: %s\n" !output_dir; exit 1)
+    else
+      Filename.concat !output_dir f
+  else
+    f
+
 let open_out_file f =
-  let f = if !output_dir <> "" && Filename.is_relative f then Filename.concat !output_dir f else f in
-    out_channel := open_out f
+  out_channel :=
+    try open_out (coqdoc_out f)
+    with Sys_error s -> Printf.eprintf "%s\n" s; exit 1
 
 let close_out_file () = close_out !out_channel
 
@@ -37,7 +47,7 @@ type glob_source_t =
     | DotGlob
     | GlobFile of string
 
-let glob_source = ref DotGlob 
+let glob_source = ref DotGlob
 
 let header_trailer = ref true
 let header_file = ref ""
@@ -50,6 +60,7 @@ let gallina = ref false
 let short = ref false
 let index = ref true
 let multi_index = ref false
+let index_name = ref "index"
 let toc = ref false
 let page_title = ref ""
 let title = ref ""
@@ -58,6 +69,10 @@ let coqlib = ref Coq_config.wwwstdlib
 let coqlib_path = ref Coq_config.coqlib
 let raw_comments = ref false
 let parse_comments = ref false
+let plain_comments = ref false
+let toc_depth = (ref None : int option ref)
+let lib_name = ref "Library"
+let lib_subtitles = ref false
 let interpolate = ref false
 
 let charset = ref "iso-8859-1"
@@ -82,4 +97,3 @@ type coq_module = string
 type file =
   | Vernac_file of string * coq_module
   | Latex_file of string
-      

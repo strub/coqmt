@@ -1,50 +1,57 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Tactics.v 11741 2009-01-03 14:34:39Z herbelin $ i*)
+(*i $Id: Tactics.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Notations.
 Require Import Logic.
+Require Import Specif.
 
 (** * Useful tactics *)
 
-(** A tactic for proof by contradiction. With contradict H, 
+(** Ex falso quodlibet : a tactic for proving False instead of the current goal.
+    This is just a nicer name for tactics such as [elimtype False]
+    and other [cut False]. *)
+
+Ltac exfalso := elimtype False.
+
+(** A tactic for proof by contradiction. With contradict H,
     -   H:~A |-  B    gives       |-  A
     -   H:~A |- ~B    gives  H: B |-  A
     -   H: A |-  B    gives       |- ~A
     -   H: A |- ~B    gives  H: B |- ~A
     -   H:False leads to a resolved subgoal.
-   Moreover, negations may be in unfolded forms, 
+   Moreover, negations may be in unfolded forms,
    and A or B may live in Type *)
 
 Ltac contradict H :=
   let save tac H := let x:=fresh in intro x; tac H; rename x into H
-  in 
-  let negpos H := case H; clear H 
-  in 
+  in
+  let negpos H := case H; clear H
+  in
   let negneg H := save negpos H
   in
-  let pospos H := 
-    let A := type of H in (elimtype False; revert H; try fold (~A))
+  let pospos H :=
+    let A := type of H in (exfalso; revert H; try fold (~A))
   in
   let posneg H := save pospos H
-  in 
-  let neg H := match goal with 
+  in
+  let neg H := match goal with
    | |- (~_) => negneg H
    | |- (_->False) => negneg H
    | |- _ => negpos H
-  end in 
-  let pos H := match goal with 
+  end in
+  let pos H := match goal with
    | |- (~_) => posneg H
    | |- (_->False) => posneg H
    | |- _ => pospos H
   end in
-  match type of H with 
+  match type of H with
    | (~_) => neg H
    | (_->False) => neg H
    | _ => (elim H;fail) || pos H
@@ -52,20 +59,20 @@ Ltac contradict H :=
 
 (* Transforming a negative goal [ H:~A |- ~B ] into a positive one [ B |- A ]*)
 
-Ltac swap H := 
+Ltac swap H :=
   idtac "swap is OBSOLETE: use contradict instead.";
   intro; apply H; clear H.
 
 (* To contradict an hypothesis without copying its type. *)
 
-Ltac absurd_hyp H := 
+Ltac absurd_hyp H :=
   idtac "absurd_hyp is OBSOLETE: use contradict instead.";
-  let T := type of H in 
+  let T := type of H in
   absurd T.
 
 (* A useful complement to contradict. Here H:A while G allows to conclude ~A *)
 
-Ltac false_hyp H G := 
+Ltac false_hyp H G :=
   let T := type of H in absurd T; [ apply G | assumption ].
 
 (* A case with no loss of information. *)
@@ -76,12 +83,20 @@ Ltac case_eq x := generalize (refl_equal x); pattern x at -1; case x.
 
 Tactic Notation "destruct_with_eqn" constr(x) :=
   destruct x as []_eqn.
-Tactic Notation "destruct_with_eqn" ident(n) := 
+Tactic Notation "destruct_with_eqn" ident(n) :=
   try intros until n; destruct n as []_eqn.
 Tactic Notation "destruct_with_eqn" ":" ident(H) constr(x) :=
   destruct x as []_eqn:H.
-Tactic Notation "destruct_with_eqn" ":" ident(H) ident(n) := 
+Tactic Notation "destruct_with_eqn" ":" ident(H) ident(n) :=
   try intros until n; destruct n as []_eqn:H.
+
+(** Break every hypothesis of a certain type *)
+
+Ltac destruct_all t :=
+ match goal with
+  | x : t |- _ => destruct x; destruct_all t
+  | _ => idtac
+ end.
 
 (* Rewriting in all hypothesis several times everywhere *)
 
@@ -148,7 +163,7 @@ bapply lemma ltac:(fun H => destruct H as [_ H]; apply H in J).
 
 (** An experimental tactic simpler than auto that is useful for ending
     proofs "in one step" *)
-  
+
 Ltac easy :=
   let rec use_hyp H :=
     match type of H with
@@ -167,10 +182,55 @@ Ltac easy :=
     solve [reflexivity | symmetry; trivial] ||
     contradiction ||
     (split; do_atom)
-  with do_ccl := trivial; repeat do_intro; do_atom in
+  with do_ccl := trivial with eq_true; repeat do_intro; do_atom in
   (use_hyps; do_ccl) || fail "Cannot solve this goal".
 
 Tactic Notation "now" tactic(t) := t; easy.
 
 (** A tactic to document or check what is proved at some point of a script *)
+
 Ltac now_show c := change c.
+
+(** Support for rewriting decidability statements *)
+
+Set Implicit Arguments.
+
+Lemma decide_left : forall (C:Prop) (decide:{C}+{~C}),
+  C -> forall P:{C}+{~C}->Prop, (forall H:C, P (left _ H)) -> P decide.
+Proof.
+intros; destruct decide. apply H0. contradiction.
+Qed.
+
+Lemma decide_right : forall (C:Prop) (decide:{C}+{~C}),
+  ~C -> forall P:{C}+{~C}->Prop, (forall H:~C, P (right _ H)) -> P decide.
+Proof.
+intros; destruct decide. contradiction. apply H0.
+Qed.
+
+Tactic Notation "decide" constr(lemma) "with" constr(H) :=
+  let try_to_merge_hyps H :=
+     try (clear H; intro H) ||
+     (let H' := fresh H "bis" in intro H'; try clear H') ||
+     (let H' := fresh in intro H'; try clear H') in
+  match type of H with
+  | ~ ?C => apply (decide_right lemma H); try_to_merge_hyps H
+  | ?C -> False => apply (decide_right lemma H); try_to_merge_hyps H
+  | _ => apply (decide_left lemma H); try_to_merge_hyps H
+  end.
+
+(** Clear an hypothesis and its dependencies *)
+
+Tactic Notation "clear" "dependent" hyp(h) :=
+ let rec depclear h :=
+  clear h ||
+  match goal with
+   | H : context [ h ] |- _ => depclear H; depclear h
+  end ||
+  fail "hypothesis to clear is used in the conclusion (maybe indirectly)"
+ in depclear h.
+
+(** Revert an hypothesis and its dependencies :
+    this is actually generalize dependent... *)
+
+Tactic Notation "revert" "dependent" hyp(h) :=
+ generalize dependent h.

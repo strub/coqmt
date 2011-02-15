@@ -308,7 +308,7 @@ of all these libraries is then type-checked. The effect of {\tt
 and with positive exit code if an error has been found. Error messages
 are not deemed to help the user understand what is wrong. In the
 current version, it does not modify the compiled libraries to mark
-them as succesfully checked.
+them as successfully checked.
 
 Note that non-logical information is not checked. By logical
 information, we mean the type and optional body associated to names.
@@ -320,7 +320,7 @@ This tool can be used for several purposes. One is to check that a
 compiled library provided by a third-party has not been forged and
 that loading it cannot introduce inconsistencies.\footnote{Ill-formed
   non-logical information might for instance bind {\tt
-    Coq.Init.Logic.True} to short name {\tt False}, so apprently {\tt
+    Coq.Init.Logic.True} to short name {\tt False}, so apparently {\tt
     False} is inhabited, but using fully qualified names, {\tt
     Coq.Init.Logic.False} will always refer to the absurd proposition,
   what we guarantee is that there is no proof of this latter
@@ -341,7 +341,7 @@ same meaning as for {\tt coqtop}. Extra options are:
 \item[{\tt -admit} $module$] \
 
   Do not check $module$ and any of its dependencies, unless
-  explicitely required.
+  explicitly required.
 \item[{\tt -o}]\ 
 
   At exit, print a summary about the context. List the names of all
@@ -376,7 +376,7 @@ makes more disk access. It is also less secure since an attacker might
 have replaced the compiled library $A$ after it has been read by the
 first command, but before it has been read by the second command.
 
-% $Id: RefMan-com.tex 11209 2008-07-05 10:17:49Z herbelin $ 
+% $Id: RefMan-com.tex 12443 2009-10-29 16:17:29Z gmelquio $ 
 
 %%% Local Variables: 
 %%% mode: latex

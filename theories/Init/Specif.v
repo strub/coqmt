@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Specif.v 10923 2008-05-12 18:25:06Z herbelin $ i*)
+(*i $Id: Specif.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Basic specifications : sets that may contain logical information *)
 
@@ -18,9 +18,9 @@ Require Import Logic.
 
 (** Subsets and Sigma-types *)
 
-(** [(sig A P)], or more suggestively [{x:A | P x}], denotes the subset 
+(** [(sig A P)], or more suggestively [{x:A | P x}], denotes the subset
     of elements of the type [A] which satisfy the predicate [P].
-    Similarly [(sig2 A P Q)], or [{x:A | P x & Q x}], denotes the subset 
+    Similarly [(sig2 A P Q)], or [{x:A | P x & Q x}], denotes the subset
     of elements of the type [A] which satisfy both [P] and [Q]. *)
 
 Inductive sig (A:Type) (P:A -> Prop) : Type :=
@@ -29,7 +29,7 @@ Inductive sig (A:Type) (P:A -> Prop) : Type :=
 Inductive sig2 (A:Type) (P Q:A -> Prop) : Type :=
     exist2 : forall x:A, P x -> Q x -> sig2 P Q.
 
-(** [(sigT A P)], or more suggestively [{x:A & (P x)}] is a Sigma-type. 
+(** [(sigT A P)], or more suggestively [{x:A & (P x)}] is a Sigma-type.
     Similarly for [(sigT2 A P Q)], also written [{x:A & (P x) & (Q x)}]. *)
 
 Inductive sigT (A:Type) (P:A -> Type) : Type :=
@@ -123,7 +123,7 @@ Coercion sig_of_sigT : sigT >-> sig.
 
 Inductive sumbool (A B:Prop) : Set :=
   | left : A -> {A} + {B}
-  | right : B -> {A} + {B} 
+  | right : B -> {A} + {B}
  where "{ A } + { B }" := (sumbool A B) : type_scope.
 
 Add Printing If sumbool.
@@ -133,7 +133,7 @@ Add Printing If sumbool.
 
 Inductive sumor (A:Type) (B:Prop) : Type :=
   | inleft : A -> A + {B}
-  | inright : B -> A + {B} 
+  | inright : B -> A + {B}
  where "A + { B }" := (sumor A B) : type_scope.
 
 Add Printing If sumor.
@@ -148,50 +148,57 @@ Section Choice_lemmas.
   Variables R1 R2 : S -> Prop.
 
   Lemma Choice :
-   (forall x:S, sig (fun y:S' => R x y)) ->
-   sig (fun f:S -> S' => forall z:S, R z (f z)).
+   (forall x:S, {y:S' | R x y}) -> {f:S -> S' | forall z:S, R z (f z)}.
   Proof.
    intro H.
-   exists (fun z:S => match H z with
-                      | exist y _ => y
-                      end).
+   exists (fun z => proj1_sig (H z)).
    intro z; destruct (H z); trivial.
   Qed.
 
   Lemma Choice2 :
-   (forall x:S, sigT (fun y:S' => R' x y)) ->
-   sigT (fun f:S -> S' => forall z:S, R' z (f z)).
+   (forall x:S, {y:S' & R' x y}) -> {f:S -> S' & forall z:S, R' z (f z)}.
   Proof.
     intro H.
-    exists (fun z:S => match H z with
-                       | existT y _ => y
-                       end).
+    exists (fun z => projT1 (H z)).
     intro z; destruct (H z); trivial.
   Qed.
 
   Lemma bool_choice :
    (forall x:S, {R1 x} + {R2 x}) ->
-   sig
-     (fun f:S -> bool =>
-        forall x:S, f x = true /\ R1 x \/ f x = false /\ R2 x).
+     {f:S -> bool | forall x:S, f x = true /\ R1 x \/ f x = false /\ R2 x}.
   Proof.
     intro H.
-    exists
-     (fun z:S => match H z with
-                 | left _ => true
-                 | right _ => false
-                 end).
+    exists (fun z:S => if H z then true else false).
     intro z; destruct (H z); auto.
   Qed.
 
 End Choice_lemmas.
 
- (** A result of type [(Exc A)] is either a normal value of type [A] or 
+Section Dependent_choice_lemmas.
+
+  Variables X : Set.
+  Variable R : X -> X -> Prop.
+
+  Lemma dependent_choice :
+    (forall x:X, {y | R x y}) ->
+    forall x0, {f : nat -> X | f O = x0 /\ forall n, R (f n) (f (S n))}.
+  Proof.
+    intros H x0.
+    set (f:=fix f n := match n with O => x0 | S n' => proj1_sig (H (f n')) end).
+    exists f.
+    split. reflexivity.
+    induction n; simpl; apply proj2_sig.
+  Qed.
+
+End Dependent_choice_lemmas.
+
+
+ (** A result of type [(Exc A)] is either a normal value of type [A] or
      an [error] :
 
      [Inductive Exc [A:Type] : Type := value : A->(Exc A) | error : (Exc A)].
 
-     It is implemented using the option type. *) 
+     It is implemented using the option type. *)
 
 Definition Exc := option.
 Definition value := Some.

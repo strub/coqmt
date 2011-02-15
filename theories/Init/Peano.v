@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Peano.v 11735 2009-01-02 17:22:31Z herbelin $ i*)
+(*i $Id: Peano.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** The type [nat] of Peano natural numbers (built from [O] and [S])
     is defined in [Datatypes.v] *)
@@ -77,8 +77,7 @@ Definition IsSucc (n:nat) : Prop :=
 
 Theorem O_S : forall n:nat, 0 <> S n.
 Proof.
-  unfold not; intros n H.
-  inversion H.
+  discriminate.
 Qed.
 Hint Resolve O_S: core.
 
@@ -90,7 +89,7 @@ Hint Resolve n_Sn: core.
 
 (** Addition *)
 
-Fixpoint plus (n m:nat) {struct n} : nat :=
+Fixpoint plus (n m:nat) : nat :=
   match n with
   | O => m
   | S p => S (p + m)
@@ -130,7 +129,7 @@ Notation plus_succ_r_reverse := plus_n_Sm (only parsing).
 
 (** Multiplication *)
 
-Fixpoint mult (n m:nat) {struct n} : nat :=
+Fixpoint mult (n m:nat) : nat :=
   match n with
   | O => 0
   | S p => m + p * m
@@ -161,7 +160,7 @@ Notation mult_succ_r_reverse := mult_n_Sm (only parsing).
 
 (** Truncated subtraction: [m-n] is [0] if [n>=m] *)
 
-Fixpoint minus (n m:nat) {struct n} : nat :=
+Fixpoint minus (n m:nat) : nat :=
   match n, m with
   | O, _ => n
   | S k, O => n

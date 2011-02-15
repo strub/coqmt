@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: type_errors.mli 10533 2008-02-08 16:54:47Z msozeau $ i*)
+(*i $Id: type_errors.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -71,11 +71,11 @@ val error_unbound_var : env -> variable -> 'a
 val error_not_type : env -> unsafe_judgment -> 'a
 
 val error_assumption : env -> unsafe_judgment -> 'a
- 
+
 val error_reference_variables : env -> constr -> 'a
 
-val error_elim_arity : 
-  env -> inductive -> sorts_family list -> constr -> unsafe_judgment -> 
+val error_elim_arity :
+  env -> inductive -> sorts_family list -> constr -> unsafe_judgment ->
       (sorts_family * sorts_family * arity_error) option -> 'a
 
 val error_case_not_inductive : env -> unsafe_judgment -> 'a
@@ -88,11 +88,11 @@ val error_generalization : env -> name * types -> unsafe_judgment -> 'a
 
 val error_actual_type : env -> unsafe_judgment -> types -> 'a
 
-val error_cant_apply_not_functional : 
+val error_cant_apply_not_functional :
   env -> unsafe_judgment -> unsafe_judgment array -> 'a
 
-val error_cant_apply_bad_type : 
-  env -> int * constr * constr -> 
+val error_cant_apply_bad_type :
+  env -> int * constr * constr ->
       unsafe_judgment -> unsafe_judgment array -> 'a
 
 val error_ill_formed_rec_body :

@@ -35,7 +35,7 @@ let val_dp_cname = fun ?(name = "dp_cname") data ->
 let val_dp_entry = fun ?(name = "dp_entry") data ->
   val_sum name 0
     [| [| val_cstr |] ;                 (* DPE_Constructor *)
-       [| val_kn   |] ;                 (* DPE_Constant    *)
+       [| val_con  |] ;                 (* DPE_Constant    *)
        [| val_ind  |] ; |]              (* DPE_Inductive   *)
     data
 

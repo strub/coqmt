@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: reductionops.mli 11897 2009-02-09 19:28:02Z barras $ i*)
+(*i $Id: reductionops.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -56,13 +56,13 @@ type contextual_reduction_function = env -> evar_map -> constr -> constr
 type reduction_function = contextual_reduction_function
 type local_reduction_function = evar_map -> constr -> constr
 
-type contextual_stack_reduction_function = 
+type contextual_stack_reduction_function =
     env -> evar_map -> constr -> constr * constr list
 type stack_reduction_function = contextual_stack_reduction_function
 type local_stack_reduction_function =
     evar_map -> constr -> constr * constr list
 
-type contextual_state_reduction_function = 
+type contextual_state_reduction_function =
     env -> evar_map -> state -> state
 type state_reduction_function = contextual_state_reduction_function
 type local_state_reduction_function = evar_map -> state -> state
@@ -79,15 +79,15 @@ val strong : reduction_function -> reduction_function
 val local_strong : local_reduction_function -> local_reduction_function
 val strong_prodspine : local_reduction_function -> local_reduction_function
 (*i
-val stack_reduction_of_reduction : 
+val stack_reduction_of_reduction :
   'a reduction_function -> 'a state_reduction_function
 i*)
-val stacklam : (state -> 'a) -> constr list -> constr -> constr stack -> 'a 
+val stacklam : (state -> 'a) -> constr list -> constr -> constr stack -> 'a
 
 (*s Generic Optimized Reduction Function using Closures *)
 
 val clos_norm_flags : Closure.RedFlags.reds -> reduction_function
-(* Same as [(strong whd_beta[delta][iota])], but much faster on big terms *) 
+(* Same as [(strong whd_beta[delta][iota])], but much faster on big terms *)
 val nf_beta : local_reduction_function
 val nf_betaiota : local_reduction_function
 val nf_betadeltaiota : reduction_function
@@ -136,6 +136,7 @@ val whd_betadeltaiotaeta_state :  state_reduction_function
 val whd_betadeltaiotaeta :  reduction_function
 
 val whd_eta : constr -> constr
+val whd_zeta : constr -> constr
 
 (* Various reduction functions *)
 
@@ -151,13 +152,13 @@ val hnf_lam_appvect  : env ->  evar_map -> constr -> constr array -> constr
 val hnf_lam_applist  : env ->  evar_map -> constr -> constr list -> constr
 
 val splay_prod : env ->  evar_map -> constr -> (name * constr) list * constr
-val splay_lambda : env ->  evar_map -> constr -> (name * constr) list * constr
+val splay_lam : env ->  evar_map -> constr -> (name * constr) list * constr
 val splay_arity : env ->  evar_map -> constr -> (name * constr) list * sorts
 val sort_of_arity : env -> constr -> sorts
-val decomp_n_prod : 
-  env ->  evar_map -> int -> constr -> Sign.rel_context * constr
+val splay_prod_n : env ->  evar_map -> int -> constr -> rel_context * constr
+val splay_lam_n : env ->  evar_map -> int -> constr -> rel_context * constr
 val splay_prod_assum :
-  env ->  evar_map -> constr -> Sign.rel_context * constr
+  env ->  evar_map -> constr -> rel_context * constr
 val decomp_sort : env -> evar_map -> types -> sorts
 val is_sort : env -> evar_map -> types -> bool
 
@@ -207,15 +208,16 @@ val is_trans_fconv : conv_pb -> transparent_state -> env ->  evar_map -> constr 
 
 (*s Special-Purpose Reduction Functions *)
 
-val whd_meta : (metavariable * constr) list -> constr -> constr
+val whd_meta : evar_map -> constr -> constr
 val plain_instance : (metavariable * constr) list -> constr -> constr
-val instance : (metavariable * constr) list -> constr -> constr
+val instance :evar_map -> (metavariable * constr) list -> constr -> constr
+val head_unfold_under_prod : transparent_state -> reduction_function
 
 (*s Heuristic for Conversion with Evar *)
 
 val whd_betaiota_deltazeta_for_iota_state :  state_reduction_function
 
 (*s Meta-related reduction functions *)
-val meta_instance : evar_defs -> constr freelisted -> constr
-val nf_meta       : evar_defs -> constr -> constr
-val meta_reducible_instance : evar_defs -> constr freelisted -> constr
+val meta_instance : evar_map -> constr freelisted -> constr
+val nf_meta       : evar_map -> constr -> constr
+val meta_reducible_instance : evar_map -> constr freelisted -> constr

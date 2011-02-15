@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
-(*   \V/  **************************************************************)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: retroknowledge.ml 10739 2008-04-01 14:45:20Z herbelin $ *)
+(* $Id: retroknowledge.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Term
 open Names
@@ -28,8 +28,8 @@ type nat_field =
   | NatType
   | NatPlus
   | NatTimes
-  
-type n_field = 
+
+type n_field =
   | NPositive
   | NType
   | NTwice
@@ -39,7 +39,7 @@ type n_field =
   | NPlus
   | NTimes
 
-type int31_field = 
+type int31_field =
   | Int31Bits
   | Int31Type
   | Int31Twice
@@ -77,20 +77,15 @@ type flags = {fastcomputation : bool}
 
 (*A definition of maps from strings to pro_int31, to be able
   to have any amount of coq representation for the 31bits integers *)
-module OrderedField =
-struct
-  type t = field
-  let compare = compare
-end
 
-module Proactive = Map.Make (OrderedField)
-
+module Proactive =
+  Map.Make (struct type t = field let compare = compare end)
 
 type proactive = entry Proactive.t
 
-(* the reactive knowledge is represented as a functionaly map 
+(* the reactive knowledge is represented as a functionaly map
    from the type of terms (actually it is the terms whose outermost
-   layer is unfolded (typically by Term.kind_of_term)) to the 
+   layer is unfolded (typically by Term.kind_of_term)) to the
    type reactive_end which is a record containing all the kind of reactive
    information needed *)
 (* todo: because of the bug with output state, reactive_end should eventually
@@ -98,13 +93,8 @@ type proactive = entry Proactive.t
    a finite type describing the fields to the field of proactive retroknowledge
    (and then to make as many functions as needed in environ.ml) *)
 
-module OrderedEntry =
-struct
-  type t = entry
-  let compare = compare
-end
-
-module Reactive = Map.Make (OrderedEntry)
+module Reactive =
+  Map.Make (struct type t = entry let compare = compare end)
 
 type reactive_end = {(*information required by the compiler of the VM *)
   vm_compiling :
@@ -141,18 +131,18 @@ type action =
 
 
 (*initialisation*)
-let initial_flags = 
+let initial_flags =
       {fastcomputation = true;}
 
-let initial_proactive = 
+let initial_proactive =
   (Proactive.empty:proactive)
 
-let initial_reactive = 
+let initial_reactive =
   (Reactive.empty:reactive)
 
 let initial_retroknowledge =
-  {flags = initial_flags; 
-   proactive = initial_proactive; 
+  {flags = initial_flags;
+   proactive = initial_proactive;
    reactive = initial_reactive }
 
 let empty_reactive_end =
@@ -185,7 +175,7 @@ let find knowledge field =
 (*access functions for reactive retroknowledge*)
 
 (* used for compiling of functions (add, mult, etc..) *)
-let get_vm_compiling_info knowledge key = 
+let get_vm_compiling_info knowledge key =
   match (Reactive.find key knowledge.reactive).vm_compiling
   with
     | None -> raise Not_found
@@ -205,18 +195,18 @@ let get_vm_constant_dynamic_info knowledge key =
     | None -> raise Not_found
     | Some f -> f knowledge.flags.fastcomputation
 
-let get_vm_before_match_info knowledge key = 
+let get_vm_before_match_info knowledge key =
   match (Reactive.find key knowledge.reactive).vm_before_match
   with
     | None -> raise Not_found
     | Some f -> f knowledge.flags.fastcomputation
 
-let get_vm_decompile_constant_info knowledge key = 
+let get_vm_decompile_constant_info knowledge key =
   match (Reactive.find key knowledge.reactive).vm_decompile_const
   with
     | None -> raise Not_found
     | Some f -> f
-  
+
 
 
 (* functions manipulating reactive knowledge *)

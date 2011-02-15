@@ -1,14 +1,15 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: auxiliary.v 11739 2009-01-02 19:33:19Z herbelin $ i*)
+(*i $Id: auxiliary.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-(** Binary Integers (Pierre Crégut, CNET, Lannion, France) *)
+(** Binary Integers (Pierre CrÃ©gut, CNET, Lannion, France) *)
 
 Require Export Arith_base.
 Require Import BinInt.
@@ -25,7 +26,7 @@ Open Local Scope Z_scope.
 Theorem Zne_left : forall n m:Z, Zne n m -> Zne (n + - m) 0.
 Proof.
   intros x y; unfold Zne in |- *; unfold not in |- *; intros H1 H2; apply H1;
-    apply Zplus_reg_l with (- y); rewrite Zplus_opp_l; 
+    apply Zplus_reg_l with (- y); rewrite Zplus_opp_l;
       rewrite Zplus_comm; trivial with arith.
 Qed.
 
@@ -97,7 +98,7 @@ Proof.
   intros x y z H1 H2 H3; apply Zle_trans with (m := y * x);
     [ apply Zmult_gt_0_le_0_compat; assumption
       | pattern (y * x) at 1 in |- *; rewrite <- Zplus_0_r;
-	apply Zplus_le_compat_l; apply Zlt_le_weak; apply Zgt_lt; 
+	apply Zplus_le_compat_l; apply Zlt_le_weak; apply Zgt_lt;
 	  assumption ].
 Qed.
 

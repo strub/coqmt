@@ -7,12 +7,19 @@
 #######################################################################
 
 include Makefile.stage1
+include Makefile.doc
 
+-include $(MLLIBFILES:.mllib=.mllib.d)
+.SECONDARY: $(MLLIBFILES:.mllib=.mllib.d)
+-include $(filter plugins/%,$(MLLIBFILES:%.mllib=%_mod.ml.d))
+.SECONDARY: $(filter plugins/%,$(MLLIBFILES:%.mllib=%_mod.ml.d))
 -include $(ML4FILES:.ml4=.ml4.ml.d)
 .SECONDARY: $(ML4FILES:.ml4=.ml4.ml.d)
+-include $(VFILES:.v=.v.d)
+.SECONDARY: $(VFILES:.v=.v.d)
 
 .PHONY: stage2
-stage2: $(COQDEP)
+stage2: world
 
 # For emacs: 
 # Local Variables: 

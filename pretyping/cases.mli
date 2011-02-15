@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: cases.mli 11014 2008-05-28 19:09:32Z herbelin $ i*)
+(*i $Id: cases.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -64,8 +64,8 @@ type tomatch_status =
 module type S = sig
   val compile_cases :
     loc -> case_style ->
-    (type_constraint -> env -> evar_defs ref -> rawconstr -> unsafe_judgment) * evar_defs ref ->
-    type_constraint -> 
+    (type_constraint -> env -> evar_map ref -> rawconstr -> unsafe_judgment) * evar_map ref ->
+    type_constraint ->
     env -> rawconstr option * tomatch_tuples * cases_clauses ->
     unsafe_judgment
 end

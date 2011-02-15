@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: declaremods.mli 11065 2008-06-06 22:39:43Z msozeau $ i*)
+(*i $Id: declaremods.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -30,35 +30,41 @@ open Lib
    constructed by [interp_modtype] from functor arguments [fargs] and
    by [interp_modexpr] from [expr]. At least one of [typ], [expr] must
    be non-empty.
-   
+
    The [bool] in [typ] tells if the module must be abstracted [true]
    with respect to the module type or merely matched without any
    restriction [false].
 *)
 
-val declare_module : 
-  (env -> 'modtype -> module_struct_entry) -> (env -> 'modexpr -> module_struct_entry) ->
-  identifier -> 
-  (identifier located list * 'modtype) list -> ('modtype * bool) option -> 
-  'modexpr option -> module_path
- 
-val start_module : (env -> 'modtype -> module_struct_entry) -> 
-  bool option -> identifier -> (identifier located list * 'modtype) list ->
-   ('modtype * bool) option -> module_path
+val declare_module :
+  (env -> 'modast -> module_struct_entry) ->
+  (env -> 'modast -> module_struct_entry) ->
+  (env -> 'modast -> module_struct_entry * bool) ->
+  identifier ->
+  (identifier located list * ('modast * bool)) list ->
+  ('modast * bool) Topconstr.module_signature ->
+  ('modast * bool) list -> module_path
 
-val end_module : identifier -> module_path
+val start_module : (env -> 'modast -> module_struct_entry) ->
+  bool option -> identifier -> (identifier located list * ('modast * bool)) list ->
+  ('modast * bool) Topconstr.module_signature -> module_path
+
+val end_module : unit -> module_path
 
 
 
 (*s Module types *)
 
-val declare_modtype : (env -> 'modtype -> module_struct_entry) -> 
-  identifier -> (identifier located list * 'modtype) list -> 'modtype -> module_path
+val declare_modtype : (env -> 'modast -> module_struct_entry) ->
+  (env -> 'modast -> module_struct_entry * bool) ->
+  identifier -> (identifier located list * ('modast * bool)) list ->
+  ('modast * bool) list -> ('modast * bool) list -> module_path
 
-val start_modtype : (env -> 'modtype -> module_struct_entry) -> 
-  identifier -> (identifier located list * 'modtype) list -> module_path
+val start_modtype : (env -> 'modast -> module_struct_entry) ->
+  identifier -> (identifier located list * ('modast * bool)) list ->
+  ('modast * bool) list -> module_path
 
-val end_modtype : identifier -> module_path
+val end_modtype : unit -> module_path
 
 
 (*s Objects of a module. They come in two lists: the substitutive ones
@@ -73,8 +79,8 @@ type library_name = dir_path
 
 type library_objects
 
-val register_library : 
-  library_name -> 
+val register_library :
+  library_name ->
     Safe_typing.compiled_library -> library_objects -> Digest.t -> unit
 
 val start_library : library_name -> unit
@@ -82,6 +88,8 @@ val start_library : library_name -> unit
 val end_library :
   library_name -> Safe_typing.compiled_library * library_objects
 
+(* set a function to be executed at end_library *)
+val set_end_library_hook : (unit -> unit) -> unit
 
 (* [really_import_module mp] opens the module [mp] (in a Caml sense).
    It modifies Nametab and performs the [open_object] function for
@@ -97,8 +105,8 @@ val import_module : bool -> module_path -> unit
 
 (* Include  *)
 
-val declare_include : (env -> 'struct_expr -> module_struct_entry) -> 
-  'struct_expr -> bool -> unit
+val declare_include : (env -> 'struct_expr -> module_struct_entry * bool) ->
+  ('struct_expr * bool) list -> unit
 
 (*s [iter_all_segments] iterate over all segments, the modules'
     segments first and then the current segment. Modules are presented
@@ -114,5 +122,5 @@ val debug_print_modtab : unit -> Pp.std_ppcmds
 
 (* For translator *)
 val process_module_bindings : module_ident list ->
-  (mod_bound_id * module_struct_entry) list -> unit
+  (mod_bound_id * (module_struct_entry * bool)) list -> unit
 

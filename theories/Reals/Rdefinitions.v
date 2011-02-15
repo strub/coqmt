@@ -1,17 +1,18 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
-(*i $Id: Rdefinitions.v 10751 2008-04-04 10:23:35Z herbelin $ i*)
+(*i $Id: Rdefinitions.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 
 (*********************************************************)
 (**          Definitions for the axiomatization          *)
 (*********************************************************)
 
+Declare ML Module "r_syntax_plugin".
 Require Export ZArith_base.
 
 Parameter R : Set.
@@ -29,8 +30,8 @@ Parameter R1 : R.
 Parameter Rplus : R -> R -> R.
 Parameter Rmult : R -> R -> R.
 Parameter Ropp : R -> R.
-Parameter Rinv : R -> R. 
-Parameter Rlt : R -> R -> Prop.    
+Parameter Rinv : R -> R.
+Parameter Rlt : R -> R -> Prop.
 Parameter up : R -> Z.
 
 Infix "+" := Rplus : R_scope.

@@ -31,10 +31,11 @@ Type
 (* Interaction with coercions *)
 Parameter bool2nat : bool -> nat.
 Coercion bool2nat : bool >-> nat.
-Check (fun x => match x with
-                | O => true
-                | S _ => 0
-                end:nat).
+Definition foo : nat -> nat :=
+  fun x => match x with
+             | O => true
+             | S _ => 0
+           end.
 
 (****************************************************************************)
 (* All remaining examples come from Cristina Cornes' V6 TESTS/MultCases.v   *)
@@ -255,7 +256,7 @@ Type match 0, 1 return nat with
 Type match 0, 1 with
      | x, y => x + y
      end.
- 
+
 Type match 0, 1 return nat with
      | O, y => y
      | S x, y => x + y
@@ -522,7 +523,7 @@ Type
    | O, _ => 0
    | S _, _ => c
    end).
-         
+
 
 (* Rows of pattern variables: some tricky cases *)
 Axioms (P : nat -> Prop) (f : forall n : nat, P n).
@@ -612,14 +613,14 @@ Type
 
 (*
 Type [A:Set][n:nat][l:(Listn A n)]
-                   <[_:nat](Listn A O)>Cases l of 
+                   <[_:nat](Listn A O)>Cases l of
                          (Niln  as b) => b
                       | (Consn  n a (Niln  as b))=> (Niln A)
                       | (Consn  n a (Consn m b l)) => (Niln A)
                       end.
 
 Type [A:Set][n:nat][l:(Listn A n)]
-                    Cases l of 
+                    Cases l of
                          (Niln  as b) => b
                       | (Consn  n a (Niln  as b))=> (Niln A)
                       | (Consn  n a (Consn m b l)) => (Niln A)
@@ -627,9 +628,9 @@ Type [A:Set][n:nat][l:(Listn A n)]
 *)
 (******** This example rises an error unconstrained_variables!
 Type [A:Set][n:nat][l:(Listn A n)]
-                    Cases l of 
+                    Cases l of
                          (Niln  as b) => (Consn A O O b)
-                      | ((Consn  n a Niln) as L) =>  L 
+                      | ((Consn  n a Niln) as L) =>  L
                       | (Consn  n a _)  =>  (Consn A O O (Niln A))
                       end.
 **********)
@@ -956,7 +957,7 @@ Definition length3 (n : nat) (l : listn n) :=
   | _ => 0
   end.
 
- 
+
 Type match LeO 0 return nat with
      | LeS n m h => n + m
      | x => 0
@@ -1071,10 +1072,10 @@ Type
    | Consn _ _ _ as b => b
    end).
 
-(** Horrible error message! 
+(** Horrible error message!
 
 Type [A:Set][n:nat][l:(Listn A n)]
-                        Cases l of 
+                        Cases l of
                         (Niln as b) => b
                       | ((Consn _ _ _ ) as b)=>  b
                       end.
@@ -1179,7 +1180,7 @@ Type (fun n : nat => match test n with
 Parameter compare : forall n m : nat, {n < m} + {n = m} + {n > m}.
 Type
   match compare 0 0 return nat with
-  
+
       (* k<i *) | inleft (left _) => 0
    (* k=i *) | inleft _ => 0
    (* k>i *) | inright _ => 0
@@ -1187,7 +1188,7 @@ Type
 
 Type
   match compare 0 0 with
-  
+
       (* k<i *) | inleft (left _) => 0
    (* k=i *) | inleft _ => 0
    (* k>i *) | inright _ => 0
@@ -1374,7 +1375,7 @@ Type
   | var, var => True
   | oper op1 l1, oper op2 l2 => False
   | _, _ => False
-  end. 
+  end.
 Reset LTERM.
 
 
@@ -1660,7 +1661,7 @@ Type
    | Cons a x, Cons b y => V4 a x b y
    end).
 
- 
+
 (* ===================================== *)
 
 Inductive Eqlong :
@@ -1724,7 +1725,7 @@ Parameter
 
 
 
-Fixpoint Eqlongdec (n : nat) (x : listn n) (m : nat) 
+Fixpoint Eqlongdec (n : nat) (x : listn n) (m : nat)
  (y : listn m) {struct x} : Eqlong n x m y \/ ~ Eqlong n x m y :=
   match
     x in (listn n), y in (listn m)

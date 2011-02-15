@@ -43,11 +43,11 @@ Record joinmap (key: Type) (t: Type) (j : joinable t) : Type
             exists s2, jm_j.(join) s1 s2 s3
 }.
 
-Parameter mkJoinmap :   forall (key: Type) (t: Type) (j: joinable t), 
+Parameter mkJoinmap :   forall (key: Type) (t: Type) (j: joinable t),
 joinmap key j.
 
 Parameter ADMIT: forall p: Prop, p.
-Implicit Arguments ADMIT [p].    
+Implicit Arguments ADMIT [p].
 
 Module Share.
 Parameter jb : joinable bool.
@@ -90,7 +90,7 @@ Definition jown : joinable own :=
   Joinable own_is_empty own_join
      ADMIT ADMIT  ADMIT  ADMIT  ADMIT  ADMIT  ADMIT  ADMIT .
 End Own.
-  
+
 Fixpoint sinv (n: nat) : Type :=
   match n with
    | O => unit
@@ -110,4 +110,4 @@ Lemma test: forall n1 w1 n2 w2, mk_world n1 w1 = mk_world n2 w2 ->
          n1 = n2.
 Proof.
 intros.
-Time injection H.
+Timeout 10 Time injection H.

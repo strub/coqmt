@@ -1,48 +1,56 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* Decidable setoid equality theory.
- *
- * Author: Matthieu Sozeau
- * Institution: LRI, CNRS UMR 8623 - UniversitÃcopyright Paris Sud
- *              91405 Orsay, France *)
+(** * Decidable setoid equality theory.
 
-(* $Id: SetoidDec.v 11800 2009-01-18 18:34:15Z msozeau $ *)
+   Author: Matthieu Sozeau
+   Institution: LRI, CNRS UMR 8623 - University Paris Sud
+*)
+
+(* $Id: SetoidDec.v 13359 2010-07-30 08:46:55Z herbelin $ *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
+
+Generalizable Variables A B .
+
+Local Notation "'λ'  x .. y , t" := (fun x => .. (fun y => t) ..)
+  (at level 200, x binder, y binder, right associativity).
 
 (** Export notations. *)
 
 Require Export Coq.Classes.SetoidClass.
 
-(** The [DecidableSetoid] class asserts decidability of a [Setoid]. It can be useful in proofs to reason more 
-   classically. *)
+(** The [DecidableSetoid] class asserts decidability of a [Setoid].
+   It can be useful in proofs to reason more classically. *)
 
 Require Import Coq.Logic.Decidable.
 
 Class DecidableSetoid `(S : Setoid A) :=
   setoid_decidable : forall x y : A, decidable (x == y).
 
-(** The [EqDec] class gives a decision procedure for a particular setoid equality. *)
+(** The [EqDec] class gives a decision procedure for a particular setoid
+   equality. *)
 
 Class EqDec `(S : Setoid A) :=
   equiv_dec : forall x y : A, { x == y } + { x =/= y }.
 
-(** We define the [==] overloaded notation for deciding equality. It does not take precedence
-   of [==] defined in the type scope, hence we can have both at the same time. *)
+(** We define the [==] overloaded notation for deciding equality. It does not
+   take precedence of [==] defined in the type scope, hence we can have both
+   at the same time. *)
 
 Notation " x == y " := (equiv_dec (x :>) (y :>)) (no associativity, at level 70).
 
 Definition swap_sumbool {A B} (x : { A } + { B }) : { B } + { A } :=
   match x with
-    | left H => @right _ _ H 
-    | right H => @left _ _ H 
+    | left H => @right _ _ H
+    | right H => @left _ _ H
   end.
 
 Require Import Coq.Program.Program.
@@ -72,7 +80,8 @@ Infix "<>b" := nequiv_decb (no associativity, at level 70).
 
 Require Import Coq.Arith.Arith.
 
-(** The equiv is burried inside the setoid, but we can recover it by specifying which setoid we're talking about. *)
+(** The equiv is burried inside the setoid, but we can recover
+  it by specifying which setoid we're talking about. *)
 
 Program Instance eq_setoid A : Setoid A | 10 :=
   { equiv := eq ; setoid_equiv := eq_equivalence }.
@@ -96,16 +105,17 @@ Program Instance unit_eqdec : EqDec (eq_setoid unit) :=
 
 Program Instance prod_eqdec `(! EqDec (eq_setoid A), ! EqDec (eq_setoid B)) : EqDec (eq_setoid (prod A B)) :=
   λ x y,
-    let '(x1, x2) := x in 
-    let '(y1, y2) := y in 
-    if x1 == y1 then 
+    let '(x1, x2) := x in
+    let '(y1, y2) := y in
+    if x1 == y1 then
       if x2 == y2 then in_left
       else in_right
     else in_right.
 
   Solve Obligations using unfold complement ; program_simpl.
 
-(** Objects of function spaces with countable domains like bool have decidable equality. *)
+(** Objects of function spaces with countable domains like bool
+  have decidable equality. *)
 
 Program Instance bool_function_eqdec `(! EqDec (eq_setoid A)) : EqDec (eq_setoid (bool -> A)) :=
   λ f g,

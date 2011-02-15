@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Exp_prop.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: Exp_prop.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -46,7 +46,7 @@ Proof.
   intros; unfold E1 in |- *.
   rewrite cauchy_finite.
   unfold Reste_E in |- *; unfold Rminus in |- *; rewrite Rplus_assoc;
-    rewrite Rplus_opp_r; rewrite Rplus_0_r; apply sum_eq; 
+    rewrite Rplus_opp_r; rewrite Rplus_0_r; apply sum_eq;
       intros.
   rewrite binomial.
   rewrite scal_sum; apply sum_eq; intros.
@@ -125,7 +125,7 @@ Proof.
       sum_f_R0
       (fun k:nat =>
         sum_f_R0 (fun l:nat => / Rsqr (INR (fact (div2 (S N)))))
-        (pred (N - k))) (pred N)). 
+        (pred (N - k))) (pred N)).
   unfold Reste_E in |- *.
   apply Rle_trans with
     (sum_f_R0
@@ -473,7 +473,7 @@ Proof.
   apply lt_n_S; apply H.
   cut (1 < S N)%nat.
   intro; unfold Rsqr in |- *; apply prod_neq_R0; apply not_O_INR; intro;
-    assert (H4 := div2_not_R0 _ H2); rewrite H3 in H4; 
+    assert (H4 := div2_not_R0 _ H2); rewrite H3 in H4;
       elim (lt_n_O _ H4).
   apply lt_n_S; apply H.
   assert (H1 := even_odd_cor N).

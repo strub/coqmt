@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Ndec.v 10739 2008-04-01 14:45:20Z herbelin $ i*)
+(*i $Id: Ndec.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Bool.
 Require Import Sumbool.
@@ -19,73 +19,49 @@ Require Import Ndigits.
 
 (** A boolean equality over [N] *)
 
-Fixpoint Peqb (p1 p2:positive) {struct p2} : bool :=
-  match p1, p2 with
-  | xH, xH => true
-  | xO p'1, xO p'2 => Peqb p'1 p'2
-  | xI p'1, xI p'2 => Peqb p'1 p'2
-  | _, _ => false
-  end.
+Notation Peqb := Peqb (only parsing). (* Now in [BinPos] *)
+Notation Neqb := Neqb (only parsing). (* Now in [BinNat] *)
 
-Lemma Peqb_correct : forall p, Peqb p p = true.
+Notation Peqb_correct := Peqb_refl (only parsing).
+
+Lemma Peqb_complete : forall p p', Peqb p p' = true -> p = p'.
 Proof.
-induction p; auto.
+  intros. now apply (Peqb_eq p p').
 Qed.
 
 Lemma Peqb_Pcompare : forall p p', Peqb p p' = true -> Pcompare p p' Eq = Eq.
 Proof.
- induction p; destruct p'; simpl; intros; try discriminate; auto.
-Qed.
-
-Lemma Peqb_complete : forall p p', Peqb p p' = true -> p = p'.
-Proof.
-  intros.
-  apply Pcompare_Eq_eq.
-  apply Peqb_Pcompare; auto.
+  intros. now rewrite Pcompare_eq_iff, <- Peqb_eq.
 Qed.
 
 Lemma Pcompare_Peqb : forall p p', Pcompare p p' Eq = Eq -> Peqb p p' = true.
-Proof. 
-intros; rewrite <- (Pcompare_Eq_eq _ _ H).
-apply Peqb_correct.
+Proof.
+  intros; now rewrite Peqb_eq, <- Pcompare_eq_iff.
 Qed.
-
-Definition Neqb (a a':N) :=
-  match a, a' with
-  | N0, N0 => true
-  | Npos p, Npos p' => Peqb p p'
-  | _, _ => false
-  end.
 
 Lemma Neqb_correct : forall n, Neqb n n = true.
 Proof.
-  destruct n; trivial.
-  simpl; apply Peqb_correct.
+  intros; now rewrite Neqb_eq.
 Qed.
 
 Lemma Neqb_Ncompare : forall n n', Neqb n n' = true -> Ncompare n n' = Eq.
 Proof.
- destruct n; destruct n'; simpl; intros; try discriminate; auto; apply Peqb_Pcompare; auto.
+  intros; now rewrite Ncompare_eq_correct, <- Neqb_eq.
 Qed.
 
 Lemma Ncompare_Neqb : forall n n', Ncompare n n' = Eq -> Neqb n n' = true.
-Proof. 
-intros; rewrite <- (Ncompare_Eq_eq _ _ H).
-apply Neqb_correct.
+Proof.
+  intros; now rewrite Neqb_eq, <- Ncompare_eq_correct.
 Qed.
 
 Lemma Neqb_complete : forall a a', Neqb a a' = true -> a = a'.
 Proof.
-  intros.
-  apply Ncompare_Eq_eq.
-  apply Neqb_Ncompare; auto.
+  intros; now rewrite <- Neqb_eq.
 Qed.
 
 Lemma Neqb_comm : forall a a', Neqb a a' = Neqb a' a.
 Proof.
-  intros; apply bool_1; split; intros.
-  rewrite (Neqb_complete _ _ H); apply Neqb_correct.
-  rewrite (Neqb_complete _ _ H); apply Neqb_correct.
+  intros; apply eq_true_iff_eq. rewrite 2 Neqb_eq; auto with *.
 Qed.
 
 Lemma Nxor_eq_true :
@@ -98,7 +74,8 @@ Lemma Nxor_eq_false :
  forall a a' p, Nxor a a' = Npos p -> Neqb a a' = false.
 Proof.
   intros. elim (sumbool_of_bool (Neqb a a')). intro H0.
-  rewrite (Neqb_complete a a' H0) in H. rewrite (Nxor_nilpotent a') in H. discriminate H.
+  rewrite (Neqb_complete a a' H0) in H.
+  rewrite (Nxor_nilpotent a') in H. discriminate H.
   trivial.
 Qed.
 
@@ -107,7 +84,7 @@ Lemma Nodd_not_double :
    Nodd a -> forall a0, Neqb (Ndouble a0) a = false.
 Proof.
   intros. elim (sumbool_of_bool (Neqb (Ndouble a0) a)). intro H0.
-  rewrite <- (Neqb_complete _ _ H0) in H. 
+  rewrite <- (Neqb_complete _ _ H0) in H.
   unfold Nodd in H.
   rewrite (Ndouble_bit0 a0) in H. discriminate H.
   trivial.
@@ -128,7 +105,7 @@ Lemma Neven_not_double_plus_one :
    Neven a -> forall a0, Neqb (Ndouble_plus_one a0) a = false.
 Proof.
   intros. elim (sumbool_of_bool (Neqb (Ndouble_plus_one a0) a)). intro H0.
-  rewrite <- (Neqb_complete _ _ H0) in H. 
+  rewrite <- (Neqb_complete _ _ H0) in H.
   unfold Neven in H.
   rewrite (Ndouble_plus_one_bit0 a0) in H.
   discriminate H.
@@ -149,7 +126,8 @@ Lemma Nbit0_neq :
  forall a a',
    Nbit0 a = false -> Nbit0 a' = true -> Neqb a a' = false.
 Proof.
-  intros. elim (sumbool_of_bool (Neqb a a')). intro H1. rewrite (Neqb_complete _ _ H1) in H.
+  intros. elim (sumbool_of_bool (Neqb a a')). intro H1.
+  rewrite (Neqb_complete _ _ H1) in H.
   rewrite H in H0. discriminate H0.
   trivial.
 Qed.
@@ -166,7 +144,8 @@ Lemma Ndiv2_neq :
    Neqb (Ndiv2 a) (Ndiv2 a') = false -> Neqb a a' = false.
 Proof.
   intros. elim (sumbool_of_bool (Neqb a a')). intro H0.
-  rewrite (Neqb_complete _ _ H0) in H. rewrite (Neqb_correct (Ndiv2 a')) in H. discriminate H.
+  rewrite (Neqb_complete _ _ H0) in H.
+  rewrite (Neqb_correct (Ndiv2 a')) in H. discriminate H.
   trivial.
 Qed.
 
@@ -354,6 +333,35 @@ Proof.
   trivial.
 Qed.
 
+(* Nleb and Ncompare *)
+
+(* NB: No need to prove that Nleb a b = true <-> Ncompare a b <> Gt,
+   this statement is in fact Nleb_Nle! *)
+
+Lemma Nltb_Ncompare : forall a b,
+ Nleb a b = false <-> Ncompare a b = Gt.
+Proof.
+ intros.
+ assert (IFF : forall x:bool, x = false <-> ~ x = true)
+   by (destruct x; intuition).
+ rewrite IFF, Nleb_Nle; unfold Nle.
+ destruct (Ncompare a b); split; intro H; auto;
+  elim H; discriminate.
+Qed.
+
+Lemma Ncompare_Gt_Nltb : forall a b,
+ Ncompare a b = Gt -> Nleb a b = false.
+Proof.
+ intros; apply <- Nltb_Ncompare; auto.
+Qed.
+
+Lemma Ncompare_Lt_Nltb : forall a b,
+ Ncompare a b = Lt -> Nleb b a = false.
+Proof.
+ intros a b H.
+ rewrite Nltb_Ncompare, <- Ncompare_antisym, H; auto.
+Qed.
+
 (* An alternate [min] function over [N] *)
 
 Definition Nmin' (a b:N) := if Nleb a b then a else b.
@@ -362,8 +370,8 @@ Lemma Nmin_Nmin' : forall a b, Nmin a b = Nmin' a b.
 Proof.
  unfold Nmin, Nmin', Nleb; intros.
  rewrite nat_of_Ncompare.
- generalize (leb_compare (nat_of_N a) (nat_of_N b)); 
- destruct (nat_compare (nat_of_N a) (nat_of_N b)); 
+ generalize (leb_compare (nat_of_N a) (nat_of_N b));
+ destruct (nat_compare (nat_of_N a) (nat_of_N b));
  destruct (leb (nat_of_N a) (nat_of_N b)); intuition.
  lapply H1; intros; discriminate.
  lapply H1; intros; discriminate.
@@ -392,7 +400,7 @@ Qed.
 Lemma Nmin_le_3 :
  forall a b c, Nleb a (Nmin b c) = true -> Nleb a b = true.
 Proof.
-  intros; rewrite Nmin_Nmin' in *. 
+  intros; rewrite Nmin_Nmin' in *.
   unfold Nmin' in *; elim (sumbool_of_bool (Nleb b c)). intro H0. rewrite H0 in H.
   assumption.
   intro H0. rewrite H0 in H. apply Nltb_leb_weak. apply Nleb_ltb_trans with (b := c); assumption.
@@ -401,7 +409,7 @@ Qed.
 Lemma Nmin_le_4 :
  forall a b c, Nleb a (Nmin b c) = true -> Nleb a c = true.
 Proof.
-  intros; rewrite Nmin_Nmin' in *. 
+  intros; rewrite Nmin_Nmin' in *.
   unfold Nmin' in *; elim (sumbool_of_bool (Nleb b c)). intro H0. rewrite H0 in H.
   apply Nleb_trans with (b := b); assumption.
   intro H0. rewrite H0 in H. assumption.
@@ -418,7 +426,7 @@ Qed.
 Lemma Nmin_lt_3 :
  forall a b c, Nleb (Nmin b c) a = false -> Nleb b a = false.
 Proof.
-  intros; rewrite Nmin_Nmin' in *. 
+  intros; rewrite Nmin_Nmin' in *.
   unfold Nmin' in *. intros. elim (sumbool_of_bool (Nleb b c)). intro H0. rewrite H0 in H.
   assumption.
   intro H0. rewrite H0 in H. apply Nltb_trans with (b := c); assumption.
@@ -427,7 +435,7 @@ Qed.
 Lemma Nmin_lt_4 :
  forall a b c, Nleb (Nmin b c) a = false -> Nleb c a = false.
 Proof.
-  intros; rewrite Nmin_Nmin' in *. 
+  intros; rewrite Nmin_Nmin' in *.
   unfold Nmin' in *. elim (sumbool_of_bool (Nleb b c)). intro H0. rewrite H0 in H.
   apply Nltb_leb_trans with (b := b); assumption.
   intro H0. rewrite H0 in H. assumption.

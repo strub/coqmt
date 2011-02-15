@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: goptions.mli 9810 2007-04-29 09:44:58Z herbelin $ i*)
+(*i $Id: goptions.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (* This module manages customization parameters at the vernacular level     *)
 
@@ -15,11 +15,12 @@
    - Variables storing options value are created by applying one of the
    [declare_int_option], [declare_bool_option], ... functions.
 
-   Each table/option is uniquely identified by a key of type [option_name].
-   There are two kinds of table/option idenfiers: the primary ones
-   (supposed to be more global) and the secondary ones
+   Each table/option is uniquely identified by a key of type [option_name]
+   which consists in a list of strings. Note that for parsing constraints,
+   table names must not be made of more than 2 strings while option names
+   can be of arbitrary length.
 
-   The declaration of a table, say of name [SecondaryTable("Toto","Titi")] 
+   The declaration of a table, say of name [["Toto";"Titi"]]
    automatically makes available the following vernacular commands:
 
       Add Toto Titi foo.
@@ -28,26 +29,18 @@
       Test Toto Titi.
 
    The declaration of a non boolean option value, say of name
-   [SecondaryTable("Tata","Tutu")], automatically makes available the
+   [["Tata";"Tutu";"Titi"]], automatically makes available the
    following vernacular commands:
 
-       Set Tata Tutu val.
-       Print Table Tata Tutu.
+       Set Tata Tutu Titi val.
+       Print Table Tata Tutu Titi.
 
    If it is the declaration of a boolean value, the following
    vernacular commands are made available:
 
-       Set Tata Tutu.
-       Unset Tata Tutu.
-       Print Table Tata Tutu. (* synonym: Test Table Tata Tutu. *)
-
-   For a primary table, say of name [PrimaryTable("Bidule")], the
-   vernacular commands look like
-
-      Add Bidule foo.
-      Print Table Bidule foo.
-      Set Bidule foo.
-      ...
+       Set Tata Tutu Titi.
+       Unset Tata Tutu Titi.
+       Print Table Tata Tutu Titi. (* synonym: Test Table Tata Tutu Titi. *)
 
    The created table/option may be declared synchronous or not
    (synchronous = consistent with the resetting commands)                   *)
@@ -64,11 +57,8 @@ open Mod_subst
 
 (*s Things common to tables and options. *)
 
-(* The type of primary or secondary table/option keys *)
-type option_name =
-  | PrimaryTable of string
-  | SecondaryTable of string * string
-  | TertiaryTable of string * string * string
+(* The type of table/option keys *)
+type option_name = string list
 
 val error_undeclared_key : option_name -> 'a
 
@@ -126,18 +116,18 @@ module MakeRefTable :
 (*s Options. *)
 
 (* These types and function are for declaring a new option of name [key]
-   and access functions [read] and [write]; the parameter [name] is the option name 
+   and access functions [read] and [write]; the parameter [name] is the option name
    used when printing the option value (command "Print Toto Titi." *)
 
 type 'a option_sig = {
-  optsync    : bool; 
+  optsync    : bool;
   optname    : string;
   optkey     : option_name;
   optread    : unit -> 'a;
   optwrite   : 'a -> unit
 }
 
-(* When an option is declared synchronous ([optsync] is [true]), the output is 
+(* When an option is declared synchronous ([optsync] is [true]), the output is
    a synchronous write function. Otherwise it is [optwrite] *)
 
 type 'a write_function = 'a -> unit
@@ -162,6 +152,11 @@ val get_ref_table :
       remove : reference -> unit;
       mem : reference -> unit;
       print : unit >
+
+(* The first argument is a locality flag. [Some true] = "Local", [Some false]="Global". *)
+val set_int_option_value_gen    : bool option -> option_name -> int option -> unit
+val set_bool_option_value_gen   : bool option -> option_name -> bool   -> unit
+val set_string_option_value_gen : bool option -> option_name -> string -> unit
 
 val set_int_option_value    : option_name -> int option -> unit
 val set_bool_option_value   : option_name -> bool   -> unit

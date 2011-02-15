@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Ranalysis3.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: Ranalysis3.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -60,7 +60,7 @@ Proof.
   case (Req_dec (f1 x) 0); intro.
   case (Req_dec l1 0); intro.
 (***********************************)
-(*              Cas n° 1           *)
+(*              First case         *)
 (*           (f1 x)=0  l1 =0       *)
 (***********************************)
   cut (0 < Rmin eps_f2 (Rmin alp_f2 alp_f1d));
@@ -118,7 +118,7 @@ Proof.
   apply Rmin_2; assumption.
   right; symmetry  in |- *; apply quadruple_var.
 (***********************************)
-(*              Cas n° 2           *)
+(*           Second case           *)
 (*           (f1 x)=0  l1<>0       *)
 (***********************************)
   assert (H10 := derivable_continuous_pt _ _ X).
@@ -213,12 +213,12 @@ Proof.
   apply Rabs_pos_lt; unfold Rdiv, Rsqr in |- *; repeat rewrite Rmult_assoc;
     repeat apply prod_neq_R0.
   red in |- *; intro; rewrite H11 in H6; elim (Rlt_irrefl _ H6).
-  assumption. 
+  assumption.
   assumption.
   apply Rinv_neq_0_compat; repeat apply prod_neq_R0;
     [ discrR | discrR | discrR | assumption ].
 (***********************************)
-(*              Cas n° 3           *)
+(*        Third case               *)
 (*     (f1 x)<>0  l1=0  l2=0       *)
 (***********************************)
   case (Req_dec l1 0); intro.
@@ -291,7 +291,7 @@ Proof.
   apply (cond_pos alp_f1d).
   apply (cond_pos alp_f2d).
 (***********************************)
-(*              Cas n° 4           *)
+(*      Fourth case                *)
 (*    (f1 x)<>0  l1=0  l2<>0       *)
 (***********************************)
   elim (H0 (Rabs (Rsqr (f2 x) * eps / (8 * f1 x))));
@@ -380,7 +380,7 @@ Proof.
   unfold Rdiv, Rsqr in |- *.
   repeat rewrite Rinv_mult_distr; try assumption.
   repeat apply prod_neq_R0; try assumption.
-  red in |- *; intro H18; rewrite H18 in H6; elim (Rlt_irrefl _ H6). 
+  red in |- *; intro H18; rewrite H18 in H6; elim (Rlt_irrefl _ H6).
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
@@ -408,20 +408,20 @@ Proof.
   unfold Rsqr, Rdiv in |- *.
   repeat rewrite Rinv_mult_distr; try assumption || discrR.
   repeat apply prod_neq_R0; try assumption.
-  red in |- *; intro H13; rewrite H13 in H6; elim (Rlt_irrefl _ H6). 
+  red in |- *; intro H13; rewrite H13 in H6; elim (Rlt_irrefl _ H6).
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; assumption.
   apply Rinv_neq_0_compat; assumption.
   apply prod_neq_R0; [ discrR | assumption ].
-  red in |- *; intro H11; rewrite H11 in H6; elim (Rlt_irrefl _ H6). 
+  red in |- *; intro H11; rewrite H11 in H6; elim (Rlt_irrefl _ H6).
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; discrR.
   apply Rinv_neq_0_compat; assumption.
 (***********************************)
-(*              Cas n° 5           *)
+(*         Fifth case              *)
 (*    (f1 x)<>0  l1<>0  l2=0       *)
 (***********************************)
   case (Req_dec l2 0); intro.
@@ -519,7 +519,7 @@ Proof.
   repeat apply Rmin_pos.
   apply (cond_pos eps_f2).
   elim H3; intros; assumption.
-  apply (cond_pos alp_f1d). 
+  apply (cond_pos alp_f1d).
   apply (cond_pos alp_f2d).
   elim H11; intros; assumption.
   apply Rabs_pos_lt.
@@ -538,7 +538,7 @@ Proof.
         (apply Rinv_neq_0_compat; discrR) ||
           (red in |- *; intro H12; rewrite H12 in H6; elim (Rlt_irrefl _ H6)).
 (***********************************)
-(*              Cas n° 6           *)
+(*       Sixth case                *)
 (*    (f1 x)<>0  l1<>0  l2<>0      *)
 (***********************************)
   elim (H0 (Rabs (Rsqr (f2 x) * eps / (8 * f1 x)))).
@@ -776,7 +776,7 @@ Proof.
 Qed.
 
 Lemma derive_pt_div :
-  forall (f1 f2:R -> R) (x:R) (pr1:derivable_pt f1 x) 
+  forall (f1 f2:R -> R) (x:R) (pr1:derivable_pt f1 x)
     (pr2:derivable_pt f2 x) (na:f2 x <> 0),
     derive_pt (f1 / f2) x (derivable_pt_div _ _ _ pr1 pr2 na) =
     (derive_pt f1 x pr1 * f2 x - derive_pt f2 x pr2 * f1 x) / Rsqr (f2 x).

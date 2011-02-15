@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,7 +8,7 @@
 
 (*i camlp4use: "pa_extend.cmo q_MLast.cmo" i*)
 
-(* $Id: q_constr.ml4 11576 2008-11-10 19:13:15Z msozeau $ *)
+(* $Id: q_constr.ml4 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Rawterm
 open Term
@@ -21,8 +21,8 @@ open Pcaml
 let loc = dummy_loc
 let dloc = <:expr< Util.dummy_loc >>
 
-let apply_ref f l = 
-  <:expr< 
+let apply_ref f l =
+  <:expr<
     Rawterm.RApp ($dloc$, Rawterm.RRef ($dloc$, Lazy.force $f$), $mlexpr_of_list (fun x -> x) l$)
   >>
 
@@ -57,13 +57,13 @@ EXTEND
       (* fix todo *)
       ]
     | "100" RIGHTA
-      [ c1 = constr; ":"; c2 = SELF -> 
+      [ c1 = constr; ":"; c2 = SELF ->
         <:expr< Rawterm.RCast($dloc$,$c1$,DEFAULTcast,$c2$) >> ]
     | "90" RIGHTA
-      [ c1 = constr; "->"; c2 = SELF -> 
+      [ c1 = constr; "->"; c2 = SELF ->
         <:expr< Rawterm.RProd ($dloc$,Anonymous,Rawterm.Explicit,$c1$,$c2$) >> ]
     | "75" RIGHTA
-      [ "~"; c = constr -> 
+      [ "~"; c = constr ->
         apply_ref <:expr< coq_not_ref >> [c] ]
     | "70" RIGHTA
       [ c1 = constr; "="; c2 = NEXT; ":>"; t = NEXT ->
@@ -85,26 +85,26 @@ EXTEND
   ;
   match_constr:
     [ [ "match"; c = constr LEVEL "100"; (ty,nal) = match_type;
-        "with"; OPT"|"; br = LIST0 eqn SEP "|"; "end" -> 
+        "with"; OPT"|"; br = LIST0 eqn SEP "|"; "end" ->
           let br = mlexpr_of_list (fun x -> x) br in
-     <:expr< Rawterm.RCases ($dloc$,$ty$,[($c$,$nal$)],$br$) >> 
+     <:expr< Rawterm.RCases ($dloc$,$ty$,[($c$,$nal$)],$br$) >>
     ] ]
   ;
   match_type:
-    [ [ "as"; id = ident; "in"; ind = LIDENT; nal = LIST0 name;  
-        "return"; ty = constr LEVEL "100" -> 
+    [ [ "as"; id = ident; "in"; ind = LIDENT; nal = LIST0 name;
+        "return"; ty = constr LEVEL "100" ->
           let nal = mlexpr_of_list (fun x -> x) nal in
-          <:expr< Some $ty$ >>, 
-          <:expr< (Name $id$, Some ($dloc$,$lid:ind$,$nal$)) >> 
+          <:expr< Some $ty$ >>,
+          <:expr< (Name $id$, Some ($dloc$,$lid:ind$,$nal$)) >>
       | -> <:expr< None >>, <:expr< (Anonymous, None) >> ] ]
   ;
   eqn:
-    [ [ (lid,pl) = pattern; "=>"; rhs = constr -> 
+    [ [ (lid,pl) = pattern; "=>"; rhs = constr ->
         let lid = mlexpr_of_list (fun x -> x) lid in
-        <:expr< ($dloc$,$lid$,[$pl$],$rhs$) >> 
+        <:expr< ($dloc$,$lid$,[$pl$],$rhs$) >>
     ] ]
   ;
-  pattern: 
+  pattern:
     [ [ "%"; e = string; lip = LIST0 patvar ->
         let lp = mlexpr_of_list (fun (_,x) -> x) lip in
         let lid = List.flatten (List.map fst lip) in
@@ -113,13 +113,13 @@ EXTEND
       | "("; p = pattern; ")" -> p ] ]
   ;
   patvar:
-    [ [ "_" -> [], <:expr< Rawterm.PatVar ($dloc$,Anonymous) >> 
-      | id = ident -> [id], <:expr< Rawterm.PatVar ($dloc$,Name $id$) >> 
+    [ [ "_" -> [], <:expr< Rawterm.PatVar ($dloc$,Anonymous) >>
+      | id = ident -> [id], <:expr< Rawterm.PatVar ($dloc$,Name $id$) >>
     ] ]
   ;
   END;;
 
-(* Example 
+(* Example
 open Coqlib
 let a = PATTERN [ match ?X with %path_of_S n => n | %path_of_O => ?X end ]
 *)

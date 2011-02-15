@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Sumbool.v 9245 2006-10-17 12:53:34Z notin $ i*)
+(*i $Id: Sumbool.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Here are collected some results about the type sumbool (see INIT/Specif.v)
    [sumbool A B], which is written [{A}+{B}], is the informative
@@ -39,18 +39,18 @@ Defined.
 Section connectives.
 
   Variables A B C D : Prop.
-  
+
   Hypothesis H1 : {A} + {B}.
   Hypothesis H2 : {C} + {D}.
-  
+
   Definition sumbool_and : {A /\ C} + {B \/ D}.
     case H1; case H2; auto.
   Defined.
-  
+
   Definition sumbool_or : {A \/ C} + {B /\ D}.
     case H1; case H2; auto.
   Defined.
-  
+
   Definition sumbool_not : {B} + {A}.
     case H1; auto.
   Defined.

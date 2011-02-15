@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,7 +8,7 @@
 
 (*i camlp4use: "pa_extend.cmo" i*)
 
-(* $Id: g_xml.ml4 11309 2008-08-06 10:30:35Z herbelin $ *)
+(* $Id: g_xml.ml4 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -30,7 +30,7 @@ type xml = XmlTag of loc * string * attribute list * xml list
 
 let check_tags loc otag ctag =
   if otag <> ctag then
-    user_err_loc (loc,"",str "closing xml tag " ++ str ctag ++ 
+    user_err_loc (loc,"",str "closing xml tag " ++ str ctag ++
       str "does not match open xml tag " ++ str otag ++ str ".")
 
 let xml_eoi = (Gram.Entry.create "xml_eoi" : xml Gram.Entry.e)
@@ -57,6 +57,9 @@ END
 
 (* Errors *)
 
+let error_expect_two_arguments loc =
+  user_err_loc (loc,"",str "wrong number of arguments (expect two).")
+
 let error_expect_one_argument loc =
   user_err_loc (loc,"",str "wrong number of arguments (expect one).")
 
@@ -68,12 +71,8 @@ let error_expect_no_argument loc =
 let nmtoken (loc,a) =
   try int_of_string a
   with Failure _ -> user_err_loc (loc,"",str "nmtoken expected.")
-  
-let interp_xml_attr_qualid = function
-  | "uri", s -> qualid_of_string s
-  | _ -> error "Ill-formed xml attribute"
 
-let get_xml_attr s al = 
+let get_xml_attr s al =
   try List.assoc s al
   with Not_found -> error ("No attribute "^s)
 
@@ -144,7 +143,7 @@ let compute_inductive_nargs ind =
 let rec interp_xml_constr = function
   | XmlTag (loc,"REL",al,[]) ->
       RVar (loc, get_xml_ident al)
-  | XmlTag (loc,"VAR",al,[]) -> 
+  | XmlTag (loc,"VAR",al,[]) ->
       error "XML parser: unable to interp free variables"
   | XmlTag (loc,"LAMBDA",al,(_::_ as xl)) ->
       let body,decls = list_sep_last xl in
@@ -201,7 +200,7 @@ let rec interp_xml_constr = function
 
 and interp_xml_tag s = function
   | XmlTag (loc,tag,al,xl) when tag=s -> (loc,al,xl)
-  | XmlTag (loc,tag,_,_) -> user_err_loc (loc, "", 
+  | XmlTag (loc,tag,_,_) -> user_err_loc (loc, "",
     str "Expect tag " ++ str s ++ str " but find " ++ str s ++ str ".")
 
 and interp_xml_constr_alias s x =
@@ -232,17 +231,17 @@ and interp_xml_recursionOrder x =
   let (loc, al, l) = interp_xml_tag "RecursionOrder" x in
   let (locs, s) = get_xml_attr "type" al in
     match s with
-	"Structural" -> 
+	"Structural" ->
 	  (match l with [] -> RStructRec
 	     | _ -> error_expect_no_argument loc)
-      | "WellFounded" -> 
+      | "WellFounded" ->
 	  (match l with
 	       [c] -> RWfRec (interp_xml_type c)
 	     | _ -> error_expect_one_argument loc)
-      | "Measure" -> 
+      | "Measure" ->
 	  (match l with
-	       [c] -> RMeasureRec (interp_xml_type c)
-	     | _ -> error_expect_one_argument loc)
+	       [m;r] -> RMeasureRec (interp_xml_type m, Some (interp_xml_type r))
+	     | _ -> error_expect_two_arguments loc)
       | _ ->
           user_err_loc (locs,"",str "Invalid recursion order.")
 
@@ -262,7 +261,7 @@ and interp_xml_CoFixFunction x =
   match interp_xml_tag "CoFixFunction" x with
   | (loc,al,[x1;x2]) ->
       (get_xml_name al, interp_xml_type x1, interp_xml_body x2)
-    | (loc,_,_) -> 
+    | (loc,_,_) ->
 	error_expect_one_argument loc
 
 (* Interpreting tactic argument *)

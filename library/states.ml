@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: states.ml 12080 2009-04-11 16:56:20Z herbelin $ *)
+(* $Id: states.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open System
 
@@ -24,21 +24,22 @@ let (extern_state,intern_state) =
     extern_intern Coq_config.state_magic_number ".coq" in
   (fun s -> raw_extern s (freeze())),
   (fun s ->
-    unfreeze (raw_intern (Library.get_load_paths ()) s);
+    unfreeze
+      (with_magic_number_check (raw_intern (Library.get_load_paths ())) s);
     Library.overwrite_library_filenames s)
 
 (* Rollback. *)
 
-let with_heavy_rollback f x =
+let with_heavy_rollback f h x =
   let st = freeze () in
-  try 
+  try
     f x
   with reraise ->
-    (unfreeze st; raise reraise)
+    let e = h reraise in (unfreeze st; raise e)
 
 let with_state_protection f x =
   let st = freeze () in
-  try 
+  try
     let a = f x in unfreeze st; a
   with reraise ->
     (unfreeze st; raise reraise)

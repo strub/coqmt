@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -30,9 +30,8 @@ let set_engagement c =
 (* full_add_module adds module with universes and constraints *)
 let full_add_module dp mb digest =
   let env = !genv in
-  let mp = MPfile dp in
   let env = add_constraints mb.mod_constraints env in
-  let env = Modops.add_module mp mb env in
+  let env = Modops.add_module mb env in
   genv := add_digest env dp digest
 
 (* Check that the engagement expected by a library matches the initial one *)
@@ -58,7 +57,7 @@ let check_imports f caller env needed =
     try
       let actual_stamp = lookup_digest env dp in
       if stamp <> actual_stamp then report_clash f caller dp
-    with Not_found -> 
+    with Not_found ->
       error ("Reference to unknown module " ^ (string_of_dirpath dp))
   in
   List.iter check needed
@@ -66,46 +65,46 @@ let check_imports f caller env needed =
 
 
 (* Remove the body of opaque constants in modules *)
-(* also remove mod_expr ? *)
+(* also remove mod_expr ? Good idea!*)
 let rec lighten_module mb =
   { mb with
     mod_expr = Option.map lighten_modexpr mb.mod_expr;
-    mod_type = Option.map lighten_modexpr mb.mod_type }
+    mod_type = lighten_modexpr mb.mod_type }
 
-and lighten_struct struc = 
+and lighten_struct struc =
   let lighten_body (l,body) = (l,match body with
     | SFBconst ({const_opaque=true} as x) -> SFBconst {x with const_body=None}
-    | (SFBconst _ | SFBmind _ | SFBalias _) as x -> x
+    | (SFBconst _ | SFBmind _ ) as x -> x
     | SFBmodule m -> SFBmodule (lighten_module m)
-    | SFBmodtype m -> SFBmodtype 
-	({m with 
+    | SFBmodtype m -> SFBmodtype
+	({m with
 	    typ_expr = lighten_modexpr m.typ_expr}))
   in
     List.map lighten_body struc
 
 and lighten_modexpr = function
   | SEBfunctor (mbid,mty,mexpr) ->
-      SEBfunctor (mbid, 
-		    ({mty with 
+      SEBfunctor (mbid,
+		    ({mty with
 			typ_expr = lighten_modexpr mty.typ_expr}),
 		  lighten_modexpr mexpr)
   | SEBident mp as x -> x
-  | SEBstruct (msid, struc) ->
-      SEBstruct (msid, lighten_struct struc)
+  | SEBstruct ( struc) ->
+      SEBstruct ( lighten_struct struc)
   | SEBapply (mexpr,marg,u) ->
       SEBapply (lighten_modexpr mexpr,lighten_modexpr marg,u)
   | SEBwith (seb,wdcl) ->
-      SEBwith (lighten_modexpr seb,wdcl) 
- 
+      SEBwith (lighten_modexpr seb,wdcl)
+
 let lighten_library (dp,mb,depends,s) = (dp,lighten_module mb,depends,s)
 
 
-type compiled_library = 
+type compiled_library =
     dir_path *
     module_body *
     (dir_path * Digest.t) list *
     engagement option
- 
+
 open Validate
 let val_deps = val_list (val_tuple"dep"[|val_dp;no_val|])
 let val_vo = val_tuple "vo" [|val_dp;val_module;val_deps;val_opt val_eng|]
@@ -119,20 +118,21 @@ let stamp_library file digest = ()
 
 (* When the module is checked, digests do not need to match, but a
    warning is issued in case of mismatch *)
-let import file (dp,mb,depends,engmt as vo) digest = 
+let import file (dp,mb,depends,engmt as vo) digest =
   Validate.apply !Flags.debug val_vo vo;
   Flags.if_verbose msgnl (str "*** vo structure validated ***");
   let env = !genv in
   check_imports msg_warning dp env depends;
   check_engagement env engmt;
-  check_module (add_constraints mb.mod_constraints env) mb;
+  check_module (add_constraints mb.mod_constraints env) mb.mod_mp mb;
   stamp_library file digest;
   (* We drop proofs once checked *)
 (*  let mb = lighten_module mb in*)
   full_add_module dp mb digest
 
 (* When the module is admitted, digests *must* match *)
-let unsafe_import file (dp,mb,depends,engmt) digest = 
+let unsafe_import file (dp,mb,depends,engmt) digest =
+(*  if !Flags.debug then Validate.apply !Flags.debug val_vo vo;*)
   let env = !genv in
   check_imports (errorlabstrm"unsafe_import") dp env depends;
   check_engagement env engmt;

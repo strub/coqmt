@@ -1,7 +1,7 @@
-(* -*- coding:utf-8 -* *)
+(* -*- coding:utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -19,11 +19,11 @@ Notation "∀ x y z u , P" := (forall x y z u , P)
   : type_scope.
 Notation "∀ x : t , P" := (forall x : t , P)
   (at level 200, x ident, right associativity) : type_scope.
-Notation "∀ x y : t , P" := (forall x y : t , P) 
+Notation "∀ x y : t , P" := (forall x y : t , P)
   (at level 200, x ident, y ident, right associativity) : type_scope.
 Notation "∀ x y z : t , P" := (forall x y z : t , P)
   (at level 200, x ident, y ident, z ident, right associativity) : type_scope.
-Notation "∀ x y z u : t , P" := (forall x y z u : t , P) 
+Notation "∀ x y z u : t , P" := (forall x y z u : t , P)
   (at level 200, x ident, y ident, z ident, u ident, right associativity)
   : type_scope.
 
@@ -36,7 +36,7 @@ Notation "x ∨ y" := (x \/ y) (at level 85, right associativity) : type_scope.
 Notation "x ∧ y" := (x /\ y) (at level 80, right associativity) : type_scope.
 Notation "x → y" := (x -> y) (at level 90, right associativity): type_scope.
 Notation "x ↔ y" := (x <-> y) (at level 95, no associativity): type_scope.
-Notation "⌉ x" := (~x) (at level 75, right associativity) : type_scope.
+Notation "¬ x" := (~x) (at level 75, right associativity) : type_scope.
 Notation "x ≠ y" := (x <> y) (at level 70) : type_scope.
 
 (* Abstraction *)

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: classops.ml 11897 2009-02-09 19:28:02Z barras $ *)
+(* $Id: classops.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Pp
@@ -28,8 +28,8 @@ open Mod_subst
 (* A class is a type constructor, its type is an arity whose number of
    arguments is cl_param (0 for CL_SORT and CL_FUN) *)
 
-type cl_typ = 
-  | CL_SORT 
+type cl_typ =
+  | CL_SORT
   | CL_FUN
   | CL_SECVAR of variable
   | CL_CONST of constant
@@ -68,8 +68,6 @@ module Bijint = struct
 	(let v = Array.make (b.s + 8) (x,y) in Array.blit b.v 0 v 0 b.s; v)
       else b.v in
     v.(b.s) <- (x,y); { v = v; s = b.s+1; inv = Gmap.add x b.s b.inv }
-  let replace n x y b =
-    let v = Array.copy b.v in v.(n) <- (x,y); { b with v = v }
   let dom b = Gmap.dom b.inv
 end
 
@@ -84,7 +82,7 @@ let inheritance_graph =
 
 let freeze () = (!class_tab, !coercion_tab, !inheritance_graph)
 
-let unfreeze (fcl,fco,fig) = 
+let unfreeze (fcl,fco,fig) =
   class_tab:=fcl;
   coercion_tab:=fco;
   inheritance_graph:=fig
@@ -95,26 +93,24 @@ let add_new_class cl s =
   if not (Bijint.mem cl !class_tab) then
     class_tab := Bijint.add cl s !class_tab
 
-let add_new_coercion coe s = 
+let add_new_coercion coe s =
   coercion_tab := Gmap.add coe s !coercion_tab
 
 let add_new_path x y =
   inheritance_graph := Gmap.add x y !inheritance_graph
 
 let init () =
-  class_tab:= Bijint.empty; 
+  class_tab:= Bijint.empty;
   add_new_class CL_FUN  { cl_param = 0 };
   add_new_class CL_SORT { cl_param = 0 };
   coercion_tab:= Gmap.empty;
   inheritance_graph:= Gmap.empty
 
-let _ = 
+let _ =
   Summary.declare_summary "inh_graph"
     { Summary.freeze_function = freeze;
       Summary.unfreeze_function = unfreeze;
-      Summary.init_function = init;
-      Summary.survive_module = false;
-      Summary.survive_section = false }
+      Summary.init_function = init }
 
 let _ = init()
 
@@ -138,8 +134,6 @@ let coercion_info coe = Gmap.find coe !coercion_tab
 
 let coercion_exists coe = Gmap.mem coe !coercion_tab
 
-let coercion_params coe_info = coe_info.coe_param
-
 (* find_class_type : env -> evar_map -> constr -> cl_typ * int *)
 
 let find_class_type env sigma t =
@@ -157,12 +151,12 @@ let subst_cl_typ subst ct = match ct with
     CL_SORT
   | CL_FUN
   | CL_SECVAR _ -> ct
-  | CL_CONST kn -> 
-      let kn',t = subst_con subst kn in 
+  | CL_CONST kn ->
+      let kn',t = subst_con subst kn in
 	if kn' == kn then ct else
          fst (find_class_type (Global.env()) Evd.empty t)
   | CL_IND (kn,i) ->
-      let kn' = subst_kn subst kn in 
+      let kn' = subst_ind subst kn in
 	if kn' == kn then ct else
 	  CL_IND (kn',i)
 
@@ -172,15 +166,15 @@ let subst_coe_typ subst t = fst (subst_global subst t)
 
 (* class_of : Term.constr -> int *)
 
-let class_of env sigma t = 
-  let (t, n1, i, args) = 
+let class_of env sigma t =
+  let (t, n1, i, args) =
     try
       let (cl,args) = find_class_type env sigma t in
       let (i, { cl_param = n1 } ) = class_info cl in
       (t, n1, i, args)
     with Not_found ->
       let t = Tacred.hnf_constr env sigma t in
-      let (cl, args) = find_class_type env sigma t in 
+      let (cl, args) = find_class_type env sigma t in
       let (i, { cl_param = n1 } ) = class_info cl in
       (t, n1, i, args)
   in
@@ -224,7 +218,7 @@ let apply_on_class_of env sigma t cont =
   with Not_found ->
     (* Is it worth to be more incremental on the delta steps? *)
     let t = Tacred.hnf_constr env sigma t in
-    let (cl, args) = find_class_type env sigma t in 
+    let (cl, args) = find_class_type env sigma t in
     let (i, { cl_param = n1 } ) = class_info cl in
     if List.length args <> n1 then raise Not_found;
     t, cont i
@@ -239,7 +233,7 @@ let lookup_path_between env sigma (s,t) =
 let lookup_path_to_fun_from env sigma s =
   apply_on_class_of env sigma s lookup_path_to_fun_from_class
 
-let lookup_path_to_sort_from env sigma s = 
+let lookup_path_to_sort_from env sigma s =
   apply_on_class_of env sigma s lookup_path_to_sort_from_class
 
 let get_coercion_constructor coe =
@@ -247,7 +241,7 @@ let get_coercion_constructor coe =
     Reductionops.whd_betadeltaiota_stack (Global.env()) Evd.empty coe.coe_value
   in
   match kind_of_term c with
-  | Construct cstr -> 
+  | Construct cstr ->
       (cstr, Inductiveops.constructor_nrealargs (Global.env()) cstr -1)
   | _ ->
       raise Not_found
@@ -269,14 +263,14 @@ let path_printer = ref (fun _ -> str "<a class path>"
                         : (int * int) * inheritance_path -> std_ppcmds)
 
 let install_path_printer f = path_printer := f
- 
+
 let print_path x = !path_printer x
 
-let message_ambig l = 
+let message_ambig l =
   (str"Ambiguous paths:" ++ spc () ++
    prlist_with_sep pr_fnl (fun ijp -> print_path ijp) l)
 
-(* add_coercion_in_graph : coe_index * cl_index * cl_index -> unit 
+(* add_coercion_in_graph : coe_index * cl_index * cl_index -> unit
                          coercion,source,target *)
 
 let different_class_params i j =
@@ -287,7 +281,7 @@ let add_coercion_in_graph (ic,source,target) =
   let ambig_paths =
     (ref [] : ((cl_index * cl_index) * inheritance_path) list ref) in
   let try_add_new_path (i,j as ij) p =
-    try 
+    try
       if i=j then begin
 	if different_class_params i j then begin
 	  let _ = lookup_path_between_class ij in
@@ -303,26 +297,26 @@ let add_coercion_in_graph (ic,source,target) =
       true
     end
   in
-  let try_add_new_path1 ij p = 
-    let _ = try_add_new_path ij p in () 
+  let try_add_new_path1 ij p =
+    let _ = try_add_new_path ij p in ()
   in
   if try_add_new_path (source,target) [ic] then begin
-    Gmap.iter 
+    Gmap.iter
       (fun (s,t) p ->
          if s<>t then begin
 	   if t = source then begin
              try_add_new_path1 (s,target) (p@[ic]);
              Gmap.iter
 	       (fun (u,v) q ->
-                  if u<>v & (u = target) & (p <> q) then 
+                  if u<>v & (u = target) & (p <> q) then
 		    try_add_new_path1 (s,v) (p@[ic]@q))
                old_inheritance_graph
            end;
            if s = target then try_add_new_path1 (source,t) (ic::p)
 	 end)
-      old_inheritance_graph 
+      old_inheritance_graph
   end;
-  if (!ambig_paths <> []) && is_verbose () then 
+  if (!ambig_paths <> []) && is_verbose () then
     ppnl (message_ambig !ambig_paths)
 
 type coercion = coe_typ * locality * bool * cl_typ * cl_typ * int
@@ -344,12 +338,23 @@ let class_params = function
 let add_class cl =
   add_new_class cl { cl_param = class_params cl }
 
-let load_coercion i (_,(coe,stre,isid,cls,clt,ps)) =
+let automatically_import_coercions = ref false
+
+open Goptions
+let _ =
+  declare_bool_option
+    { optsync  = true;
+      optname  = "automatic import of coercions";
+      optkey   = ["Automatic";"Coercions";"Import"];
+      optread  = (fun () -> !automatically_import_coercions);
+      optwrite = (:=) automatically_import_coercions }
+
+let cache_coercion (_,(coe,stre,isid,cls,clt,ps)) =
   add_class cls;
   add_class clt;
   let is,_ = class_info cls in
   let it,_ = class_info clt in
-  let xf = 
+  let xf =
     { coe_value = constr_of_global coe;
       coe_type = Global.type_of_global coe;
       coe_strength = stre;
@@ -358,10 +363,19 @@ let load_coercion i (_,(coe,stre,isid,cls,clt,ps)) =
   add_new_coercion coe xf;
   add_coercion_in_graph (xf,is,it)
 
-let cache_coercion o =
-  load_coercion 1 o
+let load_coercion _ o =
+  if
+    !automatically_import_coercions || Flags.version_less_or_equal Flags.V8_2
+  then
+    cache_coercion o
 
-let subst_coercion (_,subst,(coe,stre,isid,cls,clt,ps as obj)) =
+let open_coercion _ o =
+  if not
+    (!automatically_import_coercions || Flags.version_less_or_equal Flags.V8_2)
+  then
+    cache_coercion o
+
+let subst_coercion (subst,(coe,stre,isid,cls,clt,ps as obj)) =
   let coe' = subst_coe_typ subst coe in
   let cls' = subst_cl_typ subst cls in
   let clt' = subst_cl_typ subst clt in
@@ -374,7 +388,7 @@ let discharge_cl = function
   | cl -> cl
 
 let discharge_coercion (_,(coe,stre,isid,cls,clt,ps)) =
-  if stre = Local then None else 
+  if stre = Local then None else
     let n = try Array.length (Lib.section_instance coe) with Not_found -> 0 in
     Some (Lib.discharge_global coe,
           stre,
@@ -383,20 +397,20 @@ let discharge_coercion (_,(coe,stre,isid,cls,clt,ps)) =
 	  discharge_cl clt,
           n + ps)
 
-let (inCoercion,outCoercion) =
-  declare_object {(default_object "COERCION") with 
+let classify_coercion (coe,stre,isid,cls,clt,ps as obj) =
+  if stre = Local then Dispose else Substitute obj
+
+let (inCoercion,_) =
+  declare_object {(default_object "COERCION") with
+    open_function = open_coercion;
     load_function = load_coercion;
     cache_function = cache_coercion;
     subst_function = subst_coercion;
-    classify_function = (fun (_,x) -> Substitute x);
-    discharge_function = discharge_coercion;
-    export_function = (function x -> Some x)  }
+    classify_function = classify_coercion;
+    discharge_function = discharge_coercion }
 
 let declare_coercion coef stre ~isid ~src:cls ~target:clt ~params:ps =
   Lib.add_anonymous_leaf (inCoercion (coef,stre,isid,cls,clt,ps))
-
-let coercion_strength v = v.coe_strength
-let coercion_identity v = v.coe_is_identity
 
 (* For printing purpose *)
 let get_coercion_value v = v.coe_value
@@ -410,7 +424,7 @@ let inheritance_graph () = Gmap.to_list !inheritance_graph
 let coercion_of_reference r =
   let ref = Nametab.global r in
   if not (coercion_exists ref) then
-    errorlabstrm "try_add_coercion" 
+    errorlabstrm "try_add_coercion"
       (Nametab.pr_global_env Idset.empty ref ++ str" is not a coercion.");
   ref
 
@@ -420,7 +434,7 @@ module CoercionPrinting =
     let encode = coercion_of_reference
     let subst = subst_coe_typ
     let printer x = pr_global_env Idset.empty x
-    let key = Goptions.SecondaryTable ("Printing","Coercion")
+    let key = ["Printing";"Coercion"]
     let title = "Explicitly printed coercions: "
     let member_message x b =
       str "Explicit printing of coercion " ++ printer x ++

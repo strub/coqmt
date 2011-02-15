@@ -1,45 +1,49 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ListTactics.v 9427 2006-12-11 18:46:35Z bgregoir $ i*)
+(*i $Id: ListTactics.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import BinPos.
 Require Import List.
 
 Ltac list_fold_right fcons fnil l :=
   match l with
-  | (cons ?x ?tl) => fcons x ltac:(list_fold_right fcons fnil tl)
+  | ?x :: ?tl => fcons x ltac:(list_fold_right fcons fnil tl)
   | nil => fnil
   end.
 
+(* A variant of list_fold_right, to prevent the match of list_fold_right
+   from catching errors raised by fcons. *)
 Ltac lazy_list_fold_right fcons fnil l :=
-  match l with
-  | (cons ?x ?tl) => 
-       let cont := lazy_list_fold_right fcons fnil in
-       fcons x cont tl
-  | nil => fnil 
-  end.
+  let f :=
+    match l with
+    | ?x :: ?tl =>
+         fun _ =>
+         fcons x ltac:(fun _ => lazy_list_fold_right fcons fnil tl)
+    | nil => fun _ => fnil()
+    end in
+  f().
 
 Ltac list_fold_left fcons fnil l :=
   match l with
-  | (cons ?x ?tl) => list_fold_left fcons ltac:(fcons x fnil) tl
+  | ?x :: ?tl => list_fold_left fcons ltac:(fcons x fnil) tl
   | nil => fnil
   end.
 
 Ltac list_iter f l :=
   match l with
-  | (cons ?x ?tl) => f x; list_iter f tl
+  | ?x :: ?tl => f x; list_iter f tl
   | nil => idtac
   end.
 
 Ltac list_iter_gen seq f l :=
   match l with
-  | (cons ?x ?tl) =>
+  | ?x :: ?tl =>
       let t1 _ := f x in
       let t2 _ := list_iter_gen seq f tl in
       seq t1 t2
@@ -48,30 +52,30 @@ Ltac list_iter_gen seq f l :=
 
 Ltac AddFvTail a l :=
  match l with
- | nil          => constr:(cons a l)
- | (cons a _)   => l
- | (cons ?x ?l) => let l' := AddFvTail a l in constr:(cons x l')
+ | nil      => constr:(a::nil)
+ | a :: _   => l
+ | ?x :: ?l => let l' := AddFvTail a l in constr:(x::l')
  end.
 
 Ltac Find_at a l :=
  let rec find n l :=
    match l with
-   | nil => fail 100 "anomaly: Find_at"
-   | (cons a _) => eval compute in n
-   | (cons _ ?l) => find (Psucc n) l
+   | nil     => fail 100 "anomaly: Find_at"
+   | a :: _  => eval compute in n
+   | _ :: ?l => find (Psucc n) l
    end
  in find 1%positive l.
 
 Ltac check_is_list t :=
   match t with
-  | cons _ ?l => check_is_list l
-  | nil => idtac
-  | _ => fail 100 "anomaly: failed to build a canonical list"
+  | _ :: ?l => check_is_list l
+  | nil     => idtac
+  | _       => fail 100 "anomaly: failed to build a canonical list"
   end.
 
 Ltac check_fv l :=
   check_is_list l;
-  match type of l with 
+  match type of l with
   | list _ => idtac
-  | _ => fail 100 "anomaly: built an ill-typed list"
+  | _      => fail 100 "anomaly: built an ill-typed list"
   end.

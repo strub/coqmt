@@ -3,15 +3,12 @@
 \aauthor{Jean-Christophe Filliâtre and Pierre Letouzey}
 \index{Extraction}
 
-\begin{flushleft}
-  \em The status of extraction is experimental.
-\end{flushleft}
 We present here the \Coq\ extraction commands, used to build certified
-and relatively efficient functional programs, extracting them from the
-proofs of their specifications.  The functional languages available as
-output are currently \ocaml{}, \textsc{Haskell} and \textsc{Scheme}.
-In the following, ``ML'' will be used (abusively) to refer to any of
-the three.
+and relatively efficient functional programs, extracting them from
+either \Coq\ functions or \Coq\ proofs of specifications. The
+functional languages available as output are currently \ocaml{},
+\textsc{Haskell} and \textsc{Scheme}.  In the following, ``ML'' will
+be used (abusively) to refer to any of the three.
 
 \paragraph{Differences with old versions.}
 The current extraction mechanism is new for version 7.0 of {\Coq}.
@@ -50,8 +47,8 @@ one monolithic file or one file per \Coq\ library.
       \qualid$_1$ \dots\ \qualid$_n$. ~\par
   Recursive extraction of all the globals (or modules) \qualid$_1$ \dots\
   \qualid$_n$ and all their dependencies in one monolithic file {\em file}.
-  Global and local identifiers are renamed according to the choosen ML
-  language to fullfill its syntactic conventions, keeping original
+  Global and local identifiers are renamed according to the chosen ML
+  language to fulfill its syntactic conventions, keeping original
   names as much as possible.
   
 \item {\tt Extraction Library} \ident. ~\par 
@@ -75,15 +72,11 @@ environment.
 \comindex{Extraction Language}
 
 The ability to fix target language is the first and more important
-of the extraction options. Default is Ocaml. Besides Haskell and
-Scheme, another language called Toplevel is provided. It is a pseudo-Ocaml,
-with no renaming on global names: so names are printed as in \Coq.
-This third language is available only at the \Coq\ Toplevel.
+of the extraction options. Default is Ocaml.
 \begin{description}
 \item {\tt Extraction Language Ocaml}.
 \item {\tt Extraction Language Haskell}.
 \item {\tt Extraction Language Scheme}.
-\item {\tt Extraction Language Toplevel}.
 \end{description}
 
 \asubsection{Inlining and optimizations}
@@ -95,10 +88,10 @@ calls but only the needed ones). So the extraction mechanism provides
 an automatic optimization routine that will be
 called each time the user want to generate Ocaml programs. Essentially,
 it performs constants inlining and reductions.  Therefore some
-constants may not appear in resulting monolithic Ocaml program (a warning is
-printed for each such constant). In the case of modular extraction, 
-even if some inlining is done, the inlined constant are nevertheless
-printed, to ensure session-independent programs. 
+constants may not appear in resulting monolithic Ocaml program.
+In the case of modular extraction, even if some inlining is done, the
+inlined constant are nevertheless printed, to ensure
+session-independent programs.
 
 Concerning Haskell, such optimizations are less useful because of
 lazyness. We still make some optimizations, for example in order to
@@ -115,7 +108,7 @@ All these optimizations are controled by the following \Coq\ options:
 {\tt Unset Extraction Optimize.}
 
 Default is Set. This control all optimizations made on the ML terms 
-(mostly reduction of dummy beta/iota redexes, but also simplications on 
+(mostly reduction of dummy beta/iota redexes, but also simplifications on
 Cases, etc). Put this option to Unset if you want a ML term as close as 
 possible to the Coq term.
 
@@ -158,7 +151,7 @@ Puts the table recording the custom inlinings back to empty.
 
 \paragraph{Inlining and printing of a constant declaration.}
 
-A user can explicitely asks a constant to be extracted by two means: 
+A user can explicitly ask for a constant to be extracted by two means:
 \begin{itemize}
 \item by mentioning it on the extraction command line
 \item by extracting the whole \Coq\ module of this constant.
@@ -169,22 +162,41 @@ But this same constant may or may not be inlined in the following
 terms, depending on the automatic/custom inlining mechanism.  
 
 
-For the constants non-explicitely required but needed for dependancy
+For the constants non-explicitly required but needed for dependency
 reasons, there are two cases: 
 \begin{itemize}
-\item If an inlining decision is taken, wether automatically or not, 
-all occurences of this constant are replaced by its extracted body, and
+\item If an inlining decision is taken, whether automatically or not,
+all occurrences of this constant are replaced by its extracted body, and
 this constant is not declared in the generated file.
 \item If no inlining decision is taken, the constant is normally
   declared in the produced file. 
 \end{itemize}
+
+\asubsection{Extra elimination of useless arguments}
+
+\begin{description}
+\item \comindex{Extraction Implicit}
+ {\tt Extraction Implicit} \qualid\ [ \ident$_1$ \dots\ \ident$_n$ ].
+
+This experimental command allows to declare some arguments of
+\qualid\ as implicit, i.e. useless in extracted code and hence to
+be removed by extraction. Here \qualid\ can be any function or
+inductive constructor, and \ident$_i$ are the names of the concerned
+arguments. In fact, an argument can also be referred by a number
+indicating its position, starting from 1. When an actual extraction
+takes place, an error is raised if the {\tt Extraction Implicit}
+declarations cannot be honored, that is if any of the implicited
+variables still occurs in the final code. This declaration of useless
+arguments is independent but complementary to the main elimination
+principles of extraction (logical parts and types).
+\end{description}
 
 \asubsection{Realizing axioms}\label{extraction:axioms}
 
 Extraction will fail if it encounters an informative
 axiom not realized (see Section~\ref{extraction:axioms}). 
 A warning will be issued if it encounters an logical axiom, to remind 
-user that inconsistant logical axioms may lead to incorrect or 
+user that inconsistent logical axioms may lead to incorrect or
 non-terminating extracted terms. 
 
 It is possible to assume some axioms while developing a proof. Since
@@ -207,12 +219,12 @@ what ML term corresponds to a given axiom.
 Note that the {\tt Extract Inlined Constant} command is sugar
 for an {\tt Extract Constant} followed by a {\tt Extraction Inline}. 
 Hence a {\tt Reset Extraction Inline} will have an effect on the
-realized and inlined xaxiom. 
+realized and inlined axiom.
 
-Of course, it is the responsability of the user to ensure that the ML
+Of course, it is the responsibility of the user to ensure that the ML
 terms given to realize the axioms do have the expected types.  In
 fact, the strings containing realizing code are just copied in the
-extracted files. The extraction recognize whether the realized axiom
+extracted files. The extraction recognizes whether the realized axiom
 should become a ML type constant or a ML object declaration.
 
 \Example
@@ -243,12 +255,12 @@ Realizing an axiom via {\tt Extract Constant} is only useful in the
 case of an informative axiom (of sort Type or Set). A logical axiom
 have no computational content and hence will not appears in extracted
 terms. But a warning is nonetheless issued if extraction encounters a
-logical axiom. This warning reminds user that inconsistant logical
+logical axiom. This warning reminds user that inconsistent logical
 axioms may lead to incorrect or non-terminating extracted terms.
 
 If an informative axiom has not been realized before an extraction, a
 warning is also issued and the definition of the axiom is filled with
-an exception labelled {\tt AXIOM TO BE REALIZED}. The user must then
+an exception labeled {\tt AXIOM TO BE REALIZED}. The user must then
 search these exceptions inside the extracted file and replace them by
 real code.
 
@@ -259,12 +271,48 @@ types and constructors.  For instance, the user may want to use the ML
 native boolean type instead of \Coq\ one.  The syntax is the following:
 
 \begin{description}
-\item{\tt Extract Inductive \qualid\ => \str\ [ \str\ \dots \str\ ].} ~\par
+\item{\tt Extract Inductive \qualid\ => \str\ [ \str\ \dots \str\ ]\
+{\it optstring}.} ~\par
   Give an ML extraction for the given inductive type. You must specify
   extractions for the type itself (first \str) and all its
-  constructors (between square brackets). The ML extraction must be an
-  ML recursive datatype.
+  constructors (between square brackets). If given, the final optional
+  string should contain a function emulating pattern-matching over this
+  inductive type. If this optional string is not given, the ML
+  extraction must be an ML inductive datatype, and the native
+  pattern-matching of the language will be used.
 \end{description}
+
+For an inductive type with $k$ constructor, the function used to
+emulate the match should expect $(k+1)$ arguments, first the $k$
+branches in functional form, and then the inductive element to
+destruct. For instance, the match branch \verb$| S n => foo$ gives the
+functional form \verb$(fun n -> foo)$. Note that a constructor with no
+argument is considered to have one unit argument, in order to block
+early evaluation of the branch: \verb$| O => bar$ leads to the functional
+form \verb$(fun () -> bar)$. For instance, when extracting {\tt nat}
+into {\tt int}, the code to provide has type:
+{\tt (unit->'a)->(int->'a)->int->'a}.
+    
+As for {\tt Extract Inductive}, this command should be used with care:
+\begin{itemize}
+\item The ML code provided by the user is currently \emph{not} checked at all by
+  extraction, even for syntax errors.
+
+\item Extracting an inductive type to a pre-existing ML inductive type
+is quite sound. But extracting to a general type (by providing an
+ad-hoc pattern-matching) will often \emph{not} be fully rigorously
+correct.  For instance, when extracting {\tt nat} to Ocaml's {\tt
+int}, it is theoretically possible to build {\tt nat} values that are
+larger than Ocaml's {\tt max\_int}. It is the user's responsability to
+be sure that no overflow or other bad events occur in practice.
+
+\item Translating an inductive type to an ML type does \emph{not}
+magically improve the asymptotic complexity of functions, even if the
+ML type is an efficient representation. For instance, when extracting
+{\tt nat} to Ocaml's {\tt int}, the function {\tt mult} stays
+quadratic. It might be interesting to associate this translation with
+some specific {\tt Extract Constant} when primitive counterparts exist.
+\end{itemize}
 
 \Example
 Typical examples are the following:
@@ -282,9 +330,16 @@ Extract Inductive list => "list" [ "[]" "(::)" ].
 Extract Inductive prod => "(*)"  [ "(,)" ].
 \end{coq_example}
 
+As an example of translation to a non-inductive datatype, let's turn
+{\tt nat} into Ocaml's {\tt int} (see caveat above):
+\begin{coq_example}
+Extract Inductive nat => int [ "0" "succ" ]
+ "(fun fO fS n => if n=0 then fO () else fS (n-1))".
+\end{coq_example}
+
 \asubsection{Avoiding conflicts with existing filenames}
 
-\comindex{Extraction Blaclist}
+\comindex{Extraction Blacklist}
 
 When using {\tt Extraction Library}, the names of the extracted files
 directly depends from the names of the \Coq\ files. It may happen that
@@ -316,7 +371,7 @@ We now solve this problem (at least in Ocaml) by adding
 when needed some unsafe casting {\tt Obj.magic}, which give
 a generic type {\tt 'a} to any term.
 
-For example, Here are two kinds of problem that can occur: 
+For example, here are two kinds of problem that can occur:
 
 \begin{itemize}
   \item If some part of the program is {\em very} polymorphic, there
@@ -392,25 +447,25 @@ Inductive nat : Set :=
   | S : nat -> nat.
 \end{coq_example*}
 
-This module contains a theorem {\tt eucl\_dev}, and its extracted term
-is of type 
+This module contains a theorem {\tt eucl\_dev}, whose type is:
 \begin{verbatim}
 forall b:nat, b > 0 -> forall a:nat, diveucl a b
 \end{verbatim}
-where {\tt diveucl} is a type for the pair of the quotient and the modulo.
+where {\tt diveucl} is a type for the pair of the quotient and the
+modulo, plus some logical assertions that disappear during extraction.
 We can now extract this program to \ocaml:
 
 \begin{coq_eval}
 Reset Initial.
 \end{coq_eval}
 \begin{coq_example}
-Require Import Euclid.
-Extraction Inline Wf_nat.gt_wf_rec Wf_nat.lt_wf_rec.
-Recursive Extraction  eucl_dev.
+Require Import Euclid Wf_nat.
+Extraction Inline gt_wf_rec lt_wf_rec induction_ltof2.
+Recursive Extraction eucl_dev.
 \end{coq_example}
 
-The inlining of {\tt gt\_wf\_rec} and {\tt lt\_wf\_rec} is not
-mandatory. It only enhances readability of extracted code. 
+The inlining of {\tt gt\_wf\_rec} and others is not
+mandatory. It only enhances readability of extracted code.
 You can then copy-paste the output to a file {\tt euclid.ml} or let 
 \Coq\ do it for you with the following command: 
 
@@ -422,240 +477,40 @@ Let us play the resulting program:
 
 \begin{verbatim}
 # #use "euclid.ml";;
-type sumbool = Left | Right
 type nat = O | S of nat
-type diveucl = Divex of nat * nat
+type sumbool = Left | Right
 val minus : nat -> nat -> nat = <fun>
 val le_lt_dec : nat -> nat -> sumbool = <fun>
 val le_gt_dec : nat -> nat -> sumbool = <fun>
+type diveucl = Divex of nat * nat
 val eucl_dev : nat -> nat -> diveucl = <fun>
 # eucl_dev (S (S O)) (S (S (S (S (S O)))));;
 - : diveucl = Divex (S (S O), S O)
 \end{verbatim}
 It is easier to test on \ocaml\ integers:
 \begin{verbatim}
-# let rec i2n = function 0 -> O | n -> S (i2n (n-1));;
+# let rec nat_of_int = function 0 -> O | n -> S (nat_of_int (n-1));;
 val i2n : int -> nat = <fun>
-# let rec n2i = function O -> 0 | S p -> 1+(n2i p);;
+# let rec int_of_nat = function O -> 0 | S p -> 1+(int_of_nat p);;
 val n2i : nat -> int = <fun>
 # let div a b = 
-     let Divex (q,r) = eucl_dev (i2n b) (i2n a) in (n2i q, n2i r);;
-div : int -> int -> int * int = <fun>
+     let Divex (q,r) = eucl_dev (nat_of_int b) (nat_of_int a)
+     in (int_of_nat q, int_of_nat r);;
+val div : int -> int -> int * int = <fun>
 # div 173 15;;
-- : int * int = 11, 8
+- : int * int = (11, 8)
 \end{verbatim}
 
-\asubsection{Another detailed example: Heapsort}
-
-The file {\tt Heap.v}
-contains the proof of an efficient list sorting algorithm described by
-Bjerner. Is is an adaptation of the well-known {\em heapsort}
-algorithm to functional languages. The main function is {\tt
-treesort}, whose type is shown below: 
-
-
-\begin{coq_eval}
-Reset Initial.
-Require Import Relation_Definitions.
-Require Import List.
-Require Import Sorting.
-Require Import Permutation.
-\end{coq_eval}
-\begin{coq_example}
-Require Import Heap.
-Check treesort.
-\end{coq_example}
-
-Let's now extract this function: 
-
-\begin{coq_example}
-Extraction Inline sort_rec is_heap_rec.
-Extraction NoInline list_to_heap.
-Extraction "heapsort" treesort.
-\end{coq_example}
-
-One more time, the {\tt Extraction Inline} and {\tt NoInline}
-directives are cosmetic. Without it, everything goes right, 
-but the output is less readable.
-Here is the produced file {\tt heapsort.ml}: 
-
-\begin{verbatim}
-type nat =
-  | O
-  | S of nat
-
-type 'a sig2 =
-  'a
-  (* singleton inductive, whose constructor was exist2 *)
-  
-type sumbool =
-  | Left
-  | Right
-
-type 'a list =
-  | Nil
-  | Cons of 'a * 'a list
-
-type 'a multiset =
-  'a -> nat
-  (* singleton inductive, whose constructor was Bag *)
-  
-type 'a merge_lem =
-  'a list
-  (* singleton inductive, whose constructor was merge_exist *)
-  
-(** val merge : ('a1 -> 'a1 -> sumbool) -> ('a1 -> 'a1 -> sumbool) ->
-                'a1 list -> 'a1 list -> 'a1 merge_lem **)
-
-let rec merge leA_dec eqA_dec l1 l2 =
-  match l1 with
-    | Nil -> l2
-    | Cons (a, l) ->
-        let rec f = function
-          | Nil -> Cons (a, l)
-          | Cons (a0, l3) ->
-              (match leA_dec a a0 with
-                 | Left -> Cons (a,
-                     (merge leA_dec eqA_dec l (Cons (a0, l3))))
-                 | Right -> Cons (a0, (f l3)))
-        in f l2
-
-type 'a tree =
-  | Tree_Leaf
-  | Tree_Node of 'a * 'a tree * 'a tree
-
-type 'a insert_spec =
-  'a tree
-  (* singleton inductive, whose constructor was insert_exist *)
-  
-(** val insert : ('a1 -> 'a1 -> sumbool) -> ('a1 -> 'a1 -> sumbool) ->
-                 'a1 tree -> 'a1 -> 'a1 insert_spec **)
-
-let rec insert leA_dec eqA_dec t a =
-  match t with
-    | Tree_Leaf -> Tree_Node (a, Tree_Leaf, Tree_Leaf)
-    | Tree_Node (a0, t0, t1) ->
-        let h3 = fun x -> insert leA_dec eqA_dec t0 x in
-        (match leA_dec a0 a with
-           | Left -> Tree_Node (a0, t1, (h3 a))
-           | Right -> Tree_Node (a, t1, (h3 a0)))
-
-type 'a build_heap =
-  'a tree
-  (* singleton inductive, whose constructor was heap_exist *)
-  
-(** val list_to_heap : ('a1 -> 'a1 -> sumbool) -> ('a1 -> 'a1 ->
-                       sumbool) -> 'a1 list -> 'a1 build_heap **)
-
-let rec list_to_heap leA_dec eqA_dec = function
-  | Nil -> Tree_Leaf
-  | Cons (a, l0) ->
-      insert leA_dec eqA_dec (list_to_heap leA_dec eqA_dec l0) a
-
-type 'a flat_spec =
-  'a list
-  (* singleton inductive, whose constructor was flat_exist *)
-  
-(** val heap_to_list : ('a1 -> 'a1 -> sumbool) -> ('a1 -> 'a1 ->
-                       sumbool) -> 'a1 tree -> 'a1 flat_spec **)
-
-let rec heap_to_list leA_dec eqA_dec = function
-  | Tree_Leaf -> Nil
-  | Tree_Node (a, t0, t1) -> Cons (a,
-      (merge leA_dec eqA_dec (heap_to_list leA_dec eqA_dec t0)
-        (heap_to_list leA_dec eqA_dec t1)))
-
-(** val treesort : ('a1 -> 'a1 -> sumbool) -> ('a1 -> 'a1 -> sumbool)
-                   -> 'a1 list -> 'a1 list sig2 **)
-
-let treesort leA_dec eqA_dec l =
-  heap_to_list leA_dec eqA_dec (list_to_heap leA_dec eqA_dec l)
-
-\end{verbatim}
-
-Let's test it: 
-% Format.set_margin 72;;
-\begin{verbatim}
-# #use "heapsort.ml";;
-type sumbool = Left | Right
-type nat = O | S of nat
-type 'a tree = Tree_Leaf | Tree_Node of 'a * 'a tree * 'a tree
-type 'a list = Nil | Cons of 'a * 'a list
-val merge : 
-  ('a -> 'a -> sumbool) -> 'b -> 'a list -> 'a list -> 'a list = <fun>
-val heap_to_list : 
-  ('a -> 'a -> sumbool) -> 'b -> 'a tree -> 'a list = <fun>
-val insert : 
-  ('a -> 'a -> sumbool) -> 'b -> 'a tree -> 'a -> 'a tree = <fun>
-val list_to_heap : 
-  ('a -> 'a -> sumbool) -> 'b -> 'a list -> 'a tree = <fun>
-val treesort : 
-  ('a -> 'a -> sumbool) -> 'b -> 'a list -> 'a list = <fun>
-\end{verbatim}
-
-One can remark that the argument of {\tt treesort} corresponding to 
-{\tt eqAdec} is never used in the informative part of the terms, 
-only in the logical parts. So the extracted {\tt treesort} never use
-it, hence this {\tt 'b} argument. We will use {\tt ()} for this
-argument. Only remains the {\tt leAdec}
-argument (of type {\tt 'a -> 'a -> sumbool}) to really provide.
-
-\begin{verbatim}
-# let leAdec x y = if x <= y then Left else Right;;
-val leAdec : 'a -> 'a -> sumbool = <fun>
-# let rec listn = function 0 -> Nil
-                         | n -> Cons(Random.int 10000,listn (n-1));;
-val listn : int -> int list = <fun>
-# treesort leAdec () (listn 9);;
-- : int list = Cons (160, Cons (883, Cons (1874, Cons (3275, Cons 
-  (5392, Cons (7320, Cons (8512, Cons (9632, Cons (9876, Nil)))))))))
-\end{verbatim}
-
-Some tests on longer lists (10000 elements) show that the program is
-quite efficient for Caml code.
-
-
-\asubsection{The Standard Library} 
-
-As a test, we propose an automatic extraction of the 
-Standard Library of \Coq. In particular, we will find back the
-two previous examples, {\tt Euclid} and {\tt Heapsort}. 
-Go to directory {\tt contrib/extraction/test} of the sources of \Coq,
-and run commands: 
-\begin{verbatim}
-make tree; make
-\end{verbatim}
-This will extract all Standard Library files and compile them. 
-It is done via many {\tt Extraction Module}, with some customization
-(see subdirectory {\tt custom}).
-
-%The result of this extraction of the Standard Library can be browsed
-%at URL 
-%\begin{flushleft}
-%\url{http://www.lri.fr/~letouzey/extraction}.
-%\end{flushleft}
-                                
-%Reals theory is normally not extracted, since it is an axiomatic 
-%development. We propose nonetheless a dummy realization of those
-%axioms, to test, run: \\
-%
-%\mbox{\tt make reals}\\
-
-This test works also with Haskell. In the same directory, run:
-\begin{verbatim}
-make tree; make -f Makefile.haskell
-\end{verbatim}
-The haskell compiler currently used is {\tt hbc}.  Any other should
-also work, just adapt the {\tt Makefile.haskell}. In particular {\tt
- ghc} is known to work.
+Note that these {\tt nat\_of\_int} and {\tt int\_of\_nat} are now
+available via a mere {\tt Require Import ExtrOcamlIntConv} and then
+adding these functions to the list of functions to extract. This file
+{\tt ExtrOcamlIntConv.v} and some others in {\tt plugins/extraction/}
+are meant to help building concrete program via extraction.
 
 \asubsection{Extraction's horror museum}
 
 Some pathological examples of extraction are grouped in the file
-\begin{verbatim}
-contrib/extraction/test_extraction.v
-\end{verbatim}
-of the sources of \Coq.
+{\tt test-suite/success/extraction.v} of the sources of \Coq.
 
 \asubsection{Users' Contributions}
 
@@ -683,12 +538,12 @@ of the sources of \Coq.
  \end{itemize}
 
  Lannion, Rocq/HIGMAN and Lyon/CIRCUITS are a bit particular. They are 
- the only examples of developments where {\tt Obj.magic} are needed.
+ examples of developments where {\tt Obj.magic} are needed.
  This is probably due to an heavy use of impredicativity.
  After compilation those two examples run nonetheless,
  thanks to the correction of the extraction~\cite{Let02}. 
 
-% $Id: Extraction.tex 11691 2008-12-16 23:12:53Z letouzey $ 
+% $Id: Extraction.tex 13153 2010-06-15 16:09:43Z letouzey $ 
 
 %%% Local Variables: 
 %%% mode: latex

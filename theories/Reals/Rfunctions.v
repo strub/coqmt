@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Rfunctions.v 10762 2008-04-06 16:57:31Z herbelin $ i*)
+(*i $Id: Rfunctions.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i Some properties about pow and sum have been made with John Harrison i*)
 (*i Some Lemmas (about pow and powerRZ) have been done by Laurent Thery i*)
@@ -38,13 +38,13 @@ Lemma INR_fact_neq_0 : forall n:nat, INR (fact n) <> 0.
 Proof.
   intro; red in |- *; intro; apply (not_O_INR (fact n) (fact_neq_0 n));
     assumption.
-Qed.    
+Qed.
 
 (*********)
 Lemma fact_simpl : forall n:nat, fact (S n) = (S n * fact n)%nat.
 Proof.
   intro; reflexivity.
-Qed. 
+Qed.
 
 (*********)
 Lemma simpl_fact :
@@ -113,7 +113,7 @@ Hint Resolve pow_lt: real.
 Lemma Rlt_pow_R1 : forall (x:R) (n:nat), 1 < x -> (0 < n)%nat -> 1 < x ^ n.
 Proof.
   intros x n; elim n; simpl in |- *; auto with real.
-  intros H' H'0; elimtype False; omega.
+  intros H' H'0; exfalso; omega.
   intros n0; case n0.
   simpl in |- *; rewrite Rmult_1_r; auto.
   intros n1 H' H'0 H'1.
@@ -160,7 +160,7 @@ Proof.
     rewrite <- (let (H1, H2) := Rmult_ne (x ^ a) in H1);
       rewrite (Rmult_comm (INR n) (x ^ a));
         rewrite <- (Rmult_plus_distr_l (x ^ a) 1 (INR n));
-          rewrite (Rplus_comm 1 (INR n)); rewrite <- (S_INR n); 
+          rewrite (Rplus_comm 1 (INR n)); rewrite <- (S_INR n);
             apply Rmult_comm.
 Qed.
 
@@ -185,7 +185,7 @@ Proof.
         fold (x > 0) in H;
           apply (Rlt_0_sqr x (Rlt_dichotomy_converse x 0 (or_intror (x < 0) H))).
   rewrite (S_INR n0); ring.
-  unfold Rle in H0; elim H0; intro. 
+  unfold Rle in H0; elim H0; intro.
   unfold Rle in |- *; left; apply Rmult_lt_compat_l.
   rewrite Rplus_comm; apply (Rle_lt_0_plus_1 x (Rlt_le 0 x H)).
   assumption.
@@ -288,7 +288,7 @@ Lemma pow_lt_1_zero :
       0 < y ->
       exists N : nat, (forall n:nat, (n >= N)%nat -> Rabs (x ^ n) < y).
 Proof.
-  intros; elim (Req_dec x 0); intro. 
+  intros; elim (Req_dec x 0); intro.
   exists 1%nat; rewrite H1; intros n GE; rewrite pow_ne_zero.
   rewrite Rabs_R0; assumption.
   inversion GE; auto.
@@ -619,6 +619,18 @@ Proof.
   unfold Zpower_nat in |- *; auto.
 Qed.
 
+Lemma Zpower_pos_powerRZ :
+  forall n m, IZR (Zpower_pos n m) = IZR n ^Z Zpos m.
+Proof.
+  intros.
+  rewrite Zpower_pos_nat; simpl.
+  induction (nat_of_P m).
+  easy.
+  unfold Zpower_nat; simpl.
+  rewrite mult_IZR.
+  now rewrite <- IHn0.
+Qed.
+
 Lemma powerRZ_lt : forall (x:R) (z:Z), 0 < x -> 0 < x ^Z z.
 Proof.
   intros x z; case z; simpl in |- *; auto with real.
@@ -664,7 +676,7 @@ Definition decimal_exp (r:R) (z:Z) : R := (r * 10 ^Z z).
 (** * Sum of n first naturals  *)
 (*******************************)
 (*********)
-Boxed Fixpoint sum_nat_f_O (f:nat -> nat) (n:nat) {struct n} : nat :=
+Boxed Fixpoint sum_nat_f_O (f:nat -> nat) (n:nat) : nat :=
   match n with
     | O => f 0%nat
     | S n' => (sum_nat_f_O f n' + f (S n'))%nat
@@ -684,7 +696,7 @@ Definition sum_nat (s n:nat) : nat := sum_nat_f s n (fun x:nat => x).
 (** *          Sum             *)
 (*******************************)
 (*********)
-Fixpoint sum_f_R0 (f:nat -> R) (N:nat) {struct N} : R :=
+Fixpoint sum_f_R0 (f:nat -> R) (N:nat) : R :=
   match N with
     | O => f 0%nat
     | S i => sum_f_R0 f i + f (S i)
@@ -744,9 +756,9 @@ Proof.
   unfold R_dist in |- *; intros; split_Rabs; try ring.
   generalize (Ropp_gt_lt_0_contravar (y - x) r); intro;
     rewrite (Ropp_minus_distr y x) in H; generalize (Rlt_asym (x - y) 0 r0);
-      intro; unfold Rgt in H; elimtype False; auto.
+      intro; unfold Rgt in H; exfalso; auto.
   generalize (minus_Rge y x r); intro; generalize (minus_Rge x y r0); intro;
-    generalize (Rge_antisym x y H0 H); intro; rewrite H1; 
+    generalize (Rge_antisym x y H0 H); intro; rewrite H1;
       ring.
 Qed.
 
@@ -759,7 +771,7 @@ Proof.
   rewrite (Ropp_minus_distr x y); generalize (sym_eq H); intro;
     apply (Rminus_diag_eq y x H0).
   apply (Rminus_diag_uniq x y H).
-  apply (Rminus_diag_eq x y H). 
+  apply (Rminus_diag_eq x y H).
 Qed.
 
 Lemma R_dist_eq : forall x:R, R_dist x x = 0.

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: pretype_errors.ml 10860 2008-04-27 21:39:08Z herbelin $ *)
+(* $Id: pretype_errors.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Stdpp
@@ -14,6 +14,7 @@ open Names
 open Sign
 open Term
 open Termops
+open Namegen
 open Environ
 open Type_errors
 open Rawterm
@@ -25,7 +26,7 @@ type pretype_error =
   (* Unification *)
   | OccurCheck of existential_key * constr
   | NotClean of existential_key * constr * Evd.hole_kind
-  | UnsolvableImplicit of Evd.evar_info * Evd.hole_kind * 
+  | UnsolvableImplicit of Evd.evar_info * Evd.hole_kind *
       Evd.unsolvability_explanation option
   | CannotUnify of constr * constr
   | CannotUnifyLocal of constr * constr * constr
@@ -33,6 +34,8 @@ type pretype_error =
   | CannotGeneralize of constr
   | NoOccurrenceFound of constr * identifier option
   | CannotFindWellTypedAbstraction of constr * constr list
+  | AbstractionOverMeta of name * name
+  | NonLinearUnification of name * constr
   (* Pretyping *)
   | VarNotFound of identifier
   | UnexpectedType of constr * constr
@@ -47,10 +50,15 @@ let precatchable_exception = function
   | _ -> false
 
 let nf_evar = Reductionops.nf_evar
-let j_nf_evar sigma j = 
+let j_nf_evar sigma j =
   { uj_val = nf_evar sigma j.uj_val;
     uj_type = nf_evar sigma j.uj_type }
+let j_nf_betaiotaevar sigma j =
+  { uj_val = nf_evar sigma j.uj_val;
+    uj_type = Reductionops.nf_betaiota sigma j.uj_type }
 let jl_nf_evar sigma jl = List.map (j_nf_evar sigma) jl
+let jl_nf_betaiotaevar sigma jl =
+  List.map (j_nf_betaiotaevar sigma) jl
 let jv_nf_evar sigma = Array.map (j_nf_evar sigma)
 let tj_nf_evar sigma {utj_val=v;utj_type=t} =
   {utj_val=nf_evar sigma v;utj_type=t}
@@ -76,7 +84,7 @@ let contract env lc =
       | Some c' when isRel c' ->
 	  l := (substl !l c') :: !l;
 	  env
-      | _ -> 
+      | _ ->
 	  let t' = substl !l t in
 	  let c' = Option.map (substl !l) c in
 	  let na' = named_hd env t' na in
@@ -111,11 +119,11 @@ let error_cant_apply_not_functional_loc loc env sigma rator randl =
     CantApplyNonFunctional (j_nf_evar sigma rator, ja))
 
 let error_cant_apply_bad_type_loc loc env sigma (n,c,t) rator randl =
-  let ja = Array.of_list (jl_nf_evar sigma randl) in
+  let ja = Array.of_list (jl_nf_betaiotaevar sigma randl) in
   raise_located_type_error
     (loc, env, sigma,
      CantApplyBadType
-       ((n,nf_evar sigma c, nf_evar sigma t),
+       ((n,nf_evar sigma c, Reductionops.nf_betaiota sigma t),
         j_nf_evar sigma rator, ja))
 
 let error_ill_formed_branch_loc loc env sigma c i actty expty =
@@ -161,7 +169,7 @@ let error_unsolvable_implicit loc env sigma evi e explain =
 let error_cannot_unify env sigma (m,n) =
   raise (PretypeError (env_ise sigma env,CannotUnify (m,n)))
 
-let error_cannot_unify_local env sigma (m,n,sn) = 
+let error_cannot_unify_local env sigma (m,n,sn) =
   raise (PretypeError (env_ise sigma env,CannotUnifyLocal (m,n,sn)))
 
 let error_cannot_coerce env sigma (m,n) =
@@ -169,6 +177,14 @@ let error_cannot_coerce env sigma (m,n) =
 
 let error_cannot_find_well_typed_abstraction env sigma p l =
   raise (PretypeError (env_ise sigma env,CannotFindWellTypedAbstraction (p,l)))
+
+let error_abstraction_over_meta env sigma hdmeta metaarg =
+  let m = Evd.meta_name sigma hdmeta and n = Evd.meta_name sigma metaarg in
+  raise (PretypeError (env_ise sigma env,AbstractionOverMeta (m,n)))
+
+let error_non_linear_unification env sigma hdmeta t =
+  let m = Evd.meta_name sigma hdmeta in
+  raise (PretypeError (env_ise sigma env,NonLinearUnification (m,t)))
 
 (*s Ml Case errors *)
 

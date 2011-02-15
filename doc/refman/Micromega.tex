@@ -8,7 +8,8 @@ Section~\ref{sec:psatz-back} presents some background explaining the proof princ
 %
 Section~\ref{sec:lia} explains how to get a complete procedure for linear integer arithmetic.
 
-\section{The {\tt psatz} tactic in a hurry}
+\asection{The {\tt psatz} tactic in a hurry}
+\tacindex{psatz}
 \label{sec:psatz-hurry}
 Load the {\tt Psatz} module ({\tt Require Psatz}.).  This module defines the tactics:
 {\tt lia}, {\tt psatzl D}, %{\tt sos D} 
@@ -54,7 +55,7 @@ The following table details for each domain $D \in \{\mathbb{Z},\mathbb{Q},\math
 \end{array}
 \]
 
-\section{\emph{Positivstellensatz} refutations}
+\asection{\emph{Positivstellensatz} refutations}
 \label{sec:psatz-back}
 
 The name {\tt psatz} is an abbreviation for \emph{positivstellensatz} -- literally positivity theorem -- which
@@ -95,9 +96,9 @@ To illustrate the working of the tactic, consider we wish to prove the following
   Goal forall x, -x^2 >= 0 -> x - 1 >= 0 -> False.
 \end{coq_example*}
 \begin{coq_eval}
-intro x; psatz Z.
+intro x; psatz Z 2.
 \end{coq_eval}
-Such a goal is solved by {\tt intro x; psatz Z}. The oracle returns the cone expression $2 \times
+Such a goal is solved by {\tt intro x; psatz Z 2}. The oracle returns the cone expression $2 \times
 (\mathbf{x-1}) + \mathbf{x-1}\times\mathbf{x-1} + \mathbf{-x^2}$ (polynomial hypotheses are printed in bold). By construction, this
 expression belongs to $Cone(\{-x^2, x -1\})$.  Moreover, by running {\tt ring} we obtain $-1$. By
 Theorem~\ref{thm:psatz}, the goal is valid.
@@ -121,7 +122,8 @@ refutation.
 %% This amounts to searching for $p$ in the cone without generators \emph{i.e.}, $Cone(\{\})$.
 %
 
-\section{ {\tt lia} : the linear integer arithmetic tactic }
+\asection{ {\tt lia} : the linear integer arithmetic tactic }
+\tacindex{lia}
 \label{sec:lia}
 
 The tactic {\tt lia} offers an alternative to the {\tt omega} and {\tt romega} tactic (see

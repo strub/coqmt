@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: classops.mli 11343 2008-09-01 20:55:13Z herbelin $ i*)
+(*i $Id: classops.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -19,9 +19,9 @@ open Mod_subst
 (*i*)
 
 (*s This is the type of class kinds *)
-type cl_typ = 
-  | CL_SORT 
-  | CL_FUN 
+type cl_typ =
+  | CL_SORT
+  | CL_FUN
   | CL_SECVAR of variable
   | CL_CONST of constant
   | CL_IND of inductive
@@ -36,7 +36,7 @@ type cl_info_typ = {
 type coe_typ = Libnames.global_reference
 
 (* This is the type of infos for declared coercions *)
-type coe_info_typ 
+type coe_info_typ
 
 (* [cl_index] is the type of class keys *)
 type cl_index
@@ -65,7 +65,7 @@ val inductive_class_of : inductive -> cl_index
 val class_args_of : env -> evar_map -> types -> constr list
 
 (*s [declare_coercion] adds a coercion in the graph of coercion paths *)
-val declare_coercion : 
+val declare_coercion :
   coe_typ -> locality -> isid:bool ->
       src:cl_typ -> target:cl_typ -> params:int -> unit
 
@@ -77,18 +77,18 @@ val coercion_value : coe_index -> (unsafe_judgment * bool)
 (*s Lookup functions for coercion paths *)
 val lookup_path_between_class : cl_index * cl_index -> inheritance_path
 
-val lookup_path_between : env -> evar_map -> types * types -> 
+val lookup_path_between : env -> evar_map -> types * types ->
       types * types * inheritance_path
 val lookup_path_to_fun_from : env -> evar_map -> types ->
       types * inheritance_path
-val lookup_path_to_sort_from : env -> evar_map -> types -> 
+val lookup_path_to_sort_from : env -> evar_map -> types ->
       types * inheritance_path
-val lookup_pattern_path_between : 
+val lookup_pattern_path_between :
   inductive * inductive -> (constructor * int) list
 
 (*i Crade *)
 open Pp
-val install_path_printer : 
+val install_path_printer :
   ((cl_index * cl_index) * inheritance_path -> std_ppcmds) -> unit
 (*i*)
 

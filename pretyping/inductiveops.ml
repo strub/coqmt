@@ -1,18 +1,19 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: inductiveops.ml 11436 2008-10-07 13:56:55Z barras $ *)
+(* $Id: inductiveops.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Names
 open Univ
 open Term
 open Termops
+open Namegen
 open Sign
 open Declarations
 open Environ
@@ -71,16 +72,15 @@ let substnl_ind_type l n = map_inductive_type (substnl l n)
 let mkAppliedInd (IndType ((ind,params), realargs)) =
   applist (mkInd ind,params@realargs)
 
-
-(* Does not consider imbricated or mutually recursive types *) 
-let mis_is_recursive_subset listind rarg = 
-  let rec one_is_rec rvec = 
+(* Does not consider imbricated or mutually recursive types *)
+let mis_is_recursive_subset listind rarg =
+  let rec one_is_rec rvec =
     List.exists
       (fun ra ->
         match dest_recarg ra with
-	  | Mrec i -> List.mem i listind 
+	  | Mrec i -> List.mem i listind
           | _ -> false) rvec
-  in 
+  in
   array_exists one_is_rec (dest_subterms rarg)
 
 let mis_is_recursive (ind,mib,mip) =
@@ -91,7 +91,7 @@ let mis_nf_constructor_type (ind,mib,mip) j =
   let specif = mip.mind_nf_lc
   and ntypes = mib.mind_ntypes
   and nconstr = Array.length mip.mind_consnames in
-  let make_Ik k = mkInd ((fst ind),ntypes-k-1) in 
+  let make_Ik k = mkInd ((fst ind),ntypes-k-1) in
   if j > nconstr then error "Not enough constructors in the type.";
   substl (list_tabulate make_Ik ntypes) specif.(j-1)
 
@@ -102,15 +102,15 @@ let mis_constr_nargs indsp =
   let recargs = dest_subterms mip.mind_recargs in
   Array.map List.length recargs
 
-let mis_constr_nargs_env env (kn,i) = 
+let mis_constr_nargs_env env (kn,i) =
   let mib = Environ.lookup_mind kn env in
-  let mip = mib.mind_packets.(i) in 
+  let mip = mib.mind_packets.(i) in
   let recargs = dest_subterms mip.mind_recargs in
   Array.map List.length recargs
 
 let mis_constructor_nargs_env env ((kn,i),j) =
   let mib = Environ.lookup_mind kn env in
-  let mip = mib.mind_packets.(i) in 
+  let mip = mib.mind_packets.(i) in
   recarg_length mip.mind_recargs j + mib.mind_nparams
 
 let constructor_nrealargs env (ind,j) =
@@ -125,11 +125,15 @@ let get_full_arity_sign env ind =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
   mip.mind_arity_ctxt
 
+let nconstructors ind =
+  let (mib,mip) = Inductive.lookup_mind_specif (Global.env()) ind in
+  Array.length mip.mind_consnames
+
 (* Length of arity (w/o local defs) *)
 
 let inductive_nargs env ind =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
-  mib.mind_nparams, mip.mind_nrealargs
+  (rel_context_length (mib.mind_params_ctxt), mip.mind_nrealargs_ctxt)
 
 let allowed_sorts env (kn,i as ind) =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
@@ -138,7 +142,7 @@ let allowed_sorts env (kn,i as ind) =
 (* Annotation for cases *)
 let make_case_info env ind style =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
-  let print_info = { ind_nargs = mip.mind_nrealargs; style = style } in
+  let print_info = { ind_nargs = mip.mind_nrealargs_ctxt; style = style } in
   { ci_ind     = ind;
     ci_npar    = mib.mind_nparams;
     ci_cstr_nargs = mip.mind_consnrealdecls;
@@ -172,7 +176,7 @@ let instantiate_params t args sign =
 	(match kind_of_term t with
 	   | Prod(_,_,t) -> inst (a::s) t (ctxt,args)
 	   | _ -> anomaly"instantiate_params: type, ctxt and args mismatch")
-    | ((_,(Some b),_)::ctxt,args) -> 
+    | ((_,(Some b),_)::ctxt,args) ->
 	(match kind_of_term t with
 	   | LetIn(_,_,_,t) -> inst ((substl s b)::s) t (ctxt,args)
 	   | _ -> anomaly"instantiate_params: type, ctxt and args mismatch")
@@ -249,7 +253,7 @@ let build_dependent_constructor cs =
 let build_dependent_inductive env ((ind, params) as indf) =
   let arsign,_ = get_arity env indf in
   let nrealargs = List.length arsign in
-  applist 
+  applist
     (mkInd ind,
      (List.map (lift nrealargs) params)@(extended_rel_list 0 arsign))
 
@@ -322,7 +326,7 @@ let find_coinductive env sigma c =
 (* find appropriate names for pattern variables. Useful in the Case
    and Inversion (case_then_using et case_nodep_then_using) tactics. *)
 
-let is_predicate_explicitly_dep env pred arsign = 
+let is_predicate_explicitly_dep env pred arsign =
   let rec srec env pval arsign =
     let pv' = whd_betadeltaiota env Evd.empty pval in
     match kind_of_term pv', arsign with
@@ -330,7 +334,7 @@ let is_predicate_explicitly_dep env pred arsign =
 	  srec (push_rel_assum (na,t) env) b arsign
       | Lambda (na,_,_), _ ->
 
-       (* The following code has impact on the introduction names
+       (* The following code has an impact on the introduction names
 	  given by the tactics "case" and "inversion": when the
 	  elimination is not dependent, "case" uses Anonymous for
 	  inductive types in Prop and names created by mkProd_name for
@@ -370,18 +374,21 @@ let set_pattern_names env ind brv =
   let arities =
     Array.map
       (fun c ->
-        rel_context_length (fst (decompose_prod_assum c)) -
+        rel_context_length ((prod_assum c)) -
         mib.mind_nparams)
       mip.mind_nf_lc in
   array_map2 (set_names env) arities brv
 
-
-let type_case_branches_with_names env indspec pj c =
+let type_case_branches_with_names env indspec p c =
   let (ind,args) = indspec in
-  let (lbrty,conclty,_) = Inductive.type_case_branches env indspec pj c in
-  let (mib,mip) = Inductive.lookup_mind_specif env ind in
-  let params = list_firstn mib.mind_nparams args in
-  if is_elim_predicate_explicitly_dependent env pj.uj_val (ind,params) then
+  let (mib,mip as specif) = Inductive.lookup_mind_specif env ind in
+  let nparams = mib.mind_nparams in
+  let (params,realargs) = list_chop nparams args in
+  let lbrty = Inductive.build_branches_type ind specif params p in
+  (* Build case type *)
+  let conclty = Reduction.beta_appvect p (Array.of_list (realargs@[c])) in
+  (* Adjust names *)
+  if is_elim_predicate_explicitly_dependent env p (ind,params) then
     (set_pattern_names env ind lbrty, conclty)
   else (lbrty, conclty)
 
@@ -399,7 +406,7 @@ let arity_of_case_predicate env (ind,params) dep k =
 (* Check if u (sort of a parameter) appears in the sort of the
    inductive (is). This is done by trying to enforce u > u' >= is
    in the empty univ graph. If an inconsistency appears, then
-   is depends on u. *)  
+   is depends on u. *)
 let is_constrained is u =
   try
     let u' = fresh_local_univ() in
@@ -450,7 +457,7 @@ let type_of_inductive_knowing_conclusion env mip conclty =
 (* A function which checks that a term well typed verifies both
    syntactic conditions *)
 
-let control_only_guard env c = 
+let control_only_guard env c =
   let check_fix_cofix e c = match kind_of_term c with
     | CoFix (_,(_,_,_) as cofix) ->
 	Inductive.check_cofix e cofix
@@ -458,12 +465,12 @@ let control_only_guard env c =
 	Inductive.check_fix e fix
     | _ -> ()
   in
-  let rec iter env c = 
-    check_fix_cofix env c; 
+  let rec iter env c =
+    check_fix_cofix env c;
     iter_constr_with_full_binders push_rel iter env c
   in
   iter env c
 
-let subst_inductive subst (kn,i as ind) = 
-  let kn' = Mod_subst.subst_kn subst kn in
+let subst_inductive subst (kn,i as ind) =
+  let kn' = Mod_subst.subst_ind subst kn in
   if kn == kn' then ind else (kn',i)

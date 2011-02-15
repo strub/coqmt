@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,12 +8,12 @@
 (*            Benjamin Gregoire, Laurent Thery, INRIA, 2007             *)
 (************************************************************************)
 
-(* $Id: CyclicAxioms.v 11012 2008-05-28 16:34:43Z letouzey $ *)
+(* $Id: CyclicAxioms.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (** * Signature and specification of a bounded integer structure *)
 
-(** This file specifies how to represent [Z/nZ] when [n=2^d], 
-    [d] being the number of digits of these bounded integers. *) 
+(** This file specifies how to represent [Z/nZ] when [n=2^d],
+    [d] being the number of digits of these bounded integers. *)
 
 Set Implicit Arguments.
 
@@ -22,7 +22,7 @@ Require Import Znumtheory.
 Require Import BigNumPrelude.
 Require Import DoubleType.
 
-Open Local Scope Z_scope.
+Local Open Scope Z_scope.
 
 (** First, a description via an operator record and a spec record. *)
 
@@ -33,7 +33,7 @@ Section Z_nZ_Op.
  Record znz_op := mk_znz_op {
 
     (* Conversion functions with Z *)
-    znz_digits : positive;  
+    znz_digits : positive;
     znz_zdigits: znz;
     znz_to_Z   : znz -> Z;
     znz_of_pos : positive -> N * znz; (* Euclidean division by [2^digits] *)
@@ -78,12 +78,12 @@ Section Z_nZ_Op.
     znz_div         : znz -> znz -> znz * znz;
 
     znz_mod_gt      : znz -> znz -> znz; (* specialized version of [znz_mod] *)
-    znz_mod         : znz -> znz -> znz; 
+    znz_mod         : znz -> znz -> znz;
 
     znz_gcd_gt      : znz -> znz -> znz; (* specialized version of [znz_gcd] *)
-    znz_gcd         : znz -> znz -> znz; 
+    znz_gcd         : znz -> znz -> znz;
     (* [znz_add_mul_div p i j] is a combination of the [(digits-p)]
-       low bits of [i] above the [p] high bits of [j]: 
+       low bits of [i] above the [p] high bits of [j]:
        [znz_add_mul_div p i j = i*2^p+j/2^(digits-p)] *)
     znz_add_mul_div : znz -> znz -> znz -> znz;
     (* [znz_pos_mod p i] is [i mod 2^p] *)
@@ -135,7 +135,7 @@ Section Z_nZ_Spec.
  Let w_mul_c       := w_op.(znz_mul_c).
  Let w_mul         := w_op.(znz_mul).
  Let w_square_c    := w_op.(znz_square_c).
- 
+
  Let w_div21       := w_op.(znz_div21).
  Let w_div_gt      := w_op.(znz_div_gt).
  Let w_div         := w_op.(znz_div).
@@ -229,25 +229,25 @@ Section Z_nZ_Spec.
     spec_div : forall a b, 0 < [|b|] ->
       let (q,r) := w_div a b in
       [|a|] = [|q|] * [|b|] + [|r|] /\
-      0 <= [|r|] < [|b|]; 
-   
+      0 <= [|r|] < [|b|];
+
     spec_mod_gt : forall a b, [|a|] > [|b|] -> 0 < [|b|] ->
       [|w_mod_gt a b|] = [|a|] mod [|b|];
     spec_mod :  forall a b, 0 < [|b|] ->
       [|w_mod a b|] = [|a|] mod [|b|];
-      
+
     spec_gcd_gt : forall a b, [|a|] > [|b|] ->
       Zis_gcd [|a|] [|b|] [|w_gcd_gt a b|];
     spec_gcd : forall a b, Zis_gcd [|a|] [|b|] [|w_gcd a b|];
 
- 
+
     (* shift operations *)
     spec_head00:  forall x, [|x|] = 0 -> [|w_head0 x|] = Zpos w_digits;
     spec_head0  : forall x,  0 < [|x|] ->
-	 wB/ 2 <= 2 ^ ([|w_head0 x|]) * [|x|] < wB;  
+	 wB/ 2 <= 2 ^ ([|w_head0 x|]) * [|x|] < wB;
     spec_tail00:  forall x, [|x|] = 0 -> [|w_tail0 x|] = Zpos w_digits;
-    spec_tail0  : forall x, 0 < [|x|] -> 
-         exists y, 0 <= y /\ [|x|] = (2 * y + 1) * (2 ^ [|w_tail0 x|]) ;  
+    spec_tail0  : forall x, 0 < [|x|] ->
+         exists y, 0 <= y /\ [|x|] = (2 * y + 1) * (2 ^ [|w_tail0 x|]) ;
     spec_add_mul_div : forall x y p,
        [|p|] <= Zpos w_digits ->
        [| w_add_mul_div p x y |] =
@@ -272,23 +272,23 @@ End Z_nZ_Spec.
 (** Generic construction of double words *)
 
 Section WW.
- 
+
  Variable w : Type.
  Variable w_op : znz_op w.
  Variable op_spec : znz_spec w_op.
- 
+
  Let wB := base w_op.(znz_digits).
  Let w_to_Z := w_op.(znz_to_Z).
  Let w_eq0 := w_op.(znz_eq0).
  Let w_0 := w_op.(znz_0).
 
- Definition znz_W0 h := 
+ Definition znz_W0 h :=
   if w_eq0 h then W0 else WW h w_0.
 
- Definition znz_0W l := 
+ Definition znz_0W l :=
   if w_eq0 l then W0 else WW w_0 l.
 
- Definition znz_WW h l := 
+ Definition znz_WW h l :=
   if w_eq0 h then znz_0W l else WW h l.
 
  Lemma spec_W0 : forall h,
@@ -300,7 +300,7 @@ Section WW.
  unfold w_0; rewrite op_spec.(spec_0); auto with zarith.
  Qed.
 
- Lemma spec_0W : forall l, 
+ Lemma spec_0W : forall l,
    zn2z_to_Z wB w_to_Z (znz_0W l) = w_to_Z l.
  Proof.
  unfold zn2z_to_Z, znz_0W, w_to_Z; simpl; intros.
@@ -309,7 +309,7 @@ Section WW.
  unfold w_0; rewrite op_spec.(spec_0); auto with zarith.
  Qed.
 
- Lemma spec_WW : forall h l, 
+ Lemma spec_WW : forall h l,
   zn2z_to_Z wB w_to_Z (znz_WW h l) = (w_to_Z h)*wB + w_to_Z l.
  Proof.
  unfold znz_WW, w_to_Z; simpl; intros.
@@ -324,7 +324,7 @@ End WW.
 (** Injecting [Z] numbers into a cyclic structure *)
 
 Section znz_of_pos.
- 
+
  Variable w : Type.
  Variable w_op : znz_op w.
  Variable op_spec : znz_spec w_op.
@@ -349,7 +349,7 @@ Section znz_of_pos.
   apply Zle_trans with X; auto with zarith
  end.
  match goal with |- ?X <= _ =>
-  pattern X at 1; rewrite <- (Zmult_1_l); 
+  pattern X at 1; rewrite <- (Zmult_1_l);
   apply Zmult_le_compat_r; auto with zarith
  end.
  case p1; simpl; intros; red; simpl; intros; discriminate.
@@ -373,3 +373,112 @@ Module Type CyclicType.
  Parameter w_op : znz_op w.
  Parameter w_spec : znz_spec w_op.
 End CyclicType.
+
+
+(** A Cyclic structure can be seen as a ring *)
+
+Module CyclicRing (Import Cyclic : CyclicType).
+
+Definition t := w.
+
+Local Notation "[| x |]" := (w_op.(znz_to_Z) x) (at level 0, x at level 99).
+
+Definition eq (n m : t) := [| n |] = [| m |].
+Definition zero : t := w_op.(znz_0).
+Definition one := w_op.(znz_1).
+Definition add := w_op.(znz_add).
+Definition sub := w_op.(znz_sub).
+Definition mul := w_op.(znz_mul).
+Definition opp := w_op.(znz_opp).
+
+Local Infix "=="  := eq (at level 70).
+Local Notation "0" := zero.
+Local Notation "1" := one.
+Local Infix "+" := add.
+Local Infix "-" := sub.
+Local Infix "*" := mul.
+Local Notation "!!" := (base (znz_digits w_op)).
+
+Hint Rewrite
+ w_spec.(spec_0) w_spec.(spec_1)
+ w_spec.(spec_add) w_spec.(spec_mul) w_spec.(spec_opp) w_spec.(spec_sub)
+ : cyclic.
+
+Ltac zify :=
+ unfold eq, zero, one, add, sub, mul, opp in *; autorewrite with cyclic.
+
+Lemma add_0_l : forall x, 0 + x == x.
+Proof.
+intros. zify. rewrite Zplus_0_l.
+apply Zmod_small. apply w_spec.(spec_to_Z).
+Qed.
+
+Lemma add_comm : forall x y, x + y == y + x.
+Proof.
+intros. zify. now rewrite Zplus_comm.
+Qed.
+
+Lemma add_assoc : forall x y z, x + (y + z) == x + y + z.
+Proof.
+intros. zify. now rewrite Zplus_mod_idemp_r, Zplus_mod_idemp_l, Zplus_assoc.
+Qed.
+
+Lemma mul_1_l : forall x, 1 * x == x.
+Proof.
+intros. zify. rewrite Zmult_1_l.
+apply Zmod_small. apply w_spec.(spec_to_Z).
+Qed.
+
+Lemma mul_comm : forall x y, x * y == y * x.
+Proof.
+intros. zify. now rewrite Zmult_comm.
+Qed.
+
+Lemma mul_assoc : forall x y z, x * (y * z) == x * y * z.
+Proof.
+intros. zify. now rewrite Zmult_mod_idemp_r, Zmult_mod_idemp_l, Zmult_assoc.
+Qed.
+
+Lemma mul_add_distr_r : forall x y z, (x+y)*z == x*z + y*z.
+Proof.
+intros. zify. now rewrite <- Zplus_mod, Zmult_mod_idemp_l, Zmult_plus_distr_l.
+Qed.
+
+Lemma add_opp_r : forall x y, x + opp y == x-y.
+Proof.
+intros. zify. rewrite <- Zminus_mod_idemp_r. unfold Zminus.
+destruct (Z_eq_dec ([|y|] mod !!) 0) as [EQ|NEQ].
+rewrite Z_mod_zero_opp_full, EQ, 2 Zplus_0_r; auto.
+rewrite Z_mod_nz_opp_full by auto.
+rewrite <- Zplus_mod_idemp_r, <- Zminus_mod_idemp_l.
+rewrite Z_mod_same_full. simpl. now rewrite Zplus_mod_idemp_r.
+Qed.
+
+Lemma add_opp_diag_r : forall x, x + opp x == 0.
+Proof.
+intros. red. rewrite add_opp_r. zify. now rewrite Zminus_diag, Zmod_0_l.
+Qed.
+
+Lemma CyclicRing : ring_theory 0 1 add mul sub opp eq.
+Proof.
+constructor.
+exact add_0_l. exact add_comm. exact add_assoc.
+exact mul_1_l. exact mul_comm. exact mul_assoc.
+exact mul_add_distr_r.
+symmetry. apply add_opp_r.
+exact add_opp_diag_r.
+Qed.
+
+Definition eqb x y :=
+ match w_op.(znz_compare) x y with Eq => true | _ => false end.
+
+Lemma eqb_eq : forall x y, eqb x y = true <-> x == y.
+Proof.
+ intros. unfold eqb, eq. generalize (w_spec.(spec_compare) x y).
+ destruct (w_op.(znz_compare) x y); intuition; try discriminate.
+Qed.
+
+Lemma eqb_correct : forall x y, eqb x y = true -> x==y.
+Proof. now apply eqb_eq. Qed.
+
+End CyclicRing.

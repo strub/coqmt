@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Transitive_Closure.v 9598 2007-02-06 19:45:52Z herbelin $ i*)
+(*i $Id: Transitive_Closure.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Author: Bruno Barras *)
 
@@ -18,7 +18,7 @@ Section Wf_Transitive_Closure.
   Variable R : relation A.
 
   Notation trans_clos := (clos_trans A R).
- 
+
   Lemma incl_clos_trans : inclusion A R trans_clos.
     red in |- *; auto with sets.
   Qed.
@@ -29,7 +29,7 @@ Section Wf_Transitive_Closure.
     intros y H2.
     induction H2; auto with sets.
     apply Acc_inv with y; auto with sets.
-  Qed.
+  Defined.
 
   Hint Resolve Acc_clos_trans.
 
@@ -42,6 +42,6 @@ Section Wf_Transitive_Closure.
   Theorem wf_clos_trans : well_founded R -> well_founded trans_clos.
   Proof.
     unfold well_founded in |- *; auto with sets.
-  Qed.
+  Defined.
 
 End Wf_Transitive_Closure.

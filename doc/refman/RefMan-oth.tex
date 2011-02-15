@@ -51,6 +51,56 @@ displays the objects defined since the beginning of this section.
 %% was introduced.
 \end{Variants}
 
+\section{Options and Flags}
+\subsection[\tt Set {\rm\sl option} {\rm\sl value}.]{\tt Set {\rm\sl option} {\rm\sl value}.\comindex{Set}}
+This command sets {\rm\sl option} to {\rm\sl value}. The original value of
+{\rm\sl option} is restored when the current module ends.
+
+\begin{Variants}
+\item {\tt Set {\rm\sl flag}.}\\
+This command switches {\rm\sl flag} on. The original state of
+{\rm\sl flag} is restored when the current module ends.
+\item {\tt Local Set {\rm\sl option} {\rm\sl value}.\comindex{Local Set}}
+This command sets {\rm\sl option} to {\rm\sl value}. The original value of
+{\rm\sl option} is restored when the current \emph{section} ends.
+\item {\tt Local Set {\rm\sl flag}.}\\
+This command switches {\rm\sl flag} on. The original state of
+{\rm\sl flag} is restored when the current \emph{section} ends.
+\item {\tt Global Set {\rm\sl option} {\rm\sl value}.\comindex{Global Set}}
+This command sets {\rm\sl option} to {\rm\sl value}. The original value of
+{\rm\sl option} is \emph{not} restored at the end of the module. Additionally,
+if set in a file, {\rm\sl option} is set to {\rm\sl value} when the file is
+{\tt Require}-d.
+\item {\tt Global Set {\rm\sl flag}.}\\
+This command switches {\rm\sl flag} on. The original state of
+{\rm\sl flag} is \emph{not} restored at the end of the module. Additionally,
+if set in a file, {\rm\sl flag} is switched on when the file is
+{\tt Require}-d.
+\end{Variants}
+
+\subsection[\tt Unset {\rm\sl flag}.]{\tt Unset {\rm\sl flag}.\comindex{Unset}}
+This command switches {\rm\sl flag} off. The original state of {\rm\sl flag}
+is restored when the current module ends.
+
+\begin{Variants}
+\item {\tt Local Unset {\rm\sl flag}.\comindex{Local Unset}}\\
+This command switches {\rm\sl flag} off. The original state of {\rm\sl flag}
+is restored when the current \emph{section} ends.
+\item {\tt Global Unset {\rm\sl flag}.\comindex{Global Unset}}\\
+This command switches {\rm\sl flag} off.  The original state of
+{\rm\sl flag} is \emph{not} restored at the end of the module. Additionally,
+if set in a file, {\rm\sl flag} is switched on when the file is
+{\tt Require}-d.
+\end{Variants}
+
+\subsection[\tt Test {\rm\sl option}.]{\tt Test {\rm\sl option}.\comindex{Test}}
+This command prints the current value of {\rm\sl option}.
+
+\begin{Variants}
+\item {\tt Test {\rm\sl flag}.}\\
+This command prints whether {\rm\sl flag} is on or off.
+\end{Variants}
+
 \section{Requests to the environment}
 
 \subsection[\tt Check {\term}.]{\tt Check {\term}.\label{Check}
@@ -64,6 +114,14 @@ This command performs the specified reduction on {\term}, and displays
 the resulting term with its type. The term to be reduced may depend on
 hypothesis introduced in the first subgoal (if a proof is in
 progress).
+
+\SeeAlso Section~\ref{Conversion-tactics}.
+
+\subsection[\tt Compute {\term}.]{\tt Compute {\term}.\comindex{Compute}}
+
+This command performs a call-by-value evaluation of {\term} by using
+the bytecode-based virtual machine. It is a shortcut for
+{\tt Eval vm\_compute in {\term}}.
 
 \SeeAlso Section~\ref{Conversion-tactics}.
 
@@ -92,25 +150,32 @@ variables) a theorem or definition depends on.  Especially, it informs
 on the assumptions with respect to which the validity of a theorem
 relies.
 
-\subsection[\tt Search {\qualid}.]{\tt Search {\qualid}.\comindex{Search}}
+\begin{Variants}
+\item \texttt{\tt Print Opaque Dependencies {\qualid}.
+  \comindex{Print Opaque Dependencies}}\\
+  Displays the set of opaque constants {\qualid} relies on in addition
+  to the assumptions.
+\end{Variants}
+
+\subsection[\tt Search {\term}.]{\tt Search {\term}.\comindex{Search}}
 This command displays the name and type of all theorems of the current
-context whose statement's conclusion has the form {\tt ({\qualid} t1 ..
+context whose statement's conclusion has the form {\tt ({\term} t1 ..
   tn)}.  This command is useful to remind the user of the name of
 library lemmas.
-\begin{ErrMsgs}
-\item \errindex{The reference \qualid\ was not found in the current
-environment}\\
-    There is no constant in the environment named \qualid.
-\end{ErrMsgs}
+
+\begin{coq_example}
+Search le.
+Search (@eq bool).
+\end{coq_example}
 
 \begin{Variants}
 \item
-{\tt Search {\qualid} inside {\module$_1$} \ldots{} {\module$_n$}.}
+{\tt Search {\term} inside {\module$_1$} \ldots{} {\module$_n$}.}
 
 This restricts the search to constructions defined in modules
 {\module$_1$} \ldots{} {\module$_n$}.
 
-\item {\tt Search {\qualid} outside {\module$_1$} \ldots{} {\module$_n$}.}
+\item {\tt Search {\term} outside {\module$_1$} \ldots{} {\module$_n$}.}
 
 This restricts the search to constructions not defined in modules
 {\module$_1$} \ldots{} {\module$_n$}.
@@ -211,15 +276,18 @@ SearchAbout (?x * _ + ?x * _)%Z outside OmegaLemmas.
 \subsection[\tt SearchPattern {\termpattern}.]{\tt SearchPattern {\term}.\comindex{SearchPattern}}
 
 This command displays the name and type of all theorems of the current
-context whose statement's conclusion matches the expression {\term}
-where holes in the latter are denoted by ``{\texttt \_}''. It is a
-variant of {\tt SearchAbout {\termpattern}} that does not look for
-subterms but searches for statements whose conclusion has exactly the
-expected form.
+context whose statement's conclusion or last hypothesis and conclusion
+matches the expression {\term} where holes in the latter are denoted
+by ``{\texttt \_}''. It is a variant of {\tt SearchAbout
+  {\termpattern}} that does not look for subterms but searches for
+statements whose conclusion has exactly the expected form, or whose
+statement finishes by the given series of hypothesis/conclusion.
 
 \begin{coq_example}
 Require Import Arith.
 SearchPattern (_ + _ = _ + _).
+SearchPattern (nat -> bool).
+SearchPattern (forall l : list _, _ l l).
 \end{coq_example}
 
 Patterns need not be linear: you can express that the same expression
@@ -552,7 +620,7 @@ This command displays the list of library files loaded in the current
 imported.
 
 \subsection[\tt Declare ML Module {\str$_1$} .. {\str$_n$}.]{\tt Declare ML Module {\str$_1$} .. {\str$_n$}.\comindex{Declare ML Module}}
-This commands loads the Objective Caml compiled files {\str$_1$} \dots
+This commands loads the Objective Caml compiled files {\str$_1$} {\dots}
 {\str$_n$} (dynamic link). It is mainly used to load tactics
 dynamically.
 % (see Chapter~\ref{WritingTactics}).
@@ -754,7 +822,7 @@ Chapter~\ref{Proof-handling}).
   command.
 \item $\num_2$ is the proof state number after the last
   command.
-\item $id_1$ $id_2$ \dots $id_n$ are the currently opened proof names
+\item $id_1$ $id_2$ {\dots} $id_n$ are the currently opened proof names
   (order not significant).
 \end{itemize}
 
@@ -852,6 +920,15 @@ go();;
 This command executes the vernacular command \textrm{\textsl{command}}
 and display the time needed to execute it.
 
+
+\subsection[\tt Timeout \textrm{\textsl{int}} \textrm{\textsl{command}}.]{\tt Timeout \textrm{\textsl{int}} \textrm{\textsl{command}}.\comindex{Timeout}
+\label{timeout}}
+
+This command executes the vernacular command \textrm{\textsl{command}}. If
+the command has not terminated after the time specified by the integer
+(time expressed in seconds), then it is interrupted and an error message
+is displayed.
+
 \section{Controlling display}
 
 \subsection[\tt Set Silent.]{\tt Set Silent.\comindex{Set Silent}
@@ -896,6 +973,7 @@ This command displays the current nesting depth used for display.
 %Not yet documented.
 
 \section{Controlling the reduction strategies and the conversion algorithm}
+\label{Controlling reduction strategy}
 
 {\Coq} provides reduction strategies that the tactics can invoke and
 two different algorithms to check the convertibility of types.
@@ -909,13 +987,13 @@ computation of algebraic values, such as numbers, and for reflexion-based
 tactics. The commands to fine-tune the reduction strategies and the
 lazy conversion algorithm are described first.
 
-\subsection[\tt Opaque \qualid$_1$ \dots \qualid$_n$.]{\tt Opaque \qualid$_1$ \dots \qualid$_n$.\comindex{Opaque}\label{Opaque}} 
+\subsection[\tt Opaque \qualid$_1$ {\dots} \qualid$_n$.]{\tt Opaque \qualid$_1$ {\dots} \qualid$_n$.\comindex{Opaque}\label{Opaque}} 
 This command has an effect on unfoldable constants, i.e. 
 on constants defined by {\tt Definition} or {\tt Let} (with an explicit
 body), or by a command assimilated to a definition such as {\tt
 Fixpoint}, {\tt Program Definition}, etc, or by a proof ended by {\tt
 Defined}. The command tells not to unfold
-the constants {\qualid$_1$} \dots {\qualid$_n$} in tactics using
+the constants {\qualid$_1$} {\dots} {\qualid$_n$} in tactics using
 $\delta$-conversion (unfolding a constant is replacing it by its
 definition).
 
@@ -925,7 +1003,7 @@ case {\Coq} has to check the conversion (see Section~\ref{conv-rules})
 of two distinct applied constants.
 
 The scope of {\tt Opaque} is limited to the current section, or
-current file, unless the variant {\tt Global Opaque \qualid$_1$ \dots
+current file, unless the variant {\tt Global Opaque \qualid$_1$ {\dots}
 \qualid$_n$} is used.
 
 \SeeAlso sections \ref{Conversion-tactics}, \ref{Automatizing},
@@ -939,7 +1017,7 @@ environment}\\
     and if \texttt{bar} does not exist, \texttt{foo} is set opaque.
 \end{ErrMsgs}
 
-\subsection[\tt Transparent \qualid$_1$ \dots \qualid$_n$.]{\tt Transparent \qualid$_1$ \dots \qualid$_n$.\comindex{Transparent}\label{Transparent}}
+\subsection[\tt Transparent \qualid$_1$ {\dots} \qualid$_n$.]{\tt Transparent \qualid$_1$ {\dots} \qualid$_n$.\comindex{Transparent}\label{Transparent}}
 This command is the converse of {\tt Opaque} and it applies on
 unfoldable constants to restore their unfoldability after an {\tt
 Opaque} command.
@@ -967,12 +1045,12 @@ environment}\\
 \SeeAlso sections \ref{Conversion-tactics}, \ref{Automatizing},
 \ref{Theorem}
 
-\subsection{\tt Strategy {\it level} [ \qualid$_1$ \dots \qualid$_n$
+\subsection{\tt Strategy {\it level} [ \qualid$_1$ {\dots} \qualid$_n$
   ].\comindex{Strategy}\comindex{Local Strategy}\label{Strategy}}
 This command generalizes the behavior of {\tt Opaque} and {\tt
   Transparent} commands. It is used to fine-tune the strategy for
 unfolding constants, both at the tactic level and at the kernel
-level. This command associates a level to \qualid$_1$ \dots
+level. This command associates a level to \qualid$_1$ {\dots}
 \qualid$_n$. Whenever two expressions with two distinct head
 constants are compared (for instance, this comparison can be triggered
 by a type cast), the one with lower level is expanded first. In case
@@ -997,6 +1075,21 @@ command is prefixed by {\tt Local}. In the latter case, the behavior
 regarding sections and modules is the same as for the {\tt
   Transparent} and {\tt Opaque} commands.
 
+\subsection{\tt Declare Reduction \ident\ := {\rm\sl convtactic}.}
+
+This command allows to give a short name to a reduction expression,
+for instance {\tt lazy beta delta [foo bar]}. This short name can
+then be used in {\tt Eval \ident\ in ...} or {\tt eval} directives.
+This command accepts the {\tt Local} modifier, for discarding
+this reduction name at the end of the file or module. For the moment
+the name cannot be qualified. In particular declaring the same name
+in several modules or in several functor applications will be refused
+if these declarations are not local. The name \ident\ cannot be used
+directly as an Ltac tactic, but nothing prevent the user to also
+perform a {\tt Ltac \ident\ := {\rm\sl convtactic}}.
+
+\SeeAlso sections \ref{Conversion-tactics}
+
 \subsection{\tt Set Virtual Machine
 \label{SetVirtualMachine}
 \comindex{Set Virtual Machine}}
@@ -1017,7 +1110,70 @@ conversion algorithm deactivated.
 
 \SeeAlso sections~\ref{vmcompute} and~\ref{vmoption}.
 
-% $Id: RefMan-oth.tex 12112 2009-04-28 15:47:34Z herbelin $ 
+\section{Controlling the locality of commands}
+
+\subsection{{\tt Local}, {\tt Global}
+\comindex{Local}
+\comindex{Global}
+}
+
+Some commands support a {\tt Local} or {\tt Global} prefix modifier to
+control the scope of their effect. There are four kinds of commands:
+
+\begin{itemize}
+\item Commands whose default is to extend their effect both outside the
+  section and the module or library file they occur in.
+
+  For these commands, the {\tt Local} modifier limits the effect of
+  the command to the current section or module it occurs in.
+
+  As an example, the {\tt Coercion} (see Section~\ref{Coercions})
+  and {\tt Strategy} (see Section~\ref{Strategy})
+  commands belong to this category.
+
+\item Commands whose default behavior is to stop their effect at the
+  end of the section they occur in but to extent their effect outside
+  the module or library file they occur in.
+
+  For these commands, the {\tt Local} modifier limits the effect of
+  the command to the current module if the command does not occur in a
+  section and the {\tt Global} modifier extends the effect outside the
+  current sections and current module if the command occurs in a
+  section.
+
+  As an example, the {\tt Implicit Arguments} (see
+  Section~\ref{Implicit Arguments}), {\tt Ltac} (see
+  Chapter~\ref{TacticLanguage}) or {\tt Notation} (see
+  Section~\ref{Notation}) commands belong to this category.
+
+  Notice that a subclass of these commands do not support extension of
+  their scope outside sections at all and the {\tt Global} is not
+  applicable to them.
+
+\item Commands whose default behavior is to stop their effect at the
+  end of the section or module they occur in.
+
+  For these commands, the {\tt Global} modifier extends their effect
+  outside the sections and modules they occurs in.
+
+  The {\tt Transparent} and {\tt Opaque} (see
+  Section~\ref{Controlling reduction strategy}) commands belong to
+  this category.
+
+\item Commands whose default behavior is to extend their effect
+  outside sections but not outside modules when they occur in a
+  section and to extend their effect outside the module or library
+  file they occur in when no section contains them.
+
+  For these commands, the {\tt Local} modifier limits the effect to
+  the current section or module while the {\tt Global} modifier extends
+  the effect outside the module even when the command occurs in a section.
+
+  The {\tt Set} and {\tt Unset} commands belong to this category.
+\end{itemize}
+
+
+% $Id: RefMan-oth.tex 13140 2010-06-15 16:08:21Z letouzey $ 
 
 %%% Local Variables: 
 %%% mode: latex

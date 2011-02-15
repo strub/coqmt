@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Lt.v 9245 2006-10-17 12:53:34Z notin $ i*)
+(*i $Id: Lt.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Theorems about [lt] in nat. [lt] is defined in library [Init/Peano.v] as:
 <<
@@ -26,7 +26,7 @@ Theorem lt_irrefl : forall n, ~ n < n.
 Proof le_Sn_n.
 Hint Resolve lt_irrefl: arith v62.
 
-(** * Relationship between [le] and [lt] *) 
+(** * Relationship between [le] and [lt] *)
 
 Theorem lt_le_S : forall n m, n < m -> S n <= m.
 Proof.
@@ -90,11 +90,11 @@ Proof.
 Qed.
 Hint Immediate lt_S_n: arith v62.
 
-Theorem lt_O_Sn : forall n, 0 < S n.
+Theorem lt_0_Sn : forall n, 0 < S n.
 Proof.
   auto with arith.
 Qed.
-Hint Resolve lt_O_Sn: arith v62.
+Hint Resolve lt_0_Sn: arith v62.
 
 Theorem lt_n_O : forall n, ~ n < 0.
 Proof le_Sn_O.
@@ -144,6 +144,13 @@ Proof.
   induction 1; auto with arith.
 Qed.
 
+Theorem le_lt_or_eq_iff : forall n m, n <= m <-> n < m \/ n = m.
+Proof.
+  split.
+  intros; apply le_lt_or_eq; auto.
+  destruct 1; subst; auto with arith.
+Qed.
+
 Theorem lt_le_weak : forall n m, n < m -> n <= m.
 Proof.
   auto with arith.
@@ -168,15 +175,21 @@ Qed.
 
 (** * Comparison to 0 *)
 
-Theorem neq_O_lt : forall n, 0 <> n -> 0 < n.
+Theorem neq_0_lt : forall n, 0 <> n -> 0 < n.
 Proof.
   induction n; auto with arith.
   intros; absurd (0 = 0); trivial with arith.
 Qed.
-Hint Immediate neq_O_lt: arith v62.
+Hint Immediate neq_0_lt: arith v62.
 
-Theorem lt_O_neq : forall n, 0 < n -> 0 <> n.
+Theorem lt_0_neq : forall n, 0 < n -> 0 <> n.
 Proof.
   induction 1; auto with arith.
 Qed.
-Hint Immediate lt_O_neq: arith v62.
+Hint Immediate lt_0_neq: arith v62.
+
+(* begin hide *)
+Notation lt_O_Sn := lt_0_Sn (only parsing).
+Notation neq_O_lt := neq_0_lt (only parsing).
+Notation lt_O_neq := lt_0_neq (only parsing).
+(* end hide *)

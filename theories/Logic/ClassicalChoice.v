@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ClassicalChoice.v 10170 2007-10-03 14:41:25Z herbelin $ i*)
+(*i $Id: ClassicalChoice.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file provides classical logic and functional choice; this
     especially provides both indefinite descriptions and choice functions

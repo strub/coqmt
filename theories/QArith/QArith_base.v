@@ -1,16 +1,16 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: QArith_base.v 11301 2008-08-04 19:41:18Z herbelin $ i*)
+(*i $Id: QArith_base.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export ZArith.
 Require Export ZArithRing.
-Require Export Setoid Bool.
+Require Export Morphisms Setoid Bool.
 
 (** * Definition of [Q] and basic properties *)
 
@@ -87,6 +87,19 @@ Qed.
 Hint Unfold Qeq Qlt Qle : qarith.
 Hint Extern 5 (?X1 <> ?X2) => intro; discriminate: qarith.
 
+Lemma Qcompare_antisym : forall x y, CompOpp (x ?= y) = (y ?= x).
+Proof.
+ unfold "?=". intros. apply Zcompare_antisym.
+Qed.
+
+Lemma Qcompare_spec : forall x y, CompSpec Qeq Qlt x y (x ?= y).
+Proof.
+ intros.
+ destruct (x ?= y) as [ ]_eqn:H; constructor; auto.
+ rewrite Qeq_alt; auto.
+ rewrite Qlt_alt, <- Qcompare_antisym, H; auto.
+Qed.
+
 (** * Properties of equality. *)
 
 Theorem Qeq_refl : forall x, x == x.
@@ -101,7 +114,7 @@ Qed.
 
 Theorem Qeq_trans : forall x y z, x == y -> y == z -> x == z.
 Proof.
-unfold Qeq in |- *; intros.
+unfold Qeq; intros.
 apply Zmult_reg_l with (QDen y).
 auto with qarith.
 transitivity (Qnum x * QDen y * QDen z)%Z; try ring.
@@ -109,6 +122,15 @@ rewrite H.
 transitivity (Qnum y * QDen z * QDen x)%Z; try ring.
 rewrite H0; ring.
 Qed.
+
+Hint Resolve Qeq_refl : qarith.
+Hint Resolve Qeq_sym : qarith.
+Hint Resolve Qeq_trans : qarith.
+
+(** In a word, [Qeq] is a setoid equality. *)
+
+Instance Q_Setoid : Equivalence Qeq.
+Proof. split; red; eauto with qarith. Qed.
 
 (** Furthermore, this equality is decidable: *)
 
@@ -120,12 +142,12 @@ Defined.
 Definition Qeq_bool x y :=
   (Zeq_bool (Qnum x * QDen y) (Qnum y * QDen x))%Z.
 
-Definition Qle_bool x y := 
+Definition Qle_bool x y :=
   (Zle_bool (Qnum x * QDen y) (Qnum y * QDen x))%Z.
 
 Lemma Qeq_bool_iff : forall x y, Qeq_bool x y = true <-> x == y.
 Proof.
-  unfold Qeq_bool, Qeq; intros. 
+  unfold Qeq_bool, Qeq; intros.
   symmetry; apply Zeq_is_eq_bool.
 Qed.
 
@@ -154,19 +176,6 @@ Lemma Qle_bool_imp_le : forall x y, Qle_bool x y = true -> x <= y.
 Proof.
   intros; rewrite <- Qle_bool_iff; auto.
 Qed.
-
-(** We now consider [Q] seen as a setoid. *)
-
-Definition Q_Setoid : Setoid_Theory Q Qeq.
-Proof.
- split; red; unfold Qeq in |- *; auto; apply Qeq_trans.
-Qed.
-
-Add Setoid Q Qeq Q_Setoid as Qsetoid.
-
-Hint Resolve (Seq_refl Q Qeq Q_Setoid): qarith.
-Hint Resolve (Seq_sym Q Qeq Q_Setoid): qarith.
-Hint Resolve (Seq_trans Q Qeq Q_Setoid): qarith.
 
 Theorem Qnot_eq_sym : forall x y, ~x == y -> ~y == x.
 Proof.
@@ -219,7 +228,7 @@ Qed.
 
 (** * Setoid compatibility results *)
 
-Add Morphism Qplus : Qplus_comp.
+Instance Qplus_comp : Proper (Qeq==>Qeq==>Qeq) Qplus.
 Proof.
   unfold Qeq, Qplus; simpl.
   Open Scope Z_scope.
@@ -233,24 +242,23 @@ Proof.
   Close Scope Z_scope.
 Qed.
 
-Add Morphism Qopp : Qopp_comp.
+Instance Qopp_comp : Proper (Qeq==>Qeq) Qopp.
 Proof.
   unfold Qeq, Qopp; simpl.
   Open Scope Z_scope.
-  intros.
+  intros x y H; simpl.
   replace (- Qnum x * ' Qden y) with (- (Qnum x * ' Qden y)) by ring.
-  rewrite H in |- *;  ring.
+  rewrite H;  ring.
   Close Scope Z_scope.
 Qed.
 
-Add Morphism Qminus : Qminus_comp.
+Instance Qminus_comp : Proper (Qeq==>Qeq==>Qeq) Qminus.
 Proof.
-  intros.
-  unfold Qminus.
-  rewrite H; rewrite H0; auto with qarith.
+  intros x x' Hx y y' Hy.
+  unfold Qminus. rewrite Hx, Hy; auto with qarith.
 Qed.
 
-Add Morphism Qmult : Qmult_comp.
+Instance Qmult_comp : Proper (Qeq==>Qeq==>Qeq) Qmult.
 Proof.
   unfold Qeq; simpl.
   Open Scope Z_scope.
@@ -264,7 +272,7 @@ Proof.
   Close Scope Z_scope.
 Qed.
 
-Add Morphism Qinv : Qinv_comp.
+Instance Qinv_comp : Proper (Qeq==>Qeq) Qinv.
 Proof.
   unfold Qeq, Qinv; simpl.
   Open Scope Z_scope.
@@ -282,83 +290,49 @@ Proof.
   Close Scope Z_scope.
 Qed.
 
-Add Morphism Qdiv : Qdiv_comp.
+Instance Qdiv_comp : Proper (Qeq==>Qeq==>Qeq) Qdiv.
 Proof.
-  intros; unfold Qdiv.
-  rewrite H; rewrite H0; auto with qarith.
+  intros x x' Hx y y' Hy; unfold Qdiv.
+  rewrite Hx, Hy; auto with qarith.
 Qed.
 
-Add Morphism Qle with signature Qeq ==> Qeq ==> iff as Qle_comp.
+Instance Qcompare_comp : Proper (Qeq==>Qeq==>eq) Qcompare.
 Proof.
-  cut (forall x1 x2, x1==x2 -> forall x3 x4, x3==x4 -> x1<=x3 -> x2<=x4).
-  split; apply H; assumption || (apply Qeq_sym ; assumption).
-
-  unfold Qeq, Qle; simpl.
+  unfold Qeq, Qcompare.
   Open Scope Z_scope.
-  intros (p1, p2) (q1, q2) H (r1, r2) (s1, s2) H0 H1; simpl in *.
-  apply Zmult_le_reg_r with ('p2).
-  unfold Zgt; auto.
-  replace (q1 * 's2 * 'p2) with (q1 * 'p2 * 's2) by ring.
-  rewrite <- H.
-  apply Zmult_le_reg_r with ('r2).
-  unfold Zgt; auto.
-  replace (s1 * 'q2 * 'p2 * 'r2) with (s1 * 'r2 * 'q2 * 'p2) by ring.
-  rewrite <- H0.
-  replace (p1 * 'q2 * 's2 * 'r2) with ('q2 * 's2 * (p1 * 'r2)) by ring.
-  replace (r1 * 's2 * 'q2 * 'p2) with ('q2 * 's2 * (r1 * 'p2)) by ring.
-  auto with zarith.
+  intros (p1,p2) (q1,q2) H (r1,r2) (s1,s2) H'; simpl in *.
+  rewrite <- (Zcompare_mult_compat (q2*s2) (p1*'r2)).
+  rewrite <- (Zcompare_mult_compat (p2*r2) (q1*'s2)).
+  change ('(q2*s2)) with ('q2 * 's2).
+  change ('(p2*r2)) with ('p2 * 'r2).
+  replace ('q2 * 's2 * (p1*'r2)) with ((p1*'q2)*'r2*'s2) by ring.
+  rewrite H.
+  replace ('q2 * 's2 * (r1*'p2)) with ((r1*'s2)*'q2*'p2) by ring.
+  rewrite H'.
+  f_equal; ring.
   Close Scope Z_scope.
 Qed.
 
-Add Morphism Qlt with signature Qeq ==> Qeq ==> iff as  Qlt_comp.
+Instance Qle_comp : Proper (Qeq==>Qeq==>iff) Qle.
 Proof.
-  cut (forall x1 x2, x1==x2 -> forall x3 x4, x3==x4 -> x1<x3 -> x2<x4).
-  split; apply H; assumption || (apply Qeq_sym ; assumption).
-
-  unfold Qeq, Qlt; simpl.
-  Open Scope Z_scope.
-  intros (p1, p2) (q1, q2) H (r1, r2) (s1, s2) H0 H1; simpl in *.
-  apply Zgt_lt.
-  generalize (Zlt_gt _ _ H1); clear H1; intro H1.
-  apply Zmult_gt_reg_r with ('p2); auto with zarith.
-  replace (q1 * 's2 * 'p2) with (q1 * 'p2 * 's2) by ring.
-  rewrite <- H.
-  apply Zmult_gt_reg_r with ('r2); auto with zarith.
-  replace (s1 * 'q2 * 'p2 * 'r2) with (s1 * 'r2 * 'q2 * 'p2) by ring.
-  rewrite <- H0.
-  replace (p1 * 'q2 * 's2 * 'r2) with ('q2 * 's2 * (p1 * 'r2)) by ring.
-  replace (r1 * 's2 * 'q2 * 'p2) with ('q2 * 's2 * (r1 * 'p2)) by ring.
-  apply Zlt_gt.
-  apply Zmult_gt_0_lt_compat_l; auto with zarith.
-  Close Scope Z_scope.
+  intros p q H r s H'. rewrite 2 Qle_alt, H, H'; auto with *.
 Qed.
 
-Add Morphism Qeq_bool with signature Qeq ==> Qeq ==> (@eq bool) as Qeqb_comp.
+Instance Qlt_compat : Proper (Qeq==>Qeq==>iff) Qlt.
 Proof.
- intros; apply eq_true_iff_eq.
- rewrite 2 Qeq_bool_iff, H, H0; split; auto with qarith.
+  intros p q H r s H'. rewrite 2 Qlt_alt, H, H'; auto with *.
 Qed.
 
-Add Morphism Qle_bool with signature Qeq ==> Qeq ==> (@eq bool) as Qleb_comp.
+Instance Qeqb_comp : Proper (Qeq==>Qeq==>eq) Qeq_bool.
 Proof.
- intros; apply eq_true_iff_eq.
- rewrite 2 Qle_bool_iff, H, H0.
- split; auto with qarith.
+ intros p q H r s H'; apply eq_true_iff_eq.
+ rewrite 2 Qeq_bool_iff, H, H'; split; auto with qarith.
 Qed.
 
-Lemma Qcompare_egal_dec: forall n m p q : Q,
-  (n<m -> p<q) -> (n==m -> p==q) -> (n>m -> p>q) -> ((n?=m) = (p?=q)).
+Instance Qleb_comp : Proper (Qeq==>Qeq==>eq) Qle_bool.
 Proof.
-  intros.
-  do 2 rewrite Qeq_alt in H0.
-  unfold Qeq, Qlt, Qcompare in *.
-  apply Zcompare_egal_dec; auto.
-  omega.
-Qed.
-
-Add Morphism Qcompare : Qcompare_comp.
-Proof.
-  intros; apply Qcompare_egal_dec; rewrite H; rewrite H0; auto.
+ intros p q H r s H'; apply eq_true_iff_eq.
+ rewrite 2 Qle_bool_iff, H, H'; split; auto with qarith.
 Qed.
 
 
@@ -555,12 +529,24 @@ Qed.
 
 Hint Resolve Qle_trans : qarith.
 
+Lemma Qlt_irrefl : forall x, ~x<x.
+Proof.
+ unfold Qlt. auto with zarith.
+Qed.
+
 Lemma Qlt_not_eq : forall x y, x<y -> ~ x==y.
 Proof.
   unfold Qlt, Qeq; auto with zarith.
 Qed.
 
 (** Large = strict or equal *)
+
+Lemma Qle_lteq : forall x y, x<=y <-> x<y \/ x==y.
+Proof.
+ intros.
+ rewrite Qeq_alt, Qle_alt, Qlt_alt.
+ destruct (x ?= y); intuition; discriminate.
+Qed.
 
 Lemma Qlt_le_weak : forall x y, x<y -> x<=y.
 Proof.
@@ -634,7 +620,7 @@ Proof.
 Qed.
 
 Hint Resolve Qle_not_lt Qlt_not_le Qnot_le_lt Qnot_lt_le
- Qlt_le_weak Qlt_not_eq Qle_antisym Qle_refl: qartih.
+ Qlt_le_weak Qlt_not_eq Qle_antisym Qle_refl: qarith.
 
 (** Some decidability results about orders. *)
 
@@ -836,9 +822,9 @@ Qed.
 Definition Qpower_positive (q:Q)(p:positive) : Q :=
  pow_pos Qmult q p.
 
-Add Morphism Qpower_positive with signature Qeq ==> @eq _ ==> Qeq as Qpower_positive_comp.
+Instance Qpower_positive_comp : Proper (Qeq==>eq==>Qeq) Qpower_positive.
 Proof.
-intros x1 x2 Hx y.
+intros x x' Hx y y' Hy. rewrite <-Hy; clear y' Hy.
 unfold Qpower_positive.
 induction y; simpl;
 try rewrite IHy;
@@ -855,8 +841,8 @@ Definition Qpower (q:Q) (z:Z) :=
 
 Notation " q ^ z " := (Qpower q z) : Q_scope.
 
-Add Morphism Qpower with signature Qeq ==> @eq _ ==> Qeq as Qpower_comp.
+Instance Qpower_comp : Proper (Qeq==>eq==>Qeq) Qpower.
 Proof.
-intros x1 x2 Hx [|y|y]; try reflexivity;
-simpl; rewrite Hx; reflexivity.
+intros x x' Hx y y' Hy. rewrite <- Hy; clear y' Hy.
+destruct y; simpl; rewrite ?Hx; auto with *.
 Qed.

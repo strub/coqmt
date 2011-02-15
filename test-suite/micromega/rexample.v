@@ -12,7 +12,7 @@ Require Import Ring_normalize.
 
 Open Scope R_scope.
 
-Lemma yplus_minus : forall x y, 
+Lemma yplus_minus : forall x y,
   0 = x + y -> 0 =  x -y -> 0 = x /\ 0 = y.
 Proof.
   intros.
@@ -34,7 +34,7 @@ Proof.
 Qed.
 
 
-Lemma vcgen_25 : forall   
+Lemma vcgen_25 : forall
   (n : R)
   (m : R)
   (jt : R)
@@ -64,12 +64,12 @@ Qed.
 Goal forall x, -x^2 >= 0 -> x - 1 >= 0 -> False.
 Proof.
   intros.
-  psatz R 2.
+  psatz R 3.
 Qed.
 
 Lemma motzkin' : forall x y, (x^2+y^2+1)*(x^2*y^4 + x^4*y^2 + 1 - (3 ) *x^2*y^2) >= 0.
 Proof.
-  intros ; psatz R.
+  intros ; psatz R 2.
 Qed.
 
 Lemma l1 : forall x y z : R, Rabs (x - z) <= Rabs (x - y) + Rabs (y - z).

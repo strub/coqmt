@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: flags.ml 11801 2009-01-18 20:11:41Z herbelin $ i*)
+(*i $Id: flags.ml 13358 2010-07-29 23:10:17Z herbelin $ i*)
 
 let with_option o f x =
   let old = !o in o:=true;
@@ -35,7 +35,13 @@ let dont_load_proofs = ref false
 
 let raw_print = ref false
 
-let unicode_syntax = ref false
+(* Compatibility mode *)
+
+type compat_version = V8_2
+let compat_version = ref None
+let version_strictly_greater v =
+  match !compat_version with None -> true | Some v' -> v'>v
+let version_less_or_equal v = not (version_strictly_greater v)
 
 (* Translate *)
 let beautify = ref false
@@ -54,6 +60,10 @@ let verbosely f x = without_option silent f x
 
 let if_silent f x = if !silent then f x
 let if_verbose f x = if not !silent then f x
+
+let auto_intros = ref true
+let make_auto_intros flag = auto_intros := flag
+let is_auto_intros () = version_strictly_greater V8_2 && !auto_intros
 
 let hash_cons_proofs = ref true
 
@@ -80,8 +90,8 @@ let is_unsafe s = Stringset.mem s !unsafe_set
 
 let boxed_definitions = ref true
 let set_boxed_definitions b = boxed_definitions := b
-let boxed_definitions _ = !boxed_definitions 
- 
+let boxed_definitions _ = !boxed_definitions
+
 (* Flags for external tools *)
 
 let subst_command_placeholder s t =
@@ -101,6 +111,14 @@ let browser_cmd_fmt =
   Sys.getenv coq_netscape_remote_var
  with
   Not_found -> Coq_config.browser
+
+let is_standard_doc_url url =
+  let wwwcompatprefix = "http://www.lix.polytechnique.fr/coq/" in
+  let n = String.length Coq_config.wwwcoq in
+  let n' = String.length Coq_config.wwwrefman in
+  url = Coq_config.localwwwrefman ||
+  url = Coq_config.wwwrefman ||
+  url = wwwcompatprefix ^ String.sub Coq_config.wwwrefman n (n'-n)
 
 (* Options for changing coqlib *)
 let coqlib_spec = ref false

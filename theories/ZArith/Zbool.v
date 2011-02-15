@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: Zbool.v 11208 2008-07-04 16:57:46Z letouzey $ *)
+(* $Id: Zbool.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 Require Import BinInt.
 Require Import Zeven.
@@ -18,9 +18,9 @@ Require Import Sumbool.
 Unset Boxed Definitions.
 Open Local Scope Z_scope.
 
-(** * Boolean operations from decidabilty of order *)
+(** * Boolean operations from decidability of order *)
 (** The decidability of equality and order relations over
-    type [Z] give some boolean functions with the adequate specification. *)
+    type [Z] gives some boolean functions with the adequate specification. *)
 
 Definition Z_lt_ge_bool (x y:Z) := bool_of_sumbool (Z_lt_ge_dec x y).
 Definition Z_ge_lt_bool (x y:Z) := bool_of_sumbool (Z_ge_lt_dec x y).
@@ -228,3 +228,8 @@ Proof.
   discriminate.
 Qed.
 
+Lemma Zeq_bool_if : forall x y, if Zeq_bool x y then x=y else x<>y.
+Proof.
+  intros. generalize (Zeq_bool_eq x y)(Zeq_bool_neq x y).
+  destruct Zeq_bool; auto.
+Qed.

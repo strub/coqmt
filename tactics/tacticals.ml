@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: tacticals.ml 12102 2009-04-24 10:48:11Z herbelin $ *)
+(* $Id: tacticals.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -29,32 +29,29 @@ open Matching
 open Genarg
 open Tacexpr
 
-(******************************************)
-(*         Basic Tacticals                *)
-(******************************************)
+(************************************************************************)
+(* Tacticals re-exported from the Refiner module                        *)
+(************************************************************************)
 
-(*************************************************)
-(* Tacticals re-exported from the Refiner module.*)
-(*************************************************)
-
-let tclNORMEVAR      = tclNORMEVAR
-let tclIDTAC         = tclIDTAC
-let tclIDTAC_MESSAGE = tclIDTAC_MESSAGE
-let tclORELSE0       = tclORELSE0
-let tclORELSE        = tclORELSE
-let tclTHEN          = tclTHEN
-let tclTHENLIST      = tclTHENLIST
-let tclTHEN_i        = tclTHEN_i
-let tclTHENFIRST     = tclTHENFIRST
-let tclTHENLAST      = tclTHENLAST
-let tclTHENS         = tclTHENS
+let tclNORMEVAR      = Refiner.tclNORMEVAR
+let tclIDTAC         = Refiner.tclIDTAC
+let tclIDTAC_MESSAGE = Refiner.tclIDTAC_MESSAGE
+let tclORELSE0       = Refiner.tclORELSE0
+let tclORELSE        = Refiner.tclORELSE
+let tclTHEN          = Refiner.tclTHEN
+let tclTHENLIST      = Refiner.tclTHENLIST
+let tclMAP           = Refiner.tclMAP
+let tclTHEN_i        = Refiner.tclTHEN_i
+let tclTHENFIRST     = Refiner.tclTHENFIRST
+let tclTHENLAST      = Refiner.tclTHENLAST
+let tclTHENS         = Refiner.tclTHENS
 let tclTHENSV        = Refiner.tclTHENSV
 let tclTHENSFIRSTn   = Refiner.tclTHENSFIRSTn
 let tclTHENSLASTn    = Refiner.tclTHENSLASTn
 let tclTHENFIRSTn    = Refiner.tclTHENFIRSTn
 let tclTHENLASTn     = Refiner.tclTHENLASTn
 let tclREPEAT        = Refiner.tclREPEAT
-let tclREPEAT_MAIN   = tclREPEAT_MAIN
+let tclREPEAT_MAIN   = Refiner.tclREPEAT_MAIN
 let tclFIRST         = Refiner.tclFIRST
 let tclSOLVE         = Refiner.tclSOLVE
 let tclTRY           = Refiner.tclTRY
@@ -62,56 +59,66 @@ let tclINFO          = Refiner.tclINFO
 let tclCOMPLETE      = Refiner.tclCOMPLETE
 let tclAT_LEAST_ONCE = Refiner.tclAT_LEAST_ONCE
 let tclFAIL          = Refiner.tclFAIL
+let tclFAIL_lazy     = Refiner.tclFAIL_lazy
 let tclDO            = Refiner.tclDO
 let tclPROGRESS      = Refiner.tclPROGRESS
 let tclWEAK_PROGRESS = Refiner.tclWEAK_PROGRESS
 let tclNOTSAMEGOAL   = Refiner.tclNOTSAMEGOAL
-let tclTHENTRY       = tclTHENTRY
-let tclIFTHENELSE    = tclIFTHENELSE
-let tclIFTHENSELSE   = tclIFTHENSELSE
-let tclIFTHENSVELSE   = tclIFTHENSVELSE
-let tclIFTHENTRYELSEMUST = tclIFTHENTRYELSEMUST
+let tclTHENTRY       = Refiner.tclTHENTRY
+let tclIFTHENELSE    = Refiner.tclIFTHENELSE
+let tclIFTHENSELSE   = Refiner.tclIFTHENSELSE
+let tclIFTHENSVELSE   = Refiner.tclIFTHENSVELSE
+let tclIFTHENTRYELSEMUST = Refiner.tclIFTHENTRYELSEMUST
 
-let unTAC            = unTAC
+(* Synonyms *)
 
-(* [rclTHENSEQ [t1;..;tn] is equivalent to t1;..;tn *)
-let tclTHENSEQ = tclTHENLIST
+let tclTHENSEQ       = tclTHENLIST
 
-(* map_tactical f [x1..xn] = (f x1);(f x2);...(f xn) *)
-(* tclMAP f [x1..xn] = (f x1);(f x2);...(f xn) *)
-let tclMAP tacfun l = 
-  List.fold_right (fun x -> (tclTHEN (tacfun x))) l tclIDTAC
+(* Experimental *)
 
-(* apply a tactic to the nth element of the signature  *)
+let rec tclFIRST_PROGRESS_ON tac = function
+  | []    -> tclFAIL 0 (str "No applicable tactic")
+  | [a]   -> tac a (* so that returned failure is the one from last item *)
+  | a::tl -> tclORELSE (tac a) (tclFIRST_PROGRESS_ON tac tl)
 
-let tclNTH_HYP m (tac : constr->tactic) gl =
-  tac (try mkVar(let (id,_,_) = List.nth (pf_hyps gl) (m-1) in id) 
-       with Failure _ -> error "No such assumption.") gl
+(************************************************************************)
+(* Tacticals applying on hypotheses                                     *)
+(************************************************************************)
 
-let tclNTH_DECL m tac gl =
-  tac (try List.nth (pf_hyps gl) (m-1) 
-       with Failure _ -> error "No such assumption.") gl
+let nthDecl m gl =
+  try List.nth (pf_hyps gl) (m-1)
+  with Failure _ -> error "No such assumption."
 
-(* apply a tactic to the last element of the signature  *)
+let nthHypId m gl = pi1 (nthDecl m gl)
+let nthHyp m gl   = mkVar (nthHypId m gl)
 
-let tclLAST_HYP = tclNTH_HYP 1
+let lastDecl gl   = nthDecl 1 gl
+let lastHypId gl  = nthHypId 1 gl
+let lastHyp gl    = nthHyp 1 gl
 
-let tclLAST_DECL = tclNTH_DECL 1
+let nLastDecls n gl =
+  try list_firstn n (pf_hyps gl)
+  with Failure _ -> error "Not enough hypotheses in the goal."
 
-let tclLAST_NHYPS n tac gl =
-  tac (try list_firstn n (pf_ids_of_hyps gl)
-       with Failure _ -> error "No such assumptions.") gl
+let nLastHypsId n gl = List.map pi1 (nLastDecls n gl)
+let nLastHyps n gl   = List.map mkVar (nLastHypsId n gl)
 
-let tclTRY_sign (tac : constr->tactic) sign gl =
-  let rec arec = function
-    | []      -> tclFAIL 0 (str "No applicable hypothesis.")
-    | [s]     -> tac (mkVar s) (*added in order to get useful error messages *)
-    | (s::sl) -> tclORELSE (tac (mkVar s)) (arec sl) 
-  in 
-  arec (ids_of_named_context sign) gl
+let onNthDecl m tac gl  = tac (nthDecl m gl) gl
+let onNthHypId m tac gl = tac (nthHypId m gl) gl
+let onNthHyp m tac gl   = tac (nthHyp m gl) gl
 
-let tclTRY_HYPS (tac : constr->tactic) gl = 
-  tclTRY_sign tac (pf_hyps gl) gl
+let onLastDecl  = onNthDecl 1
+let onLastHypId = onNthHypId 1
+let onLastHyp   = onNthHyp 1
+
+let onHyps find tac gl = tac (find gl) gl
+
+let onNLastDecls n tac  = onHyps (nLastDecls n) tac
+let onNLastHypsId n tac = onHyps (nLastHypsId n) tac
+let onNLastHyps n tac   = onHyps (nLastHyps n) tac
+
+let afterHyp id gl =
+  fst (list_split_when (fun (hyp,_,_) -> hyp = id) (pf_hyps gl))
 
 (***************************************)
 (*           Clause Tacticals          *)
@@ -122,150 +129,122 @@ let tclTRY_HYPS (tac : constr->tactic) gl =
    or (Some id), where id is an identifier. This type is useful for
    defining tactics that may be used either to transform the
    conclusion (None) or to transform a hypothesis id (Some id).  --
-   --Eduardo (8/8/97) 
+   --Eduardo (8/8/97)
 *)
 
-(* The type of clauses *)
+(* A [simple_clause] is a set of hypotheses, possibly extended with
+   the conclusion (conclusion is represented by None) *)
 
-type simple_clause = identifier gsimple_clause
+type simple_clause = identifier option list
+
+(* An [clause] is the algebraic form of a
+   [concrete_clause]; it may refer to all hypotheses
+   independently of the effective contents of the current goal *)
+
 type clause = identifier gclause
 
-let allClauses = { onhyps=None; concl_occs=all_occurrences_expr }
+let allHypsAndConcl = { onhyps=None; concl_occs=all_occurrences_expr }
 let allHyps = { onhyps=None; concl_occs=no_occurrences_expr }
 let onConcl = { onhyps=Some[]; concl_occs=all_occurrences_expr }
 let onHyp id =
-  { onhyps=Some[((all_occurrences_expr,id),InHyp)]; concl_occs=no_occurrences_expr }
+  { onhyps=Some[((all_occurrences_expr,id),InHyp)];
+    concl_occs=no_occurrences_expr }
 
-let simple_clause_list_of cl gls =
+let simple_clause_of cl gls =
+  let error_occurrences () =
+    error "This tactic does not support occurrences selection" in
+  let error_body_selection () =
+    error "This tactic does not support body selection" in
   let hyps =
-    match cl.onhyps with 
+    match cl.onhyps with
     | None ->
-	let f id = Some((all_occurrences_expr,id),InHyp) in
-	List.map f (pf_ids_of_hyps gls)
+	List.map Option.make (pf_ids_of_hyps gls)
     | Some l ->
-	List.map (fun h -> Some h) l in
-  if cl.concl_occs = all_occurrences_expr then None::hyps else hyps
+	List.map (fun ((occs,id),w) ->
+	  if occs <> all_occurrences_expr then error_occurrences ();
+	  if w = InHypValueOnly then error_body_selection ();
+	  Some id) l in
+  if cl.concl_occs = no_occurrences_expr then hyps
+  else
+    if cl.concl_occs <> all_occurrences_expr then error_occurrences ()
+    else None :: hyps
 
+let fullGoal gl = None :: List.map Option.make (pf_ids_of_hyps gl)
 
-(* OR-branch *)
-let tryClauses tac cl gls = 
-  let rec firstrec = function
-    | []      -> tclFAIL 0 (str "no applicable hypothesis")
-    | [cls]   -> tac cls (* added in order to get a useful error message *)
-    | cls::tl -> (tclORELSE (tac cls) (firstrec tl))
-  in
-  let hyps = simple_clause_list_of cl gls in
-  firstrec hyps gls
+let onAllHyps tac gl = tclMAP tac (pf_ids_of_hyps gl) gl
+let onAllHypsAndConcl tac gl = tclMAP tac (fullGoal gl) gl
+let onAllHypsAndConclLR tac gl = tclMAP tac (List.rev (fullGoal gl)) gl
 
-(* AND-branch *)
-let onClauses tac cl gls = 
-  let hyps = simple_clause_list_of cl gls in
-  tclMAP tac hyps gls
+let tryAllHyps tac gl = tclFIRST_PROGRESS_ON tac (pf_ids_of_hyps gl) gl
+let tryAllHypsAndConcl tac gl = tclFIRST_PROGRESS_ON tac (fullGoal gl) gl
+let tryAllHypsAndConclLR tac gl =
+  tclFIRST_PROGRESS_ON tac (List.rev (fullGoal gl)) gl
 
-(* AND-branch reverse order*)
-let onClausesLR tac cl gls = 
-  let hyps = simple_clause_list_of cl gls in
-  tclMAP tac (List.rev hyps) gls
-
-(* A clause corresponding to the |n|-th hypothesis or None *)
-
-let nth_clause n gl =
-  if n = 0 then 
-    onConcl
-  else if n < 0 then 
-    let id = List.nth (List.rev (pf_ids_of_hyps gl)) (-n-1) in 
-    onHyp id
-  else 
-    let id = List.nth (pf_ids_of_hyps gl) (n-1) in 
-    onHyp id
-
-(* Gets the conclusion or the type of a given hypothesis *)
-
-let clause_type cls gl =
-  match simple_clause_of cls with
-    | None    -> pf_concl gl
-    | Some ((_,id),_) -> pf_get_hyp_typ gl id
-
-(* Functions concerning matching of clausal environments *)
-
-let pf_is_matching gls pat n =
-  is_matching_conv (pf_env gls) (project gls) pat n
-
-let pf_matches gls pat n =
-  matches_conv (pf_env gls) (project gls) pat n
-
-(* [OnCL clausefinder clausetac]
- * executes the clausefinder to find the clauses, and then executes the
- * clausetac on the clause so obtained. *)
-
-let onCL cfind cltac gl = cltac (cfind gl) gl
-
-
-(* [OnHyps hypsfinder hypstac]
- * idem [OnCL] but only for hypotheses, not for conclusion *)
-
-let onHyps find tac gl = tac (find gl) gl
-
-
-
-(* Create a clause list with all the hypotheses from the context, occuring
-   after id *)
-
-let afterHyp id gl =
-  fst (list_split_at (fun (hyp,_,_) -> hyp = id) (pf_hyps gl))
-    
-
-(* Create a singleton clause list with the last hypothesis from then context *)
-
-let lastHyp gl = List.hd (pf_ids_of_hyps gl)
-
-
-(* Create a clause list with the n last hypothesis from then context *)
-
-let nLastHyps n gl =
-  try list_firstn n (pf_hyps gl)
-  with Failure "firstn" -> error "Not enough hypotheses in the goal."
-
-
-let onClause t cls gl  = t cls gl
-let tryAllClauses  tac = tryClauses tac allClauses
-let onAllClauses   tac = onClauses tac allClauses
-let onAllClausesLR tac = onClausesLR tac allClauses
-let onNthLastHyp n tac gls = tac (nth_clause n gls) gls
-
-let tryAllHyps     tac =
-  tryClauses (function Some((_,id),_) -> tac id | _ -> assert false) allHyps
-let onNLastHyps n  tac     = onHyps (nLastHyps n) (tclMAP tac)
-let onLastHyp      tac gls = tac (lastHyp gls) gls
-
-let clauseTacThen tac continuation =
-  (fun cls -> (tclTHEN (tac cls) continuation))
-
-let if_tac pred tac1 tac2 gl =
-  if pred gl then tac1 gl else tac2 gl
-
-let ifOnClause pred tac1 tac2 cls gl =
-  if pred (cls,clause_type cls gl) then
-    tac1 cls gl
-  else 
-    tac2 cls gl
+let onClause tac cl gls = tclMAP tac (simple_clause_of cl gls) gls
+let onClauseLR tac cl gls = tclMAP tac (List.rev (simple_clause_of cl gls)) gls
 
 let ifOnHyp pred tac1 tac2 id gl =
   if pred (id,pf_get_hyp_typ gl id) then
     tac1 id gl
-  else 
+  else
     tac2 id gl
 
-(***************************************)
-(*         Elimination Tacticals       *)
-(***************************************)
+
+(************************************************************************)
+(* An intermediate form of occurrence clause that select components     *)
+(* of a definition, hypotheses and possibly the goal                    *)
+(* (used for reduction tactics)                                         *)
+(************************************************************************)
+
+(* A [hyp_location] is an hypothesis together with a position, in
+   body if any, in type or in both *)
+
+type hyp_location = identifier * hyp_location_flag
+
+(* A [goal_location] is either an hypothesis (together with a position, in
+   body if any, in type or in both) or the goal *)
+
+type goal_location = hyp_location option
+
+(************************************************************************)
+(* An intermediate structure for dealing with occurrence clauses        *)
+(************************************************************************)
+
+(* [clause_atom] refers either to an hypothesis location (i.e. an
+   hypothesis with occurrences and a position, in body if any, in type
+   or in both) or to some occurrences of the conclusion *)
+
+type clause_atom =
+  | OnHyp of identifier * occurrences_expr * hyp_location_flag
+  | OnConcl of occurrences_expr
+
+(* A [concrete_clause] is an effective collection of
+  occurrences in the hypotheses and the conclusion *)
+
+type concrete_clause = clause_atom list
+
+let concrete_clause_of cl gls =
+  let hyps =
+    match cl.onhyps with
+    | None ->
+	let f id = OnHyp (id,all_occurrences_expr,InHyp) in
+	List.map f (pf_ids_of_hyps gls)
+    | Some l ->
+	List.map (fun ((occs,id),w) -> OnHyp (id,occs,w)) l in
+  if cl.concl_occs = no_occurrences_expr then hyps
+  else
+    OnConcl cl.concl_occs :: hyps
+
+(************************************************************************)
+(* Elimination Tacticals                                                *)
+(************************************************************************)
 
 (* The following tacticals allow to apply a tactic to the
    branches generated by the application of an elimination
-  tactic. 
+  tactic.
 
   Two auxiliary types --branch_args and branch_assumptions-- are
-  used to keep track of some information about the ``branches'' of 
+  used to keep track of some information about the ``branches'' of
   the elimination. *)
 
 type branch_args = {
@@ -283,18 +262,18 @@ type branch_assumptions = {
   assums    : named_context}   (* the list of assumptions introduced *)
 
 let fix_empty_or_and_pattern nv l =
-  (* 1- The syntax does not distinguish between "[ ]" for one clause with no 
+  (* 1- The syntax does not distinguish between "[ ]" for one clause with no
      names and "[ ]" for no clause at all *)
-  (* 2- More generally, we admit "[ ]" for any disjunctive pattern of 
+  (* 2- More generally, we admit "[ ]" for any disjunctive pattern of
      arbitrary length *)
   if l = [[]] then list_make nv [] else l
 
 let check_or_and_pattern_size loc names n =
   if List.length names <> n then
-    if n = 1 then 
+    if n = 1 then
       user_err_loc (loc,"",str "Expects a conjunctive pattern.")
-    else 
-      user_err_loc (loc,"",str "Expects a disjunctive pattern with " ++ int n 
+    else
+      user_err_loc (loc,"",str "Expects a disjunctive pattern with " ++ int n
 	++ str " branches.")
 
 let compute_induction_names n = function
@@ -309,7 +288,7 @@ let compute_induction_names n = function
 
 let compute_construtor_signatures isrec (_,k as ity) =
   let rec analrec c recargs =
-    match kind_of_term c, recargs with 
+    match kind_of_term c, recargs with
     | Prod (_,_,c), recarg::rest ->
 	let b = match dest_recarg recarg with
 	  | Norec | Imbr _  -> false
@@ -318,7 +297,7 @@ let compute_construtor_signatures isrec (_,k as ity) =
     | LetIn (_,_,_,c), rest -> false :: (analrec c rest)
     | _, [] -> []
     | _ -> anomaly "compute_construtor_signatures"
-  in 
+  in
   let (mib,mip) = Global.lookup_inductive ity in
   let n = mib.mind_nparams in
   let lc =
@@ -326,27 +305,27 @@ let compute_construtor_signatures isrec (_,k as ity) =
   let lrecargs = dest_subterms mip.mind_recargs in
   array_map2 analrec lc lrecargs
 
-let elimination_sort_of_goal gl = 
+let elimination_sort_of_goal gl =
   pf_apply Retyping.get_sort_family_of gl (pf_concl gl)
 
-let elimination_sort_of_hyp id gl = 
+let elimination_sort_of_hyp id gl =
   pf_apply Retyping.get_sort_family_of gl (pf_get_hyp_typ gl id)
 
 let elimination_sort_of_clause = function
-  | None -> elimination_sort_of_goal 
+  | None -> elimination_sort_of_goal
   | Some id -> elimination_sort_of_hyp id
 
 (* Find the right elimination suffix corresponding to the sort of the goal *)
 (* c should be of type A1->.. An->B with B an inductive definition *)
 
-let general_elim_then_using mk_elim 
-  isrec allnames tac predicate (indbindings,elimbindings) 
+let general_elim_then_using mk_elim
+  isrec allnames tac predicate (indbindings,elimbindings)
   ind indclause gl =
   let elim = mk_elim ind gl in
   (* applying elimination_scheme just a little modified *)
   let indclause' = clenv_match_args indbindings indclause in
   let elimclause = mk_clenv_from gl (elim,pf_type_of gl elim) in
-  let indmv = 
+  let indmv =
     match kind_of_term (last_arg elimclause.templval.Evd.rebus) with
       | Meta mv -> mv
       | _         -> anomaly "elimination"
@@ -362,7 +341,7 @@ let general_elim_then_using mk_elim
 	      | Var id -> string_of_id id
 	      | _ -> "\b"
 	  in
-	  error ("The elimination combinator " ^ name_elim ^ " is unknown.") 
+	  error ("The elimination combinator " ^ name_elim ^ " is unknown.")
   in
   let elimclause' = clenv_fchain indmv elimclause indclause' in
   let elimclause' = clenv_match_args elimbindings elimclause' in
@@ -372,15 +351,15 @@ let general_elim_then_using mk_elim
     let (hd,largs) = decompose_app ce.templtyp.Evd.rebus in
     let ba = { branchsign = branchsigns.(i);
                branchnames = brnames.(i);
-               nassums = 
-		 List.fold_left 
+               nassums =
+		 List.fold_left
                    (fun acc b -> if b then acc+2 else acc+1)
                    0 branchsigns.(i);
                branchnum = i+1;
                ity = ind;
                largs = List.map (clenv_nf_meta ce) largs;
                pred = clenv_nf_meta ce hd }
-    in 
+    in
     tac ba gl
   in
   let branchtacs ce = Array.init (Array.length branchsigns) (after_tac ce) in
@@ -389,7 +368,7 @@ let general_elim_then_using mk_elim
        | None   -> elimclause'
        | Some p ->
            clenv_unify true Reduction.CONV (mkMeta pmv) p elimclause'
-  in 
+  in
   elim_res_pf_THEN_i elimclause' branchtacs gl
 
 (* computing the case/elim combinators *)
@@ -398,12 +377,14 @@ let gl_make_elim ind gl =
   Indrec.lookup_eliminator ind (elimination_sort_of_goal gl)
 
 let gl_make_case_dep ind gl =
-  pf_apply Indrec.make_case_dep gl ind (elimination_sort_of_goal gl)
+  pf_apply Indrec.build_case_analysis_scheme gl ind true
+    (elimination_sort_of_goal gl)
 
 let gl_make_case_nodep ind gl =
-  pf_apply Indrec.make_case_nodep gl ind (elimination_sort_of_goal gl)
+  pf_apply Indrec.build_case_analysis_scheme gl ind false
+    (elimination_sort_of_goal gl)
 
-let elimination_then_using tac predicate bindings c gl = 
+let elimination_then_using tac predicate bindings c gl =
   let (ind,t) = pf_reduce_to_quantified_ind gl (pf_type_of gl c) in
   let indclause  = mk_clenv_from gl (c,t) in
   general_elim_then_using gl_make_elim
@@ -415,14 +396,14 @@ let case_then_using =
 let case_nodep_then_using =
   general_elim_then_using gl_make_case_nodep false
 
-let elimination_then tac        = elimination_then_using tac None 
+let elimination_then tac        = elimination_then_using tac None
 let simple_elimination_then tac = elimination_then tac ([],[])
 
 
-let make_elim_branch_assumptions ba gl =   
+let make_elim_branch_assumptions ba gl =
   let rec makerec (assums,cargs,constargs,recargs,indargs) lb lc =
-    match lb,lc with 
-      | ([], _) -> 
+    match lb,lc with
+      | ([], _) ->
           { ba = ba;
             assums    = assums}
       | ((true::tl), ((idrec,_,_ as recarg)::(idind,_,_ as indarg)::idtl)) ->
@@ -438,7 +419,7 @@ let make_elim_branch_assumptions ba gl =
 		   recargs,
 		   indargs) tl idtl
       | (_, _) -> anomaly "make_elim_branch_assumptions"
-  in 
+  in
   makerec ([],[],[],[],[]) ba.branchsign
     (try list_firstn ba.nassums (pf_hyps gl)
      with Failure _ -> anomaly "make_elim_branch_assumptions")
@@ -447,8 +428,8 @@ let elim_on_ba tac ba gl = tac (make_elim_branch_assumptions ba gl) gl
 
 let make_case_branch_assumptions ba gl =
   let rec makerec (assums,cargs,constargs,recargs) p_0 p_1 =
-    match p_0,p_1 with 
-      | ([], _) -> 
+    match p_0,p_1 with
+      | ([], _) ->
           { ba = ba;
             assums    = assums}
       | ((true::tl), ((idrec,_,_ as recarg)::idtl)) ->
@@ -462,7 +443,7 @@ let make_case_branch_assumptions ba gl =
 		   recargs,
 		   id::constargs) tl idtl
       | (_, _) -> anomaly "make_case_branch_assumptions"
-  in 
+  in
   makerec ([],[],[],[]) ba.branchsign
     (try list_firstn ba.nassums (pf_hyps gl)
      with Failure _ -> anomaly "make_case_branch_assumptions")

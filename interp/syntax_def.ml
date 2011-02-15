@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: syntax_def.ml 11512 2008-10-27 12:28:36Z herbelin $ *)
+(* $Id: syntax_def.ml 13329 2010-07-26 11:05:39Z herbelin $ *)
 
 open Util
 open Pp
@@ -16,6 +16,7 @@ open Topconstr
 open Libobject
 open Lib
 open Nameops
+open Nametab
 
 (* Syntactic definitions. *)
 
@@ -25,9 +26,7 @@ let _ = Summary.declare_summary
 	  "SYNTAXCONSTANT"
 	  { Summary.freeze_function = (fun () -> !syntax_table);
 	    Summary.unfreeze_function = (fun ft -> syntax_table := ft);
-	    Summary.init_function = (fun () -> syntax_table := KNmap.empty);
-	    Summary.survive_module = false;
-	    Summary.survive_section = false }
+	    Summary.init_function = (fun () -> syntax_table := KNmap.empty) }
 
 let add_syntax_constant kn c =
   syntax_table := KNmap.add kn c !syntax_table
@@ -37,29 +36,33 @@ let load_syntax_constant i ((sp,kn),(local,pat,onlyparse)) =
     errorlabstrm "cache_syntax_constant"
       (pr_id (basename sp) ++ str " already exists");
   add_syntax_constant kn pat;
-  Nametab.push_syntactic_definition (Nametab.Until i) sp kn;
-  if not onlyparse then
-    (* Declare it to be used as long name *)
-    Notation.declare_uninterpretation (Notation.SynDefRule kn) pat
+  Nametab.push_syndef (Nametab.Until i) sp kn
+
+let is_alias_of_already_visible_name sp = function
+  | _,ARef ref ->
+      let (dir,id) = repr_qualid (shortest_qualid_of_global Idset.empty ref) in
+      dir = empty_dirpath && id = basename sp
+  | _ ->
+      false
 
 let open_syntax_constant i ((sp,kn),(_,pat,onlyparse)) =
-  Nametab.push_syntactic_definition (Nametab.Exactly i) sp kn;
-  if not onlyparse then
-    (* Redeclare it to be used as (short) name in case an other (distfix)
-       notation was declared inbetween *)
-    Notation.declare_uninterpretation (Notation.SynDefRule kn) pat
+  if not (is_alias_of_already_visible_name sp pat) then begin
+    Nametab.push_syndef (Nametab.Exactly i) sp kn;
+    if not onlyparse then
+      (* Redeclare it to be used as (short) name in case an other (distfix)
+	 notation was declared inbetween *)
+      Notation.declare_uninterpretation (Notation.SynDefRule kn) pat
+  end
 
 let cache_syntax_constant d =
-  load_syntax_constant 1 d
+  load_syntax_constant 1 d;
+  open_syntax_constant 1 d
 
-let subst_syntax_constant ((sp,kn),subst,(local,pat,onlyparse)) =
+let subst_syntax_constant (subst,(local,pat,onlyparse)) =
   (local,subst_interpretation subst pat,onlyparse)
 
-let classify_syntax_constant (_,(local,_,_ as o)) =
+let classify_syntax_constant (local,_,_ as o) =
   if local then Dispose else Substitute o
-
-let export_syntax_constant (local,_,_ as o) =
-  if local then None else Some o
 
 let (in_syntax_constant, out_syntax_constant) =
   declare_object {(default_object "SYNTAXCONSTANT") with
@@ -67,40 +70,17 @@ let (in_syntax_constant, out_syntax_constant) =
     load_function = load_syntax_constant;
     open_function = open_syntax_constant;
     subst_function = subst_syntax_constant;
-    classify_function = classify_syntax_constant;
-    export_function = export_syntax_constant } 
+    classify_function = classify_syntax_constant }
 
 type syndef_interpretation = (identifier * subscopes) list * aconstr
 
 (* Coercions to the general format of notation that also supports
    variables bound to list of expressions *)
-let in_pat (ids,ac) = ((ids,[]),ac)
-let out_pat ((ids,idsl),ac) = assert (idsl=[]); (ids,ac)
+let in_pat (ids,ac) = (List.map (fun (id,sc) -> (id,(sc,NtnTypeConstr))) ids,ac)
+let out_pat (ids,ac) = (List.map (fun (id,(sc,typ)) -> (id,sc)) ids,ac)
 
 let declare_syntactic_definition local id onlyparse pat =
   let _ = add_leaf id (in_syntax_constant (local,in_pat pat,onlyparse)) in ()
 
-let search_syntactic_definition loc kn =
+let search_syntactic_definition kn =
   out_pat (KNmap.find kn !syntax_table)
-
-let locate_global_with_alias (loc,qid) =
-  match Nametab.extended_locate qid with
-  | TrueGlobal ref -> ref
-  | SyntacticDef kn -> 
-  match search_syntactic_definition dummy_loc kn with
-  | [],ARef ref -> ref
-  | _ -> 
-      user_err_loc (loc,"",pr_qualid qid ++ 
-        str " is bound to a notation that does not denote a reference")
-
-let inductive_of_reference_with_alias r =
-  match locate_global_with_alias (qualid_of_reference r) with
-  | IndRef ind -> ind
-  | ref ->
-      user_err_loc (loc_of_reference r,"global_inductive",
-        pr_reference r ++ spc () ++ str "is not an inductive type")
-
-let global_with_alias r =
-  let (loc,qid as lqid) = qualid_of_reference r in
-  try locate_global_with_alias lqid
-  with Not_found -> Nametab.error_global_not_found_loc loc qid

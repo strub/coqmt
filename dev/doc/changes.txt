@@ -1,4 +1,121 @@
 =========================================
+= CHANGES BETWEEN COQ V8.2 AND COQ V8.3 =
+=========================================
+
+** Light cleaning in evarutil.ml **
+
+whd_castappevar is now whd_head_evar
+obsolete whd_ise disappears
+
+** Restructuration of the syntax of binders **
+
+binders_let -> binders
+binders_let_fixannot -> binders_fixannot
+binder_let -> closed_binder (and now covers only bracketed binders)
+binder was already obsolete and has been removed
+
+** Semantical change of h_induction_destruct **
+
+Warning, the order of the isrec and evar_flag was inconsistent and has
+been permuted. Tactic induction_destruct in tactics.ml is unchanged.
+
+** Internal tactics renamed
+
+There is no more difference between bindings and ebindings. The
+following tactics are therefore renamed
+
+apply_with_ebindings_gen -> apply_with_bindings_gen
+left_with_ebindings -> left_with_bindings
+right_with_ebindings -> right_with_bindings
+split_with_ebindings -> split_with_bindings
+
+and the following tactics are removed
+
+apply_with_ebindings (use instead apply_with_bindings)
+eapply_with_ebindings (use instead eapply_with_bindings)
+
+** Obsolete functions in typing.ml
+
+For mtype_of, msort_of, mcheck, now use type_of, sort_of, check
+
+** Renaming functions renamed
+
+concrete_name -> compute_displayed_name_in
+concrete_let_name -> compute_displayed_let_name_in
+rename_rename_bound_var -> rename_bound_vars_as_displayed
+lookup_name_as_renamed -> lookup_name_as_displayed
+next_global_ident_away true -> next_ident_away_in_goal
+next_global_ident_away false -> next_global_ident_away
+
+** Cleaning in commmand.ml
+
+Functions about starting/ending a lemma are in lemmas.ml
+Functions about inductive schemes are in indschemes.ml
+
+Functions renamed:
+
+declare_one_assumption -> declare_assumption
+declare_assumption -> declare_assumptions
+Command.syntax_definition -> Metasyntax.add_syntactic_definition
+declare_interning_data merged with add_notation_interpretation
+compute_interning_datas -> compute_full_internalization_env
+implicits_env -> internalization_env
+full_implicits_env -> full_internalization_env
+build_mutual -> do_mutual_inductive
+build_recursive -> do_fixpoint
+build_corecursive -> do_cofixpoint
+build_induction_scheme -> build_mutual_induction_scheme
+build_indrec -> build_induction_scheme
+instantiate_type_indrec_scheme -> weaken_sort_scheme
+instantiate_indrec_scheme -> modify_sort_scheme
+make_case_dep, make_case_nodep -> build_case_analysis_scheme
+make_case_gen -> build_case_analysis_scheme_default
+
+Types:
+
+decl_notation -> decl_notation option
+
+** Cleaning in libnames/nametab interfaces
+
+Functions:
+
+dirpath_prefix -> pop_dirpath
+extract_dirpath_prefix pop_dirpath_n
+extend_dirpath -> add_dirpath_suffix
+qualid_of_sp -> qualid_of_path
+pr_sp -> pr_path
+make_short_qualid -> qualid_of_ident
+sp_of_syntactic_definition -> path_of_syntactic_definition 
+sp_of_global -> path_of_global
+id_of_global -> basename_of_global
+absolute_reference -> global_of_path
+locate_syntactic_definition -> locate_syndef
+path_of_syntactic_definition -> path_of_syndef
+push_syntactic_definition -> push_syndef
+
+Types:
+
+section_path -> full_path
+
+** Cleaning in parsing extensions (commit 12108)
+
+Many moves and renamings, one new file (Extrawit, that contains wit_tactic).
+
+** Cleaning in tactical.mli
+
+tclLAST_HYP -> onLastHyp
+tclLAST_DECL -> onLastDecl
+tclLAST_NHYPS -> onNLastHypsId
+tclNTH_DECL -> onNthDecl
+tclNTH_HYP -> onNthHyp
+onLastHyp -> onLastHypId
+onNLastHyps -> onNLastDecls
+onClauses -> onClause
+allClauses -> allHypsAndConcl
+
++ removal of various unused combinators on type "clause"
+
+=========================================
 = CHANGES BETWEEN COQ V8.1 AND COQ V8.2 =
 =========================================
 
@@ -8,7 +125,8 @@ A few differences in Coq ML interfaces between Coq V8.1 and V8.2
 ** Datatypes
 
 List of occurrences moved from "int list" to "Termops.occurrences" (an
-alias to "bool * int list").
+  alias to "bool * int list")
+ETIdent renamed to ETName
 
 ** Functions
 
@@ -325,7 +443,7 @@ Proof_type: subproof field in type proof_tree glued with the ref field
 
 Tacmach: no more echo from functions of module Refiner
 
-Files contrib/*/g_*.ml4 take the place of files contrib/*/*.v.
+Files plugins/*/g_*.ml4 take the place of files plugins/*/*.v.
 Files parsing/{vernac,tac}extend.ml{4,i} implements TACTIC EXTEND andd
   VERNAC COMMAND EXTEND macros
 File syntax/PPTactic.v moved to parsing/pptactic.ml

@@ -1,16 +1,16 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: pp_control.mli 10917 2008-05-10 16:35:46Z herbelin $ i*)
+(*i $Id: pp_control.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (* Parameters of pretty-printing. *)
 
-type pp_global_params = { 
+type pp_global_params = {
   margin : int;
   max_indent : int;
   max_depth : int;
@@ -25,7 +25,7 @@ val get_gp : Format.formatter -> pp_global_params
 
 (*s Output functions of pretty-printing. *)
 
-type 'a pp_formatter_params = { 
+type 'a pp_formatter_params = {
   fp_output : out_channel;
   fp_output_function : string -> int -> int -> unit;
   fp_flush_function : unit -> unit }

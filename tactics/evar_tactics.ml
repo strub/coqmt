@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: evar_tactics.ml 12102 2009-04-24 10:48:11Z herbelin $ *)
+(* $Id: evar_tactics.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Term
 open Util
@@ -21,61 +21,40 @@ open Termops
 
 (* The instantiate tactic *)
 
-let evar_list evc c = 
-  let rec evrec acc c =
-    match kind_of_term c with
-    | Evar (n, _) when Evd.mem evc n -> c :: acc
-    | _ -> fold_constr evrec acc c
-  in 
-    evrec [] c
-
-let instantiate n (ist,rawc) ido gl = 
+let instantiate n (ist,rawc) ido gl =
   let sigma = gl.sigma in
-  let evl = 
+  let evl =
     match ido with
-	ConclLocation () -> evar_list sigma gl.it.evar_concl 
+	ConclLocation () -> evar_list sigma gl.it.evar_concl
       | HypLocation (id,hloc) ->
 	  let decl = Environ.lookup_named_val id gl.it.evar_hyps in
 	    match hloc with
-		InHyp ->  
-		  (match decl with 
+		InHyp ->
+		  (match decl with
 		      (_,None,typ) -> evar_list sigma typ
-		    | _ -> error 
+		    | _ -> error
 			"Please be more specific: in type or value?")
 	      | InHypTypeOnly ->
 		  let (_, _, typ) = decl in evar_list sigma typ
 	      | InHypValueOnly ->
-		  (match decl with 
+		  (match decl with
 		      (_,Some body,_) -> evar_list sigma body
 		    | _ -> error "Not a defined hypothesis.") in
     if List.length evl < n then
-      error "not enough uninstantiated existential variables";
+      error "Not enough uninstantiated existential variables.";
     if n <= 0 then error "Incorrect existential variable index.";
-    let ev,_ =  destEvar (List.nth evl (n-1)) in
-    let env = Evd.evar_env (Evd.find sigma ev) in
-    let ltac_vars = Tacinterp.extract_ltac_vars ist sigma env in
-    let evd' = w_refine ev (ltac_vars,rawc) (create_goal_evar_defs sigma) in
+    let evk,_ = List.nth evl (n-1) in
+    let evi = Evd.find sigma evk in
+    let ltac_vars = Tacinterp.extract_ltac_constr_values ist (Evd.evar_env evi) in
+    let sigma' = w_refine (evk,evi) (ltac_vars,rawc) sigma in
       tclTHEN
-        (tclEVARS (evars_of evd'))
+        (tclEVARS sigma')
         tclNORMEVAR
         gl
-	
-(*
-let pfic gls c =
-  let evc = gls.sigma in 
-  Constrintern.interp_constr evc (Global.env_of_context gls.it.evar_hyps) c
-
-let instantiate_tac = function
-  | [Integer n; Command com] ->
-      (fun gl -> instantiate n (pfic gl com) gl)
-  | [Integer n; Constr c] ->
-      (fun gl -> instantiate n c gl)
-  | _ -> invalid_arg "Instantiate called with bad arguments"
-*)
 
 let let_evar name typ gls =
-  let evd = Evd.create_goal_evar_defs gls.sigma in
-  let evd',evar = Evarutil.new_evar evd (pf_env gls) typ in
-  Refiner.tclTHEN (Refiner.tclEVARS (evars_of evd'))
+  let src = (dummy_loc,GoalEvar) in
+  let sigma',evar = Evarutil.new_evar gls.sigma (pf_env gls) ~src typ in
+  Refiner.tclTHEN (Refiner.tclEVARS sigma')
     (Tactics.letin_tac None name evar None nowhere) gls
- 
+

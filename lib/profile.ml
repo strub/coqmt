@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: profile.ml 7538 2005-11-08 17:14:52Z herbelin $ *)
+(* $Id: profile.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Gc
 
@@ -17,8 +17,7 @@ let float_of_time t = float_of_int t /. 100.
 let time_of_float f = int_of_float (f *. 100.)
 
 let get_time () =
-  let  {Unix.tms_utime = ut;Unix.tms_stime = st} = Unix.times () in
-  time_of_float (ut +. st)
+  time_of_float (Sys.time ())
 
 (* Since ocaml 3.01, gc statistics are in float *)
 let get_alloc () =
@@ -113,12 +112,12 @@ let ajoute_to_list ((name,n) as e) l =
   with Not_found -> e::l
 
 let magic = 1249
-  
+
 let merge_profile filename (curr_table, curr_outside, curr_total as new_data) =
   let (old_table, old_outside, old_total) =
-    try 
+    try
       let c = open_in filename in
-      if input_binary_int c <> magic 
+      if input_binary_int c <> magic
       then Printf.printf "Incompatible recording file: %s\n" filename;
       let old_data = input_value c in
       close_in c;
@@ -134,7 +133,7 @@ let merge_profile filename (curr_table, curr_outside, curr_total as new_data) =
   begin
     (try
        let c =
-	 open_out_gen 
+	 open_out_gen
            [Open_creat;Open_wronly;Open_trunc;Open_binary] 0o644 filename in
        output_binary_int c magic;
        output_value c updated_data;
@@ -157,7 +156,10 @@ let merge_profile filename (curr_table, curr_outside, curr_total as new_data) =
 (* Unix measure of time is approximative and shoitt delays are often
    unperceivable; therefore, total times are measured in one (big)
    step to avoid rounding errors and to get the best possible
-   approximation *)
+   approximation.
+   Note: Sys.time is the same as:
+     Unix.(let x = times () in x.tms_utime +. x.tms_stime)
+ *)
 
 (*
 ----------        start profile for f1
@@ -186,7 +188,7 @@ overheadA|        ...
      real 2' |        ...
     ----------        end 2nd f2
     overheadC|        ...
-    ---------- [2'w2]  2nd call to get_time for 2nd f2 
+    ---------- [2'w2]  2nd call to get_time for 2nd f2
   overheadD|        ...
   ----------        end profile for f2
    real 1  |        ...
@@ -242,7 +244,7 @@ let time_overhead_A_D () =
       ajoute_totalloc p (e.totalloc-.totalloc0);
       p.intcount <- p.intcount + e.intcount - intcount0 + 1;
       p.immcount <- p.immcount + 1;
-      if not (p==e) then 
+      if not (p==e) then
 	(match !dummy_stack with [] -> assert false | _::s -> stack := s);
       dummy_last_alloc := get_alloc ()
   done;
@@ -279,7 +281,7 @@ let compute_alloc lo = lo /. (float_of_int word_length)
 
 let format_profile (table, outside, total) =
   print_newline ();
-  Printf.printf 
+  Printf.printf
     "%-23s  %9s %9s %10s %10s %10s\n"
     "Function name" "Own time" "Tot. time" "Own alloc" "Tot. alloc" "Calls ";
   let l = Sort.list (fun (_,{tottime=p}) (_,{tottime=p'}) -> p > p') table in
@@ -293,7 +295,7 @@ let format_profile (table, outside, total) =
       e.owncount e.intcount)
     l;
   Printf.printf "%-23s %9.2f %9.2f %10.0f %10.0f        %6d\n"
-    "others" 
+    "others"
     (float_of_time outside.owntime) (float_of_time outside.tottime)
     (compute_alloc outside.ownalloc)
     (compute_alloc outside.totalloc)
@@ -305,7 +307,7 @@ let format_profile (table, outside, total) =
     (compute_alloc total.ownalloc)
     (compute_alloc total.totalloc);
   Printf.printf
-    "Time in seconds and allocation in words (1 word = %d bytes)\n" 
+    "Time in seconds and allocation in words (1 word = %d bytes)\n"
     word_length
 
 let recording_file = ref ""
@@ -319,7 +321,7 @@ let adjust_time ov_bc ov_ad e =
      tottime = e.tottime - int_of_float (abcd_all +. bc_imm);
      owntime = e.owntime - int_of_float (ad_imm +. bc_imm) }
 
-let close_profile print = 
+let close_profile print =
   let dw = spent_alloc () in
   let t = get_time () in
   match !stack with
@@ -390,7 +392,7 @@ let profile1 e f a =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -404,7 +406,7 @@ let profile1 e f a =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -432,7 +434,7 @@ let profile2 e f a b =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -446,7 +448,7 @@ let profile2 e f a b =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -474,7 +476,7 @@ let profile3 e f a b c =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -488,7 +490,7 @@ let profile3 e f a b c =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -516,7 +518,7 @@ let profile4 e f a b c d =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -530,7 +532,7 @@ let profile4 e f a b c d =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -558,7 +560,7 @@ let profile5 e f a b c d g =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -572,7 +574,7 @@ let profile5 e f a b c d g =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -600,7 +602,7 @@ let profile6 e f a b c d g h =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -614,7 +616,7 @@ let profile6 e f a b c d g h =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -642,7 +644,7 @@ let profile7 e f a b c d g h i =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     r
@@ -656,7 +658,7 @@ let profile7 e f a b c d g h i =
     ajoute_totalloc p (e.totalloc -. totalloc0);
     p.intcount <- p.intcount + e.intcount - intcount0 + 1;
     p.immcount <- p.immcount + 1;
-    if not (p==e) then 
+    if not (p==e) then
       (match !stack with [] -> assert false | _::s -> stack := s);
     last_alloc := get_alloc ();
     raise exn
@@ -664,22 +666,20 @@ let profile7 e f a b c d g h i =
 (* Some utilities to compute the logical and physical sizes and depth
    of ML objects *)
 
-open Obj
-
 let c = ref 0
 let s = ref 0
 let b = ref 0
 let m = ref 0
 
 let rec obj_stats d t =
-  if is_int t then m := max d !m
-  else if tag t >= no_scan_tag then
-    if tag t = string_tag then
-      (c := !c + size t; b := !b + 1; m := max d !m)
-    else if tag t = double_tag then
+  if Obj.is_int t then m := max d !m
+  else if Obj.tag t >= Obj.no_scan_tag then
+    if Obj.tag t = Obj.string_tag then
+      (c := !c + Obj.size t; b := !b + 1; m := max d !m)
+    else if Obj.tag t = Obj.double_tag then
       (s := !s + 2; b := !b + 1; m := max d !m)
-    else if tag t = double_array_tag then
-      (s := !s + 2 * size t; b := !b + 1; m := max d !m)
+    else if Obj.tag t = Obj.double_array_tag then
+      (s := !s + 2 * Obj.size t; b := !b + 1; m := max d !m)
     else (b := !b + 1; m := max d !m)
   else
     let n = Obj.size t in
@@ -687,7 +687,7 @@ let rec obj_stats d t =
     block_stats (d + 1) (n - 1) t
 
 and block_stats d i t =
-  if i >= 0 then (obj_stats d (field t i); block_stats d (i-1) t)
+  if i >= 0 then (obj_stats d (Obj.field t i); block_stats d (i-1) t)
 
 let obj_stats a =
   c := 0; s:= 0; b:= 0; m:= 0;
@@ -695,24 +695,24 @@ let obj_stats a =
   (!c, !s + !b, !m)
 
 module H = Hashtbl.Make(
-  struct 
-    type t = Obj.t 
-    let equal = (==) 
-    let hash o = Hashtbl.hash (magic o : int)
+  struct
+    type t = Obj.t
+    let equal = (==)
+    let hash o = Hashtbl.hash (Obj.magic o : int)
   end)
 
 let tbl = H.create 13
 
 let rec obj_shared_size s t =
-  if is_int t then s
+  if Obj.is_int t then s
   else if H.mem tbl t then s
   else begin
     H.add tbl t ();
     let n = Obj.size t in
-    if tag t >= no_scan_tag then
-      if tag t = string_tag then (c := !c + n; s + 1)
-      else if tag t = double_tag then s + 3
-      else if tag t = double_array_tag then s + 2 * n + 1
+    if Obj.tag t >= Obj.no_scan_tag then
+      if Obj.tag t = Obj.string_tag then (c := !c + n; s + 1)
+      else if Obj.tag t = Obj.double_tag then s + 3
+      else if Obj.tag t = Obj.double_array_tag then s + 2 * n + 1
       else s + 1
     else
       block_shared_size (s + n + 1) (n - 1) t
@@ -720,7 +720,7 @@ let rec obj_shared_size s t =
 
 and block_shared_size s i t =
   if i < 0 then s
-  else block_shared_size (obj_shared_size s (field t i)) (i-1) t
+  else block_shared_size (obj_shared_size s (Obj.field t i)) (i-1) t
 
 let obj_shared_size a =
   H.clear tbl;

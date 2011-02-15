@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Div2.v 11735 2009-01-02 17:22:31Z herbelin $ i*)
+(*i $Id: Div2.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Lt.
 Require Import Plus.
@@ -36,7 +36,7 @@ Proof.
   intros P H0 H1 Hn.
   cut (forall n, P n /\ P (S n)).
   intros H'n n. elim (H'n n). auto with arith.
-  
+
   induction n. auto with arith.
   intros. elim IHn; auto with arith.
 Qed.
@@ -150,7 +150,7 @@ Proof fun n => proj2 (proj2 (even_odd_double n)).
 
 Hint Resolve even_double double_even odd_double double_odd: arith.
 
-(** Application: 
+(** Application:
     - if [n] is even then there is a [p] such that [n = 2p]
     - if [n] is odd  then there is a [p] such that [n = 2p+1]
 

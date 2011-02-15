@@ -1,29 +1,36 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: redexpr.mli 11094 2008-06-10 19:35:23Z herbelin $ i*)
+(*i $Id: redexpr.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Names
 open Term
 open Closure
+open Pattern
 open Rawterm
 open Reductionops
 open Termops
 
-
-type red_expr = (constr, evaluable_global_reference) red_expr_gen
+type red_expr =
+    (constr, evaluable_global_reference, constr_pattern) red_expr_gen
 
 val out_with_occurrences : 'a with_occurrences -> occurrences * 'a
 
 val reduction_of_red_expr : red_expr -> reduction_function * cast_kind
 (* [true] if we should use the vm to verify the reduction *)
 
-val declare_red_expr : string -> reduction_function -> unit
+(* Adding a custom reduction (function to be use at the ML level)
+   NB: the effect is permanent. *)
+val declare_reduction : string -> reduction_function -> unit
+
+(* Adding a custom reduction (function to be called a vernac command).
+   The boolean flag is the locality. *)
+val declare_red_expr : bool -> string -> red_expr -> unit
 
 (* Opaque and Transparent commands. *)
 

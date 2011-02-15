@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -23,14 +23,14 @@ let parse_dir s =
     if n>=len then dirs else
     let pos =
       try
-	String.index_from s n '.' 
+	String.index_from s n '.'
       with Not_found -> len
     in
     let dir = String.sub s n (pos-n) in
-      decoupe_dirs (dir::dirs) (pos+1)	  
+      decoupe_dirs (dir::dirs) (pos+1)
   in
     decoupe_dirs [] 0
-let dirpath_of_string s = 
+let dirpath_of_string s =
   match parse_dir s with
       [] -> invalid_arg "dirpath_of_string"
     | dir -> make_dirpath (List.map id_of_string dir)
@@ -43,7 +43,7 @@ let (/) = Filename.concat
 
 let get_version_date () =
   try
-    let coqlib = Envars.coqlib () in 
+    let coqlib = Envars.coqlib () in
     let ch = open_in (Filename.concat coqlib "revision") in
     let ver = input_line ch in
     let rev = input_line ch in
@@ -67,8 +67,8 @@ let add_path ~unix_path:dir ~coq_root:coq_dirpath =
 
 let convert_string d =
   try id_of_string d
-  with _ -> 
-    if_verbose warning 
+  with _ ->
+    if_verbose warning
       ("Directory "^d^" cannot be used as a Coq identifier (skipped)");
     flush_all ();
     failwith "caught"
@@ -90,45 +90,38 @@ let includes = ref []
 let push_include (s, alias) = includes := (s,alias,false) :: !includes
 let push_rec_include (s, alias) = includes := (s,alias,true) :: !includes
 
-let check_coq_overwriting p = 
-  if string_of_id (list_last (repr_dirpath p)) = "Coq" then
-    error "The \"Coq\" logical root directory is reserved for the Coq library"
-
 let set_default_include d =
   push_include (d, Check.default_root_prefix)
 let set_default_rec_include d =
   let p = Check.default_root_prefix in
-  check_coq_overwriting p; 
   push_rec_include (d, p)
 let set_include d p =
   let p = dirpath_of_string p in
-  check_coq_overwriting p;
   push_include (d,p)
 let set_rec_include d p =
   let p = dirpath_of_string p in
-  check_coq_overwriting p;
   push_rec_include(d,p)
 
 (* Initializes the LoadPath *)
 let init_load_path () =
   let coqlib = Envars.coqlib () in
   let user_contrib = coqlib/"user-contrib" in
-  let contrib = coqlib/"contrib" in
+  let plugins = coqlib/"plugins" in
   (* first user-contrib *)
-  if Sys.file_exists user_contrib then 
+  if Sys.file_exists user_contrib then
     add_rec_path user_contrib Check.default_root_prefix;
-  (* then contrib *)
-  add_rec_path contrib (Names.make_dirpath [coq_root]);
+  (* then plugins *)
+  add_rec_path plugins (Names.make_dirpath [coq_root]);
   (* then standard library *)
-(*  List.iter 
+(*  List.iter
     (fun (s,alias) ->
-      add_rec_path (coqlib/s) ([alias; coq_root])) 
+      add_rec_path (coqlib/s) ([alias; coq_root]))
     theories_dirs_map;*)
   add_rec_path (coqlib/"theories") (Names.make_dirpath[coq_root]);
   (* then current directory *)
   add_path "." Check.default_root_prefix;
   (* additional loadpath, given with -I -include -R options *)
-  List.iter 
+  List.iter
     (fun (s,alias,reci) ->
       if reci then add_rec_path s alias else add_path s alias)
     (List.rev !includes);
@@ -163,7 +156,7 @@ let compile_files () =
   Check.recheck_library
     ~norec:(List.rev !norec_list)
     ~admit:(List.rev !admit_list)
-    ~check:(List.rev !compile_list) 
+    ~check:(List.rev !compile_list)
 
 let version () =
   Printf.printf "The Coq Proof Checker, version %s (%s)\n"
@@ -180,7 +173,7 @@ let print_usage_channel co command =
 "  -I dir -as coqdir      map physical dir to logical coqdir
   -I dir                 map directory dir to the empty logical path
   -include dir           (idem)
-  -R dir -as coqdir      recursively map physical dir to logical coqdir 
+  -R dir -as coqdir      recursively map physical dir to logical coqdir
   -R dir coqdir          (idem)
 
   -admit module          load module and dependencies without checking
@@ -189,9 +182,10 @@ let print_usage_channel co command =
   -where                 print Coq's standard library location and exit
   -v                     print Coq version and exit
   -boot                  boot mode
-  -o                     print the list of assumptions
-  -m                     print the maximum heap size
- 
+  -o, --output-context   print the list of assumptions
+  -m, --memoty           print the maximum heap size
+  -silent                disable trace of constants being checked
+
   -impredicative-set     set sort Set impredicative
 
   -h, --help             print this list of options
@@ -217,9 +211,9 @@ let anomaly_string () = str "Anomaly: "
 let report () = (str "." ++ spc () ++ str "Please report.")
 
 let print_loc loc =
-  if loc = dummy_loc then 
+  if loc = dummy_loc then
     (str"<unknown>")
-  else 
+  else
     let loc = unloc loc in
     (int (fst loc) ++ str"-" ++ int (snd loc))
 let guill s = "\""^s^"\""
@@ -228,41 +222,41 @@ let where s =
   if !Flags.debug then  (str"in " ++ str s ++ str":" ++ spc ()) else (mt ())
 
 let rec explain_exn = function
-  | Stream.Failure -> 
+  | Stream.Failure ->
       hov 0 (anomaly_string () ++ str "uncaught Stream.Failure.")
-  | Stream.Error txt -> 
+  | Stream.Error txt ->
       hov 0 (str "Syntax error: " ++ str txt)
-  | Token.Error txt -> 
+  | Token.Error txt ->
       hov 0 (str "Syntax error: " ++ str txt)
-  | Sys_error msg -> 
+  | Sys_error msg ->
       hov 0 (anomaly_string () ++ str "uncaught exception Sys_error " ++ str (guill msg) ++ report() )
-  | UserError(s,pps) -> 
+  | UserError(s,pps) ->
       hov 1 (str "User error: " ++ where s ++ pps)
-  | Out_of_memory -> 
+  | Out_of_memory ->
       hov 0 (str "Out of memory")
-  | Stack_overflow -> 
+  | Stack_overflow ->
       hov 0 (str "Stack overflow")
-  | Anomaly (s,pps) -> 
+  | Anomaly (s,pps) ->
       hov 1 (anomaly_string () ++ where s ++ pps ++ report ())
   | Match_failure(filename,pos1,pos2) ->
-      hov 1 (anomaly_string () ++ str "Match failure in file " ++ str (guill filename) ++ 
+      hov 1 (anomaly_string () ++ str "Match failure in file " ++ str (guill filename) ++
       if Sys.ocaml_version = "3.06" then
-		   (str " from character " ++ int pos1 ++ 
+		   (str " from character " ++ int pos1 ++
                     str " to " ++ int pos2)
 		 else
 		   (str " at line " ++ int pos1 ++
 		    str " character " ++ int pos2)
 	           ++ report ())
-  | Not_found -> 
+  | Not_found ->
       hov 0 (anomaly_string () ++ str "uncaught exception Not_found" ++ report ())
-  | Failure s -> 
+  | Failure s ->
       hov 0 (str "Failure: " ++ str s ++ report ())
-  | Invalid_argument s -> 
+  | Invalid_argument s ->
       hov 0 (anomaly_string () ++ str "uncaught exception Invalid_argument " ++ str (guill s) ++ report ())
-  | Sys.Break -> 
+  | Sys.Break ->
       hov 0 (fnl () ++ str "User interrupt.")
   | Univ.UniverseInconsistency (o,u,v) ->
-      let msg = 
+      let msg =
 	if !Flags.debug (*!Constrextern.print_universes*) then
 	  spc() ++ str "(cannot enforce" ++ spc() ++ (*Univ.pr_uni u ++*) spc() ++
           str (match o with Univ.Lt -> "<" | Univ.Le -> "<=" | Univ.Eq -> "=")
@@ -270,12 +264,12 @@ let rec explain_exn = function
 	else
 	  mt() in
       hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")
-  | TypeError(ctx,te) -> 
+  | TypeError(ctx,te) ->
 (*      hov 0 (str "Error:" ++ spc () ++ Himsg.explain_type_error ctx *)
       (*      te)*)
       hov 0 (str "Type error")
 
-  | Indtypes.InductiveError e -> 
+  | Indtypes.InductiveError e ->
       hov 0 (str "Error related to inductive types")
 (*      let ctx = Check.get_env() in
       hov 0
@@ -286,9 +280,9 @@ let rec explain_exn = function
                ++ explain_exn exc)
   | Assert_failure (s,b,e) ->
       hov 0 (anomaly_string () ++ str "assert failure" ++ spc () ++
-	       (if s <> "" then 
+	       (if s <> "" then
 		 if Sys.ocaml_version = "3.06" then
-		   (str ("(file \"" ^ s ^ "\", characters ") ++ 
+		   (str ("(file \"" ^ s ^ "\", characters ") ++
 		    int b ++ str "-" ++ int e ++ str ")")
 		 else
 		   (str ("(file \"" ^ s ^ "\", line ") ++ int b ++
@@ -298,13 +292,13 @@ let rec explain_exn = function
 		 (mt ())) ++
 	       report ())
   | reraise ->
-      hov 0 (anomaly_string () ++ str "Uncaught exception " ++ 
+      hov 0 (anomaly_string () ++ str "Uncaught exception " ++
 	       str (Printexc.to_string reraise)++report())
 
-let parse_args() =
+let parse_args argv =
   let rec parse = function
     | [] -> ()
-   | "-impredicative-set" :: rem -> 
+   | "-impredicative-set" :: rem ->
        set_engagement Declarations.ImpredicativeSet; parse rem
 
     | ("-I"|"-include") :: d :: "-as" :: p :: rem -> set_include d p; parse rem
@@ -325,7 +319,7 @@ let parse_args() =
     | ("-?"|"-h"|"-H"|"-help"|"--help") :: _ -> usage ()
 
     | ("-v"|"--version") :: _ -> version ()
-    | "-boot" :: rem -> boot := true; parse rem	
+    | "-boot" :: rem -> boot := true; parse rem
     | ("-m" | "--memory") :: rem -> Check_stat.memory_stat := true; parse rem
     | ("-o" | "--output-context") :: rem ->
         Check_stat.output_context := true; parse rem
@@ -346,8 +340,8 @@ let parse_args() =
     | s :: rem ->  add_compile s; parse rem
   in
   try
-    parse (List.tl (Array.to_list Sys.argv))
-  with 
+    parse (List.tl (Array.to_list argv))
+  with
     | UserError(_,s) as e -> begin
 	try
 	  Stream.empty s; exit 1
@@ -360,12 +354,12 @@ let parse_args() =
 (* To prevent from doing the initialization twice *)
 let initialized = ref false
 
-let init() =
+let init_with_argv argv =
   if not !initialized then begin
     initialized := true;
     Sys.catch_break false; (* Ctrl-C is fatal during the initialisation *)
     try
-      parse_args();
+      parse_args argv;
       if_verbose print_header ();
       init_load_path ();
       engage ();
@@ -376,13 +370,15 @@ let init() =
       exit 1
   end
 
+let init() = init_with_argv Sys.argv
+
 let run () =
-  try 
+  try
     compile_files ();
     flush_all()
   with e ->
     (Pp.ppnl(explain_exn e);
-    flush_all(); 
+    flush_all();
     exit 1)
 
 let start () = init(); run(); Check_stat.stats(); exit 0

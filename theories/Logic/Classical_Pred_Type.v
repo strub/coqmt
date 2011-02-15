@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Classical_Pred_Type.v 8642 2006-03-17 10:09:02Z notin $ i*)
+(*i $Id: Classical_Pred_Type.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Classical Predicate Logic on Type *)
 
@@ -44,7 +44,7 @@ Proof. (* Intuitionistic *)
 unfold not in |- *; intros P notex n abs.
 apply notex.
 exists n; trivial.
-Qed. 
+Qed.
 
 Lemma not_ex_not_all :
  forall P:U -> Prop, ~ (exists n : U, ~ P n) -> forall n:U, P n.

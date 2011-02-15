@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: closure.ml 11897 2009-02-09 19:28:02Z barras $ *)
+(* $Id: closure.ml 13340 2010-07-28 12:22:04Z barras $ *)
 
 open Util
 open Pp
@@ -40,7 +40,7 @@ let incr_cnt red cnt =
   if red then begin
     if !stats then incr cnt;
     true
-  end else 
+  end else
     false
 
 let with_stats c =
@@ -126,13 +126,13 @@ module RedFlags = (struct
 	{ red with r_const = Idpred.remove id l1, l2 }
 
   let red_add_transparent red tr =
-    { red with r_const = tr } 
+    { red with r_const = tr }
 
   let mkflags = List.fold_left red_add no_red
 
   let red_set red = function
     | BETA -> incr_cnt red.r_beta beta
-    | CONST kn -> 
+    | CONST kn ->
 	let (_,l) = red.r_const in
 	let c = Cpred.mem kn l in
 	incr_cnt c delta
@@ -168,7 +168,7 @@ let betaiotazeta = mkflags [fBETA;fIOTA;fZETA]
 (* Removing fZETA for finer behaviour would break many developments *)
 let unfold_side_flags = [fBETA;fIOTA;fZETA]
 let unfold_side_red = mkflags [fBETA;fIOTA;fZETA]
-let unfold_red kn = 
+let unfold_red kn =
   let flag = match kn with
     | EvalVarRef id -> fVAR id
     | EvalConstRef kn -> fCONST kn in
@@ -196,6 +196,8 @@ let unfold_red kn =
 
 type table_key = id_key
 
+let eq_table_key = Names.eq_id_key
+
 type 'a infos = {
   i_flags : reds;
   i_repr : 'a infos -> constr -> 'a;
@@ -208,7 +210,7 @@ type 'a infos = {
 let info_flags info = info.i_flags
 
 let ref_value_cache info ref =
-  try  
+  try
     Some (Hashtbl.find info.i_tab ref)
   with Not_found ->
   try
@@ -232,7 +234,7 @@ let evar_value info ev =
 
 let defined_vars flags env =
 (*  if red_local_const (snd flags) then*)
-    Sign.fold_named_context 
+    Sign.fold_named_context
       (fun (id,b,_) e ->
 	 match b with
 	   | None -> e
@@ -242,25 +244,13 @@ let defined_vars flags env =
 
 let defined_rels flags env =
 (*  if red_local_const (snd flags) then*)
-  Sign.fold_rel_context 
+  Sign.fold_rel_context
       (fun (id,b,t) (i,subs) ->
 	 match b with
 	   | None -> (i+1, subs)
 	   | Some body -> (i+1, (i,body) :: subs))
       (rel_context env) ~init:(0,[])
 (*  else (0,[])*)
-
-let rec mind_equiv env (kn1,i1) (kn2,i2) =
-  let rec equiv kn1 kn2 =
-    kn1 = kn2 ||
-      match (lookup_mind kn1 env).mind_equiv with
-	  Some kn1' -> equiv kn2 kn1'
-	| None -> match (lookup_mind kn2 env).mind_equiv with
-	      Some kn2' -> equiv kn2' kn1
-	    | None -> false in
-  i1 = i2 && equiv kn1 kn2
-
-let mind_equiv_infos info = mind_equiv info.i_env
 
 let create mk_cl flgs env evars =
   { i_flags = flgs;
@@ -300,8 +290,8 @@ let neutr = function
   | (Whnf|Norm) -> Whnf
   | (Red|Cstr) -> Red
 
-type fconstr = { 
-  mutable norm: red_state; 
+type fconstr = {
+  mutable norm: red_state;
   mutable term: fterm }
 
 and fterm =
@@ -339,7 +329,7 @@ let update v1 (no,t) =
   else {norm=no;term=t}
 
 (**********************************************************************)
-(* The type of (machine) stacks (= lambda-bar-calculus' contexts)     *) 
+(* The type of (machine) stacks (= lambda-bar-calculus' contexts)     *)
 
 type stack_member =
   | Zapp of fconstr array
@@ -379,9 +369,6 @@ let rec decomp_stack = function
         | _ ->
             Some (v.(0), (Zapp (Array.sub v 1 (Array.length v - 1)) :: s)))
   | _ -> None
-let rec decomp_stackn = function
-  | Zapp v :: s -> if Array.length v = 0 then decomp_stackn s else (v, s)
-  | _ -> assert false
 let array_of_stack s =
   let rec stackrec = function
   | [] -> []
@@ -390,7 +377,7 @@ let array_of_stack s =
   in Array.concat (stackrec s)
 let rec stack_assign s p c = match s with
   | Zapp args :: s ->
-      let q = Array.length args in 
+      let q = Array.length args in
       if p >= q then
 	Zapp args :: stack_assign s (p-q) c
       else
@@ -398,7 +385,7 @@ let rec stack_assign s p c = match s with
          nargs.(p) <- c;
          Zapp nargs :: s)
   | _ -> s
-let rec stack_tail p s = 
+let rec stack_tail p s =
   if p = 0 then s else
     match s with
       | Zapp args :: s ->
@@ -441,8 +428,6 @@ let lift_fconstr k f =
   if k=0 then f else lft_fconstr k f
 let lift_fconstr_vect k v =
   if k=0 then v else Array.map (fun f -> lft_fconstr k f) v
-let lift_fconstr_list k l =
-  if k=0 then l else List.map (fun f -> lft_fconstr k f) l
 
 let clos_rel e i =
   match expand_rel i e with
@@ -550,6 +535,7 @@ let destFLambda clos_fun t =
     | FLambda(n,(na,ty)::tys,b,e) ->
         (na,clos_fun e ty,{norm=Cstr;term=FLambda(n-1,tys,b,subs_lift e)})
     | _ -> assert false
+	(* t must be a FLambda and binding list cannot be empty *)
 
 (* Optimization: do not enclose variables in a closure.
    Makes variable access much faster *)
@@ -675,7 +661,7 @@ let term_of_fconstr =
 
 (* fstrong applies unfreeze_fun recursively on the (freeze) term and
  * yields a term.  Assumes that the unfreeze_fun never returns a
- * FCLOS term. 
+ * FCLOS term.
 let rec fstrong unfreeze_fun lfts v =
   to_constr (fstrong unfreeze_fun) lfts (unfreeze_fun v)
 *)
@@ -752,12 +738,6 @@ let get_nth_arg head n stk =
 
 (* Beta reduction: look for an applied argument in the stack.
    Since the encountered update marks are removed, h must be a whnf *)
-let get_arg h stk =
-  let (depth,stk') = strip_update_shift h stk in
-  match  decomp_stack stk' with
-      Some (v, s') -> (Some (depth,v), s')
-    | None -> (None, zshift depth stk')
-
 let rec get_args n tys f e stk =
   match stk with
       Zupdate r :: s ->
@@ -790,8 +770,8 @@ let rec reloc_rargs_rec depth stk =
 let reloc_rargs depth stk =
   if depth = 0 then stk else reloc_rargs_rec depth stk
 
-let rec drop_parameters depth n stk =
-  match stk with
+let rec drop_parameters depth n argstk =
+  match argstk with
       Zapp args::s ->
         let q = Array.length args in
         if n > q then drop_parameters depth (n-q) s
@@ -800,9 +780,12 @@ let rec drop_parameters depth n stk =
           let aft = Array.sub args n (q-n) in
           reloc_rargs depth (append_stack aft s)
     | Zshift(k)::s -> drop_parameters (depth-k) n s
-    | [] -> assert (n=0); []
-    | _ -> assert false (* we know that n < stack_args_size(stk) *)
-
+    | [] -> (* we know that n < stack_args_size(argstk) (if well-typed term) *)
+	if n=0 then []
+	else anomaly
+	  "ill-typed term: found a match on a partially applied constructor"
+    | _ -> assert false
+	(* strip_update_shift_app only produces Zapp and Zshift items *)
 
 (* Iota reduction: expansion of a fixpoint.
  * Given a fixpoint and a substitution, returns the corresponding
@@ -874,7 +857,7 @@ let rec knr info m stk =
   | FLambda(n,tys,f,e) when red_set info.i_flags fBETA ->
       (match get_args n tys f e stk with
           Inl e', s -> knit info e' f s
-        | Inr lam, s -> (lam,s)) 
+        | Inr lam, s -> (lam,s))
   | FFlex(ConstKey kn) when red_set info.i_flags (fCONST kn) ->
       (match ref_value_cache info (ConstKey kn) with
           Some v -> kni info v stk
@@ -953,7 +936,7 @@ let rec kl info m =
     zip_term (kl info) (norm_head info nm) s
 
 (* no redex: go up for atoms and already normalized terms, go down
-   otherwise. *) 
+   otherwise. *)
 and norm_head info m =
   if is_val m then (incr prune; term_of_fconstr m) else
     match m.term with

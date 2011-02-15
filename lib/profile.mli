@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: profile.mli 6621 2005-01-21 17:24:37Z herbelin $ i*)
+(*i $Id: profile.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*s This program is a small time and allocation profiler for Objective Caml *)
 
@@ -14,8 +14,7 @@
 
 (* Adapted from Christophe Raffalli *)
 
-(* To use it, link it with the program you want to profile (do not forget
-"-cclib -lunix -custom unix.cma" among the link options).
+(* To use it, link it with the program you want to profile.
 
 To trace a function "f" you first need to get a key for it by using :
 
@@ -49,7 +48,7 @@ let g = profile gkey g';;
 Before the program quits, you should call "print_profile ();;". It
 produces a result of the following kind:
 
-Function name              Own time Total time  Own alloc Tot. alloc     Calls 
+Function name              Own time Total time  Own alloc Tot. alloc     Calls
 f                            0.28      0.47        116        116      5      4
 h                            0.19      0.19          0          0      4      0
 g                            0.00      0.00          0          0      0      0
@@ -65,7 +64,7 @@ Est. overhead/total          0.00      0.47       2752       3260
   the number of calls to profiled functions inside the scope of the
   current function
 
-Remarks: 
+Remarks:
 
 - If a function has a polymorphic type, you need to supply it with at
   least one argument as in "let f a = profile1 fkey f a;;" (instead of
@@ -103,7 +102,7 @@ val profile6 :
     -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g
 val profile7 :
   profile_key ->
-  ('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h) 
+  ('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h)
     -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h
 
 

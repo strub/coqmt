@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i        $Id: DiscrR.v 10710 2008-03-23 09:24:09Z herbelin $       i*)
+(*i        $Id: DiscrR.v 13323 2010-07-24 15:57:30Z herbelin $       i*)
 
 Require Import RIneq.
 Require Import Omega.
@@ -16,14 +16,7 @@ Lemma Rlt_R0_R2 : 0 < 2.
 change 2 with (INR 2); apply lt_INR_0; apply lt_O_Sn.
 Qed.
 
-Lemma Rplus_lt_pos : forall x y:R, 0 < x -> 0 < y -> 0 < x + y.
-intros.
-apply Rlt_trans with x.
-assumption. 
-pattern x at 1 in |- *; rewrite <- Rplus_0_r.
-apply Rplus_lt_compat_l.
-assumption.
-Qed.
+Notation Rplus_lt_pos := Rplus_lt_0_compat (only parsing).
 
 Lemma IZR_eq : forall z1 z2:Z, z1 = z2 -> IZR z1 = IZR z2.
 intros; rewrite H; reflexivity.
@@ -63,9 +56,9 @@ Ltac omega_sup :=
   change 0 with (IZR 0);
   repeat
     rewrite <- plus_IZR ||
-      rewrite <- mult_IZR || rewrite <- Ropp_Ropp_IZR || rewrite Z_R_minus; 
+      rewrite <- mult_IZR || rewrite <- Ropp_Ropp_IZR || rewrite Z_R_minus;
   apply IZR_lt; omega.
-  
+
 Ltac prove_sup :=
   match goal with
   |  |- (?X1 > ?X2) => change (X2 < X1) in |- *; prove_sup
@@ -83,5 +76,5 @@ Ltac Rcompute :=
   change 0 with (IZR 0);
   repeat
     rewrite <- plus_IZR ||
-      rewrite <- mult_IZR || rewrite <- Ropp_Ropp_IZR || rewrite Z_R_minus; 
+      rewrite <- mult_IZR || rewrite <- Ropp_Ropp_IZR || rewrite Z_R_minus;
   apply IZR_eq; try reflexivity.

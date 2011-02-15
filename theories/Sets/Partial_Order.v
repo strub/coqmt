@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -24,27 +24,27 @@
 (* in Summer 1995. Several developments by E. Ledinot were an inspiration.  *)
 (****************************************************************************)
 
-(*i $Id: Partial_Order.v 9245 2006-10-17 12:53:34Z notin $ i*)
+(*i $Id: Partial_Order.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Ensembles.
 Require Export Relations_1.
 
 Section Partial_orders.
   Variable U : Type.
-  
+
   Definition Carrier := Ensemble U.
-  
+
   Definition Rel := Relation U.
-  
+
   Record PO : Type := Definition_of_PO
     { Carrier_of : Ensemble U;
       Rel_of : Relation U;
       PO_cond1 : Inhabited U Carrier_of;
       PO_cond2 : Order U Rel_of }.
   Variable p : PO.
-  
+
   Definition Strict_Rel_of : Rel := fun x y:U => Rel_of p x y /\ x <> y.
-  
+
   Inductive covers (y x:U) : Prop :=
     Definition_of_covers :
     Strict_Rel_of x y ->
@@ -60,7 +60,7 @@ Hint Resolve Definition_of_covers: sets v62.
 Section Partial_order_facts.
   Variable U : Type.
   Variable D : PO U.
-  
+
   Lemma Strict_Rel_Transitive_with_Rel :
     forall x y z:U,
       Strict_Rel_of U D x y -> Rel_of U D y z -> Strict_Rel_of U D x z.

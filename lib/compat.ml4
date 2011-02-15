@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -12,8 +12,8 @@
 
 IFDEF OCAML309 THEN DEFINE OCAML308 END
 
-IFDEF CAMLP5 THEN 
-module M = struct 
+IFDEF CAMLP5 THEN
+module M = struct
 type loc = Stdpp.location
 let dummy_loc = Stdpp.dummy_loc
 let make_loc = Stdpp.make_loc
@@ -23,7 +23,6 @@ let join_loc loc1 loc2 =
  else Stdpp.encl_loc loc1 loc2
 type token = string*string
 type lexer = token Token.glexer
-let using l x = l.Token.tok_using x
 end
 ELSE IFDEF OCAML308 THEN
 module M = struct
@@ -40,12 +39,11 @@ let unloc (b,e) =
   loc
 let join_loc loc1 loc2 =
  if loc1 = dummy_loc or loc2 = dummy_loc then dummy_loc
- else (fst loc1, snd loc2) 
+ else (fst loc1, snd loc2)
 type token = Token.t
 type lexer = Token.lexer
-let using l x = l.Token.using x
 end
-ELSE 
+ELSE
 module M = struct
 type loc = int * int
 let dummy_loc = (0,0)
@@ -56,7 +54,6 @@ let join_loc loc1 loc2 =
  else (fst loc1, snd loc2)
 type token = Token.t
 type lexer = Token.lexer
-let using l x = l.Token.using x
 end
 END
 END
@@ -68,4 +65,3 @@ let unloc = M.unloc
 let join_loc = M.join_loc
 type token = M.token
 type lexer = M.lexer
-let using = M.using

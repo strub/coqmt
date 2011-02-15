@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Reals.v 9245 2006-10-17 12:53:34Z notin $ i*)
+(*i $Id: Reals.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** The library REALS is divided in 6 parts :
    - Rbase: basic lemmas on R
@@ -23,7 +23,7 @@
   - Sup: for goals like ``?1<?2``
   - RCompute: for equalities with constants like ``10*10==100``
   - Reg: for goals like (continuity_pt ?1 ?2) or (derivable_pt ?1 ?2) *)
-  
+
 Require Export Rbase.
 Require Export Rfunctions.
 Require Export SeqSeries.

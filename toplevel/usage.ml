@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: usage.ml 11858 2009-01-26 13:27:23Z notin $ *)
+(* $Id: usage.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 let version () =
   Printf.printf "The Coq Proof Assistant, version %s (%s)\n"
@@ -23,7 +23,7 @@ let print_usage_channel co command =
 "  -I dir -as coqdir      map physical dir to logical coqdir
   -I dir                 map directory dir to the empty logical path
   -include dir           (idem)
-  -R dir -as coqdir      recursively map physical dir to logical coqdir 
+  -R dir -as coqdir      recursively map physical dir to logical coqdir
   -R dir coqdir          (idem)
   -top coqdir            set the toplevel name to be coqdir instead of Top
   -notop    r            set the toplevel name to be the empty logical path
@@ -33,11 +33,12 @@ let print_usage_channel co command =
   -is f                  (idem)
   -nois                  start with an empty state
   -outputstate f         write state in file f.coq
+  -compat X.Y            provides compatibility support for Coq version X.Y
 
-  -load-ml-object f      load ML object file f 
-  -load-ml-source f      load ML file f 
+  -load-ml-object f      load ML object file f
+  -load-ml-source f      load ML file f
   -load-vernac-source f  load Coq file f.v (Load f.)
-  -l f                   (idem) 
+  -l f                   (idem)
   -load-vernac-source-verbose f  load Coq file f.v (Load Verbose f.)
   -lv f	                 (idem)
   -load-vernac-object f  load Coq object file f.vo
@@ -49,6 +50,7 @@ let print_usage_channel co command =
   -byte                  run the bytecode version of Coq
 
   -where                 print Coq's standard library location and exit
+  -config                print Coq's configuration information and exit
   -v                     print Coq version and exit
 
   -q                     skip loading of rcfile
@@ -57,7 +59,7 @@ let print_usage_channel co command =
   -batch                 batch mode (exits just after arguments parsing)
   -boot                  boot mode (implies -q and -batch)
   -emacs                 tells Coq it is executed under Emacs
-  -noglob f              do not dump globalizations
+  -noglob                do not dump globalizations
   -dump-glob f           dump globalizations in file f (to be used by coqdoc)
   -with-geoproof (yes|no) to (de)activate special functions for Geoproof within Coqide (default is yes)
   -impredicative-set     set sort Set impredicative
@@ -86,7 +88,7 @@ options are:
 
 (* Print the configuration information *)
 
-let print_config () = 
+let print_config () =
   if Coq_config.local then Printf.printf "LOCAL=1\n" else Printf.printf "LOCAL=0\n";
   Printf.printf "COQLIB=%s/\n" Coq_config.coqlib;
   Printf.printf "COQSRC=%s/\n" Coq_config.coqsrc;
@@ -95,4 +97,5 @@ let print_config () =
   Printf.printf "CAMLP4=%s\n" Coq_config.camlp4;
   Printf.printf "CAMLP4BIN=%s\n" Coq_config.camlp4bin;
   Printf.printf "CAMLP4LIB=%s\n" Coq_config.camlp4lib
+
 

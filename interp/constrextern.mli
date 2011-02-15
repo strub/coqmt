@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: constrextern.mli 10790 2008-04-14 22:34:19Z herbelin $ i*)
+(*i $Id: constrextern.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -34,7 +34,7 @@ val extern_rawconstr : Idset.t -> rawconstr -> constr_expr
 val extern_rawtype : Idset.t -> rawconstr -> constr_expr
 val extern_constr_pattern : names_context -> constr_pattern -> constr_expr
 
-(* If [b=true] in [extern_constr b env c] then the variables in the first 
+(* If [b=true] in [extern_constr b env c] then the variables in the first
    level of quantification clashing with the variables in [env] are renamed *)
 
 val extern_constr : bool -> env -> constr -> constr_expr
@@ -42,7 +42,7 @@ val extern_constr_in_scope : bool -> scope_name -> env -> constr -> constr_expr
 val extern_reference : loc -> Idset.t -> global_reference -> reference
 val extern_type : bool -> env -> types -> constr_expr
 val extern_sort : sorts -> rawsort
-val extern_rel_context : constr option -> env -> 
+val extern_rel_context : constr option -> env ->
   rel_context -> local_binder list
 
 (* Printing options *)

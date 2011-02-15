@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: decl_proof_instr.mli 11481 2008-10-20 19:23:51Z herbelin $ *)
+(* $Id: decl_proof_instr.mli 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Refiner
 open Names
@@ -23,7 +23,8 @@ val automation_tac : tactic
 
 val daimon_subtree: pftreestate -> pftreestate
 
-val concl_refiner: Termops.metamap -> constr -> Proof_type.goal sigma -> constr
+val concl_refiner:
+  Termops.meta_type_map -> constr -> Proof_type.goal sigma -> constr
 
 val do_instr: Decl_expr.raw_proof_instr -> pftreestate -> pftreestate
 val proof_instr: Decl_expr.raw_proof_instr -> unit
@@ -42,20 +43,20 @@ val execute_cases :
     Term.constr list -> int -> Decl_mode.split_tree -> Proof_type.tactic
 
 val tree_of_pats : 
-  identifier * int -> (Rawterm.cases_pattern*recpath) list list ->
+  identifier * (int * int) -> (Rawterm.cases_pattern*recpath) list list ->
   split_tree
 
 val add_branch : 
-  identifier * int -> (Rawterm.cases_pattern*recpath) list list ->
+  identifier * (int * int) -> (Rawterm.cases_pattern*recpath) list list ->
   split_tree -> split_tree
 
 val append_branch :
-  identifier * int -> int -> (Rawterm.cases_pattern*recpath) list list ->
+  identifier *(int * int) -> int -> (Rawterm.cases_pattern*recpath) list list ->
   (Names.Idset.t * Decl_mode.split_tree) option ->
   (Names.Idset.t * Decl_mode.split_tree) option
 
 val append_tree :
-  identifier * int -> int -> (Rawterm.cases_pattern*recpath) list list ->
+  identifier * (int * int) -> int -> (Rawterm.cases_pattern*recpath) list list ->
   split_tree -> split_tree
 
 val build_dep_clause :   Term.types Decl_expr.statement list ->
@@ -65,7 +66,7 @@ val build_dep_clause :   Term.types Decl_expr.statement list ->
     Decl_expr.hyp list -> Proof_type.goal Tacmach.sigma -> Term.types
 
 val register_dep_subcase :    
-    Names.identifier * int ->
+    Names.identifier * (int * int) ->
     Environ.env ->
     Decl_mode.per_info ->
     Rawterm.cases_pattern -> Decl_mode.elim_kind -> Decl_mode.elim_kind
@@ -76,27 +77,27 @@ val thesis_for :     Term.constr ->
 val close_previous_case : pftreestate -> pftreestate
 
 val pop_stacks :
-  (Names.identifier * 
-     (Term.constr option * Term.constr list) list) list -> 
-  (Names.identifier * 
+  (Names.identifier *
+     (Term.constr option * Term.constr list) list) list ->
+  (Names.identifier *
      (Term.constr option * Term.constr list) list) list
 
 val push_head :   Term.constr ->
   Names.Idset.t ->
-  (Names.identifier * 
+  (Names.identifier *
      (Term.constr option * Term.constr list) list) list ->
-  (Names.identifier * 
+  (Names.identifier *
      (Term.constr option * Term.constr list) list) list
 
 val push_arg : Term.constr ->
-  (Names.identifier * 
+  (Names.identifier *
      (Term.constr option * Term.constr list) list) list ->
-  (Names.identifier * 
+  (Names.identifier *
      (Term.constr option * Term.constr list) list) list
 
-val hrec_for: 
+val hrec_for:
     Names.identifier ->
-    Decl_mode.per_info -> Proof_type.goal Tacmach.sigma -> 
+    Decl_mode.per_info -> Proof_type.goal Tacmach.sigma ->
     Names.identifier -> Term.constr
 
 val consider_match :
@@ -115,3 +116,4 @@ val init_tree:
      (Names.Idset.t * Decl_mode.split_tree) option) ->
     Decl_mode.split_tree
 
+val set_refine : (Evd.open_constr -> Proof_type.tactic) -> unit

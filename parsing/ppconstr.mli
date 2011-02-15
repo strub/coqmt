@@ -1,13 +1,12 @@
-
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
- 
-(*i $Id: ppconstr.mli 11739 2009-01-02 19:33:19Z herbelin $ i*)
+
+(*i $Id: ppconstr.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Pp
 open Environ
@@ -28,11 +27,11 @@ val extract_def_binders :
   constr_expr -> constr_expr ->
   local_binder list * constr_expr * constr_expr
 val split_fix :
-  int -> constr_expr -> constr_expr -> 
+  int -> constr_expr -> constr_expr ->
   local_binder list *  constr_expr * constr_expr
 
 val prec_less : int -> int * Ppextend.parenRelation -> bool
- 
+
 val pr_tight_coma : unit -> std_ppcmds
 
 val pr_or_var : ('a -> std_ppcmds) -> 'a or_var -> std_ppcmds
@@ -51,17 +50,16 @@ val pr_sep_com :
 val pr_id : identifier -> std_ppcmds
 val pr_name : name -> std_ppcmds
 val pr_qualid : qualid -> std_ppcmds
+val pr_patvar : patvar -> std_ppcmds
 
 val pr_with_occurrences :
   ('a -> std_ppcmds) -> 'a with_occurrences -> std_ppcmds
-val pr_with_occurrences_with_trailer :
-  ('a -> std_ppcmds) -> 'a with_occurrences -> std_ppcmds -> std_ppcmds
 val pr_red_expr :
-  ('a -> std_ppcmds) * ('a -> std_ppcmds) * ('b -> std_ppcmds) ->
-    ('a,'b) red_expr_gen -> std_ppcmds
+  ('a -> std_ppcmds) * ('a -> std_ppcmds) * ('b -> std_ppcmds) * ('c -> std_ppcmds) ->
+    ('a,'b,'c) red_expr_gen -> std_ppcmds
 val pr_may_eval :
-  ('a -> std_ppcmds) -> ('a -> std_ppcmds) -> ('b -> std_ppcmds) -> 
-    ('a,'b) may_eval -> std_ppcmds
+  ('a -> std_ppcmds) -> ('a -> std_ppcmds) -> ('b -> std_ppcmds) ->
+  ('c -> std_ppcmds) -> ('a,'b,'c) may_eval -> std_ppcmds
 
 val pr_rawsort : rawsort -> std_ppcmds
 
@@ -81,3 +79,24 @@ type term_pr = {
 
 val set_term_pr : term_pr -> unit
 val default_term_pr : term_pr
+
+(* The modular constr printer.
+    [modular_constr_pr pr s p t] prints the head of the term [t] and calls
+    [pr] on its subterms.
+    [s] is typically {!Pp.mt} and [p] is [lsimple] for "constr" printers and [ltop]
+    for "lconstr" printers (spiwack: we might need more specification here).
+    We can make a new modular constr printer by overriding certain branches,
+    for instance if we want to build a printer which prints "Prop" as "Omega"
+    instead we can proceed as follows:
+    let my_modular_constr_pr pr s p = function
+      | CSort (_,RProp Null) -> str "Omega"
+      | t -> modular_constr_pr pr s p t
+    Which has the same type. We can turn a modular printer into a printer by
+    taking its fixpoint. *)
+
+type precedence
+val lsimple : precedence
+val ltop : precedence
+val modular_constr_pr :
+               ((unit->std_ppcmds) -> precedence -> constr_expr -> std_ppcmds) ->
+                (unit->std_ppcmds) -> precedence  -> constr_expr -> std_ppcmds

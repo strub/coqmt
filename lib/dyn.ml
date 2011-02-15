@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: dyn.ml 5920 2004-07-16 20:01:26Z herbelin $ *)
+(* $Id: dyn.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 
@@ -17,7 +17,7 @@ type t = string * Obj.t
 let dyntab = ref ([] : string list)
 
 let create s =
-  if List.mem s !dyntab then 
+  if List.mem s !dyntab then
     anomaly ("Dyn.create: already declared dynamic " ^ s);
   dyntab := s :: !dyntab;
   ((fun v -> (s,Obj.repr v)),

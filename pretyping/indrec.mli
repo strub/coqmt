@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: indrec.mli 11562 2008-11-09 11:30:10Z herbelin $ i*)
+(*i $Id: indrec.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -27,36 +27,41 @@ exception RecursionSchemeError of recursion_scheme_error
 
 (** Eliminations *)
 
-(* These functions build elimination predicate for Case tactic *)
+type dep_flag = bool
 
-val make_case_dep : env -> evar_map -> inductive -> sorts_family -> constr
-val make_case_nodep : env -> evar_map -> inductive -> sorts_family -> constr
-val make_case_gen : env -> evar_map -> inductive -> sorts_family -> constr
+(* Build a case analysis elimination scheme in some sort family *)
 
-(* This builds an elimination scheme associated (using the own arity
-   of the inductive) *)
+val build_case_analysis_scheme : env -> evar_map -> inductive ->
+      dep_flag -> sorts_family -> constr
 
-val build_indrec : env -> evar_map -> inductive -> constr
-val instantiate_indrec_scheme : sorts -> int -> constr -> constr
-val instantiate_type_indrec_scheme : sorts -> int -> constr -> types ->
-  constr * types
+(* Build a dependent case elimination predicate unless type is in Prop *)
 
-(** Complex recursion schemes [Scheme] *)
+val build_case_analysis_scheme_default : env -> evar_map -> inductive ->
+      sorts_family -> constr
 
-val build_mutual_indrec : 
-  env -> evar_map ->
-    (inductive * mutual_inductive_body * one_inductive_body
-    * bool * sorts_family) list
-    -> constr list
+(* Builds a recursive induction scheme (Peano-induction style) in the same
+   sort family as the inductive family; it is dependent if not in Prop *)
 
-(** Old Case/Match typing *)
+val build_induction_scheme : env -> evar_map -> inductive ->
+      dep_flag -> sorts_family -> constr
 
-val type_rec_branches : bool -> env -> evar_map -> inductive_type
-  -> constr -> constr -> constr array * constr
-val make_rec_branch_arg : 
-  env -> evar_map ->
-    int * ('b * constr) option array * int ->
-    constr -> constructor_summary -> wf_paths list -> constr
+(* Builds mutual (recursive) induction schemes *)
+
+val build_mutual_induction_scheme :
+  env -> evar_map -> (inductive * dep_flag * sorts_family) list -> constr list
+
+(** Scheme combinators *)
+
+(* [modify_sort_scheme s n c] modifies the quantification sort of
+   scheme c whose predicate is abstracted at position [n] of [c] *)
+
+val modify_sort_scheme : sorts -> int -> constr -> constr
+
+(* [weaken_sort_scheme s n c t] derives by subtyping from [c:t]
+   whose conclusion is quantified on [Type] at position [n] of [t] a
+   scheme quantified on sort [s] *)
+
+val weaken_sort_scheme : sorts -> int -> constr -> types -> constr * types
 
 (** Recursor names utilities *)
 
@@ -64,5 +69,4 @@ val lookup_eliminator : inductive -> sorts_family -> constr
 val elimination_suffix : sorts_family -> string
 val make_elimination_ident : identifier -> sorts_family -> identifier
 
-
-
+val case_suffix : string

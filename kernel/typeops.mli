@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: typeops.mli 10877 2008-04-30 21:58:41Z herbelin $ i*)
+(*i $Id: typeops.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -25,7 +25,7 @@ val infer_type : env -> types        -> unsafe_type_judgment * constraints
 
 val infer_local_decls :
   env -> (identifier * local_entry) list
-    -> env * Sign.rel_context * constraints
+    -> env * rel_context * constraints
 
 (*s Basic operations of the typing machine. *)
 
@@ -52,23 +52,23 @@ val judge_of_constant_knowing_parameters :
   env -> constant -> unsafe_judgment array -> unsafe_judgment
 
 (*s Type of application. *)
-val judge_of_apply : 
+val judge_of_apply :
   env -> unsafe_judgment -> unsafe_judgment array
     -> unsafe_judgment * constraints
 
 (*s Type of an abstraction. *)
-val judge_of_abstraction : 
-  env -> name -> unsafe_type_judgment -> unsafe_judgment 
+val judge_of_abstraction :
+  env -> name -> unsafe_type_judgment -> unsafe_judgment
     -> unsafe_judgment
 
 (*s Type of a product. *)
 val judge_of_product :
-  env -> name -> unsafe_type_judgment -> unsafe_type_judgment 
+  env -> name -> unsafe_type_judgment -> unsafe_type_judgment
     -> unsafe_judgment
 
 (* s Type of a let in. *)
 val judge_of_letin :
-  env -> name -> unsafe_judgment -> unsafe_type_judgment -> unsafe_judgment 
+  env -> name -> unsafe_judgment -> unsafe_type_judgment -> unsafe_judgment
     -> unsafe_judgment
 
 (*s Type of a cast. *)
@@ -80,7 +80,7 @@ val judge_of_cast :
 
 val judge_of_inductive : env -> inductive -> unsafe_judgment
 
-val judge_of_inductive_knowing_parameters : 
+val judge_of_inductive_knowing_parameters :
   env -> inductive -> unsafe_judgment array -> unsafe_judgment
 
 val judge_of_constructor : env -> constructor -> unsafe_judgment
@@ -91,7 +91,7 @@ val judge_of_case : env -> case_info
     -> unsafe_judgment * constraints
 
 (* Typecheck general fixpoint (not checking guard conditions) *)
-val type_fixpoint : env -> name array -> types array 
+val type_fixpoint : env -> name array -> types array
     -> unsafe_judgment array -> constraints
 
 (* Kernel safe typing but applicable to partial proofs *)
@@ -101,7 +101,7 @@ val type_of_constant : env -> constant -> types
 
 val type_of_constant_type : env -> constant_type -> types
 
-val type_of_constant_knowing_parameters : 
+val type_of_constant_knowing_parameters :
   env -> constant_type -> constr array -> types
 
 (* Make a type polymorphic if an arity *)

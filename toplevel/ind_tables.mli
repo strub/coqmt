@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -11,30 +11,42 @@ open Names
 open Libnames
 open Mod_subst
 open Sign
+open Declarations
 
+(* This module provides support for registering inductive scheme builders,
+   declaring schemes and generating schemes on demand *)
 
-val cache_scheme :(object_name*(Indmap.key*constr)) -> unit
-val export_scheme : (Indmap.key*constr) -> (Indmap.key*constr) option 
+(* A scheme is either a "mutual scheme_kind" or an "individual scheme_kind" *)
 
-val find_eq_scheme : Indmap.key -> constr
-val check_eq_scheme : Indmap.key -> bool
+type mutual
+type individual
+type 'a scheme_kind
 
-val cache_bl: (object_name*(Indmap.key*constr)) -> unit 
-val cache_lb: (object_name*(Indmap.key*constr)) -> unit 
-val cache_dec : (object_name*(Indmap.key*constr)) -> unit 
+type mutual_scheme_object_function = mutual_inductive -> constr array
+type individual_scheme_object_function = inductive -> constr
 
-val export_bool_leib : (Indmap.key*constr) -> (Indmap.key*constr) option 
-val export_leib_bool : (Indmap.key*constr) -> (Indmap.key*constr) option 
-val export_dec_proof : (Indmap.key*constr) -> (Indmap.key*constr) option 
+(* Main functions to register a scheme builder *)
 
-val find_bl_proof : Indmap.key -> constr
-val find_lb_proof : Indmap.key -> constr
-val find_eq_dec_proof : Indmap.key -> constr
+val declare_mutual_scheme_object : string -> ?aux:string ->
+  mutual_scheme_object_function -> mutual scheme_kind
 
-val check_bl_proof: Indmap.key -> bool 
-val check_lb_proof: Indmap.key -> bool 
-val check_dec_proof: Indmap.key -> bool 
+val declare_individual_scheme_object : string -> ?aux:string ->
+  individual_scheme_object_function -> individual scheme_kind
 
+(*
+val declare_scheme : 'a scheme_kind -> (inductive * constant) array -> unit
+*)
 
+(* Force generation of a (mutually) scheme with possibly user-level names *)
 
+val define_individual_scheme : individual scheme_kind -> 
+  Declare.internal_flag (* internal *) ->
+  identifier option -> inductive -> constant
 
+val define_mutual_scheme : mutual scheme_kind -> Declare.internal_flag (* internal *) ->
+  (int * identifier) list -> mutual_inductive -> constant array
+
+(* Main function to retrieve a scheme in the cache or to generate it *)
+val find_scheme : 'a scheme_kind -> inductive -> constant
+
+val check_scheme : 'a scheme_kind -> inductive -> bool

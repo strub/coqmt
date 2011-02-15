@@ -3,14 +3,15 @@ load_printer "printers.cma"
 
 install_printer Top_printers.ppid
 install_printer Top_printers.ppidset
+install_printer Top_printers.ppevarsubst
 install_printer Top_printers.ppintset
 install_printer Top_printers.pplab
-install_printer Top_printers.ppmsid
 install_printer Top_printers.ppmbid
 install_printer Top_printers.ppdir
 install_printer Top_printers.ppmp
 install_printer Top_printers.ppkn
 install_printer Top_printers.ppcon
+install_printer Top_printers.ppmind
 install_printer Top_printers.ppsp
 install_printer Top_printers.ppqualid
 install_printer Top_printers.ppclindex
@@ -31,7 +32,6 @@ install_printer Top_printers.ppgoal
 install_printer Top_printers.ppsigmagoal
 install_printer Top_printers.pproof
 install_printer Top_printers.ppmetas
-install_printer Top_printers.ppevd
 install_printer Top_printers.ppevm
 install_printer Top_printers.ppclenv
 
@@ -39,5 +39,5 @@ install_printer Top_printers.pptac
 install_printer Top_printers.ppobj
 install_printer Top_printers.pploc
 install_printer Top_printers.prsubst
-                                                  
-
+install_printer Top_printers.prdelta
+install_printer Top_printers.ppconstr

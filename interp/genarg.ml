@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: genarg.ml 11481 2008-10-20 19:23:51Z herbelin $ *)
+(* $Id: genarg.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -47,11 +47,17 @@ type argument_type =
 type 'a and_short_name = 'a * identifier located option
 type 'a or_by_notation =
   | AN of 'a
-  | ByNotation of loc * string * Notation.delimiters option
+  | ByNotation of (loc * string * Notation.delimiters option)
+
+let loc_of_or_by_notation f = function
+  | AN c -> f c
+  | ByNotation (loc,s,_) -> loc
 
 type rawconstr_and_expr = rawconstr * constr_expr option
 type open_constr_expr = unit * constr_expr
 type open_rawconstr = unit * rawconstr_and_expr
+
+type rawconstr_pattern_and_expr = rawconstr_and_expr * Pattern.constr_pattern
 
 type 'a with_ebindings = 'a * open_constr bindings
 
@@ -61,9 +67,9 @@ type 'a generic_argument = argument_type * Obj.t
 
 let dyntab = ref ([] : string list)
 
-type rlevel = constr_expr
-type glevel = rawconstr_and_expr
-type tlevel = open_constr
+type rlevel
+type glevel
+type tlevel
 
 type ('a,'b) abstract_argument_type = argument_type
 
@@ -82,6 +88,7 @@ type intro_pattern_expr =
   | IntroRewrite of bool
   | IntroIdentifier of identifier
   | IntroFresh of identifier
+  | IntroForthcoming of bool
   | IntroAnonymous
 and or_and_intro_pattern_expr = (loc * intro_pattern_expr) list list
 
@@ -92,11 +99,13 @@ let rec pr_intro_pattern (_,pat) = match pat with
   | IntroRewrite false -> str "<-"
   | IntroIdentifier id -> pr_id id
   | IntroFresh id -> str "?" ++ pr_id id
+  | IntroForthcoming true -> str "*"
+  | IntroForthcoming false -> str "**"
   | IntroAnonymous -> str "?"
 
 and pr_or_and_intro_pattern = function
   | [pl] ->
-      str "(" ++ hv 0 (prlist_with_sep pr_coma pr_intro_pattern pl) ++ str ")"
+      str "(" ++ hv 0 (prlist_with_sep pr_comma pr_intro_pattern pl) ++ str ")"
   | pll ->
       str "[" ++
       hv 0 (prlist_with_sep pr_bar (prlist_with_sep spc pr_intro_pattern) pll)
@@ -163,7 +172,7 @@ let globwit_constr_may_eval = ConstrMayEvalArgType
 let wit_constr_may_eval = ConstrMayEvalArgType
 
 let rawwit_open_constr_gen b = OpenConstrArgType b
-let globwit_open_constr_gen b = OpenConstrArgType b 
+let globwit_open_constr_gen b = OpenConstrArgType b
 let wit_open_constr_gen b = OpenConstrArgType b
 
 let rawwit_open_constr = rawwit_open_constr_gen false

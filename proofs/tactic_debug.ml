@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tactic_debug.ml 11576 2008-11-10 19:13:15Z msozeau $ i*)
+(*i $Id: tactic_debug.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Names
 open Constrextern
@@ -68,11 +68,11 @@ let skip = ref 0
 
 (* Prints the run counter *)
 let run ini =
-  if not ini then 
+  if not ini then
     for i=1 to 2 do
       print_char (Char.chr 8);print_char (Char.chr 13)
     done;
-  msg (str "Executed expressions: " ++ int (!allskip - !skip) ++ 
+  msg (str "Executed expressions: " ++ int (!allskip - !skip) ++
        fnl() ++ fnl())
 
 (* Prints the prompt *)
@@ -168,7 +168,7 @@ let db_matching_failure debug =
 let db_eval_failure debug s =
   if debug <> DebugOff & !skip = 0 then
     let s = str "message \"" ++ s ++ str "\"" in
-    msgnl 
+    msgnl
       (str "This rule has failed due to \"Fail\" tactic (" ++
        s ++ str ", level 0)!" ++ fnl() ++ str "Let us try the next one...")
 

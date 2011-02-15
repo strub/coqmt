@@ -1,5 +1,6 @@
 (* -------------------------------------------------------------------- *)
 Require Import Arith .
+
 Require Import DP_Peano .
 
 (* -------------------------------------------------------------------- *)
@@ -26,7 +27,7 @@ Section DList .
   | cons n₁ x xs₁ => cons x (append xs₁ xs₂)
   end .
 
-  Infix "++" := append (at level 35, right associativity) .
+  Infix "++" := append (at level 60, right associativity) .
 
   Section AppArith .
     Variables n₁ n₂ n₃ : nat .

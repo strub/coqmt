@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,58 +8,31 @@
 (*                      Evgeny Makarov, INRIA, 2007                     *)
 (************************************************************************)
 
-(*i $Id: ZAxioms.v 11040 2008-06-03 00:04:16Z letouzey $ i*)
+(*i $Id: ZAxioms.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export NZAxioms.
 
 Set Implicit Arguments.
 
-Module Type ZAxiomsSig.
-Declare Module Export NZOrdAxiomsMod : NZOrdAxiomsSig.
+Module Type Opp (Import T:Typ).
+ Parameter Inline opp : t -> t.
+End Opp.
 
-Delimit Scope IntScope with Int.
-Notation Z := NZ.
-Notation Zeq := NZeq.
-Notation Z0 := NZ0.
-Notation Z1 := (NZsucc NZ0).
-Notation S := NZsucc.
-Notation P := NZpred.
-Notation Zadd := NZadd.
-Notation Zmul := NZmul.
-Notation Zsub := NZsub.
-Notation Zlt := NZlt.
-Notation Zle := NZle.
-Notation Zmin := NZmin.
-Notation Zmax := NZmax.
-Notation "x == y"  := (NZeq x y) (at level 70) : IntScope.
-Notation "x ~= y" := (~ NZeq x y) (at level 70) : IntScope.
-Notation "0" := NZ0 : IntScope.
-Notation "1" := (NZsucc NZ0) : IntScope.
-Notation "x + y" := (NZadd x y) : IntScope.
-Notation "x - y" := (NZsub x y) : IntScope.
-Notation "x * y" := (NZmul x y) : IntScope.
-Notation "x < y" := (NZlt x y) : IntScope.
-Notation "x <= y" := (NZle x y) : IntScope.
-Notation "x > y" := (NZlt y x) (only parsing) : IntScope.
-Notation "x >= y" := (NZle y x) (only parsing) : IntScope.
+Module Type OppNotation (T:Typ)(Import O : Opp T).
+ Notation "- x" := (opp x) (at level 35, right associativity).
+End OppNotation.
 
-Parameter Zopp : Z -> Z.
+Module Type Opp' (T:Typ) := Opp T <+ OppNotation T.
 
-(*Notation "- 1" := (Zopp 1) : IntScope.
-Check (-1).*)
+(** We obtain integers by postulating that every number has a predecessor. *)
 
-Add Morphism Zopp with signature Zeq ==> Zeq as Zopp_wd.
+Module Type IsOpp (Import Z : NZAxiomsSig')(Import O : Opp' Z).
+ Declare Instance opp_wd : Proper (eq==>eq) opp.
+ Axiom succ_pred : forall n, S (P n) == n.
+ Axiom opp_0 : - 0 == 0.
+ Axiom opp_succ : forall n, - (S n) == P (- n).
+End IsOpp.
 
-Notation "- x" := (Zopp x) (at level 35, right associativity) : IntScope.
-Notation "- 1" := (Zopp (NZsucc NZ0)) : IntScope.
-
-Open Local Scope IntScope.
-
-(* Integers are obtained by postulating that every number has a predecessor *)
-Axiom Zsucc_pred : forall n : Z, S (P n) == n.
-
-Axiom Zopp_0 : - 0 == 0.
-Axiom Zopp_succ : forall n : Z, - (S n) == P (- n).
-
-End ZAxiomsSig.
+Module Type ZAxiomsSig := NZOrdAxiomsSig <+ Opp <+ IsOpp.
+Module Type ZAxiomsSig' := NZOrdAxiomsSig' <+ Opp' <+ IsOpp.
 

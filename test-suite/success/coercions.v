@@ -24,7 +24,7 @@ Coercion C : nat >-> Funclass.
 
 (* Remark: in the following example, it cannot be decided whether C is
    from nat to Funclass or from A to nat. An explicit Coercion command is
-   expected 
+   expected
 
 Parameter A : nat -> Prop.
 Parameter C:> forall n:nat, A n -> nat.
@@ -71,7 +71,6 @@ Record Morphism (X Y:Setoid) : Type :=
 {evalMorphism :> X -> Y}.
 
 Definition extSetoid (X Y:Setoid) : Setoid.
-intros X Y.
 constructor.
 exact (Morphism X Y).
 Defined.

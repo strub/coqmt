@@ -1,17 +1,17 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: rtree.mli 10690 2008-03-18 13:30:04Z barras $ i*)
+(*i $Id: rtree.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (* Type of regular tree with nodes labelled by values of type 'a *)
 (* The implementation uses de Bruijn indices, so binding capture
    is avoided by the lift operator (see example below) *)
-type 'a t 
+type 'a t
 
 (* Building trees *)
 
@@ -40,7 +40,7 @@ val mk_rec_calls : int -> 'a t array
 val mk_rec   : 'a t array -> 'a t array
 
 (* [lift k t] increases of [k] the free parameters of [t]. Needed
-   to avoid captures when a tree appears under [mk_rec] *) 
+   to avoid captures when a tree appears under [mk_rec] *)
 val lift : int -> 'a t -> 'a t
 
 val is_node : 'a t -> bool

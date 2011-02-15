@@ -3,7 +3,7 @@
 (* Submitted by Pierre Crégut *)
 (* Checks substitution of x *)
 Ltac f x := unfold x in |- *; idtac.
- 
+
 Lemma lem1 : 0 + 0 = 0.
 f plus.
 reflexivity.
@@ -25,7 +25,7 @@ U.
 Qed.
 
 (* Check that Match giving non-tactic arguments are evaluated at Let-time *)
- 
+
 Ltac B := let y := (match goal with
                     | z:_ |- _ => z
                     end) in
@@ -152,6 +152,7 @@ Abort.
 Ltac afi tac := intros; tac.
 Goal 1 = 2.
 afi ltac:auto.
+Abort.
 
 (* Tactic Notation avec listes *)
 
@@ -179,8 +180,8 @@ Abort.
 (* Check second-order pattern unification *)
 
 Ltac to_exist :=
-  match goal with 
-  |- forall x y, @?P x y => 
+  match goal with
+  |- forall x y, @?P x y =>
     let Q := eval lazy beta in (exists x, forall y, P x y) in
     assert (Q->Q)
   end.
@@ -201,7 +202,7 @@ Abort.
 
 (* Utilisation de let rec sans arguments *)
 
-Ltac is := 
+Ltac is :=
   let rec i := match goal with |- ?A -> ?B => intro; i | _ => idtac end in
   i.
 
@@ -220,3 +221,57 @@ Z1 O.
 Z2 ltac:O.
 exact I.
 Qed.
+
+(* Illegal application used to make Ltac loop. *)
+
+Section LtacLoopTest.
+  Ltac f x := idtac.
+  Goal True.
+  Timeout 1 try f()().
+  Abort.
+End LtacLoopTest.
+
+(* Test binding of open terms *)
+
+Ltac test_open_match z :=
+  match z with
+    (forall y x, ?h = 0) => assert (forall x y, h = x + y)
+  end.
+
+Goal True.
+test_open_match (forall z y, y + z  = 0).
+reflexivity.
+apply I.
+Qed.
+
+(* Test regular failure when clear/intro breaks soundness of the
+   interpretation of terms in current environment *)
+
+Ltac g y := clear y; assert (y=y).
+Goal forall x:nat, True.
+intro x.
+Fail g x.
+Abort.
+
+Ltac h y := assert (y=y).
+Goal forall x:nat, True.
+intro x.
+Fail clear x; f x.
+Abort.
+
+(* Do not consider evars as unification holes in Ltac matching (and at
+   least not as holes unrelated to the original evars)
+   [Example adapted from Ynot code]
+ *)
+
+Ltac not_eq e1 e2 :=
+  match e1 with
+    | e2 => fail 1
+    | _ => idtac
+  end.
+
+Goal True.
+evar(foo:nat).
+let evval := eval compute in foo in not_eq evval 1.
+let evval := eval compute in foo in not_eq 1 evval.
+Abort.

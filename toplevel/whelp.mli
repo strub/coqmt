@@ -1,14 +1,14 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: whelp.mli 7837 2006-01-11 09:47:32Z herbelin $ i*)
+(*i $Id: whelp.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-(* Coq interface to the Whelp query engine developed at 
+(* Coq interface to the Whelp query engine developed at
    the University of Bologna *)
 
 open Names

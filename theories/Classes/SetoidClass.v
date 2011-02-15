@@ -1,28 +1,29 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* Typeclass-based setoids, tactics and standard instances.
- 
-   Author: Matthieu Sozeau
-   Institution: LRI, CNRS UMR 8623 - UniversitÃcopyright Paris Sud
-   91405 Orsay, France *)
+(** * Typeclass-based setoids, tactics and standard instances.
 
-(* $Id: SetoidClass.v 12187 2009-06-13 19:36:59Z msozeau $ *)
+   Author: Matthieu Sozeau
+   Institution: LRI, CNRS UMR 8623 - University Paris Sud
+*)
+
+(* $Id: SetoidClass.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
+
+Generalizable Variables A.
 
 Require Import Coq.Program.Program.
 
 Require Import Relation_Definitions.
 Require Export Coq.Classes.RelationClasses.
 Require Export Coq.Classes.Morphisms.
-Require Import Coq.Classes.Functions.
 
 (** A setoid wraps an equivalence. *)
 
@@ -55,7 +56,7 @@ Existing Instance setoid_trans.
 (* Program Instance eq_setoid : Setoid A := *)
 (*   equiv := eq ; setoid_equiv := eq_equivalence. *)
 
-Program Instance iff_setoid : Setoid Prop := 
+Program Instance iff_setoid : Setoid Prop :=
   { equiv := iff ; setoid_equiv := iff_equivalence }.
 
 (** Overloaded notations for setoid equivalence and inequivalence. Not to be confused with [eq] and [=]. *)
@@ -69,7 +70,7 @@ Notation " x =/= y " := (complement equiv x y) (at level 70, no associativity) :
 
 (** Use the [clsubstitute] command which substitutes an equality in every hypothesis. *)
 
-Ltac clsubst H := 
+Ltac clsubst H :=
   match type of H with
     ?x == ?y => substitute H ; clear H x
   end.
@@ -79,7 +80,7 @@ Ltac clsubst_nofail :=
     | [ H : ?x == ?y |- _ ] => clsubst H ; clsubst_nofail
     | _ => idtac
   end.
-  
+
 (** [subst*] will try its best at substituting every equality in the goal. *)
 
 Tactic Notation "clsubst" "*" := clsubst_nofail.
@@ -94,7 +95,7 @@ Qed.
 
 Lemma equiv_nequiv_trans : forall `{Setoid A} (x y z : A), x == y -> y =/= z -> x =/= z.
 Proof.
-  intros; intro. 
+  intros; intro.
   assert(y == x) by (symmetry ; auto).
   assert(y == z) by (transitivity x ; eauto).
   contradiction.
@@ -119,25 +120,15 @@ Ltac setoidify := repeat setoidify_tac.
 
 (** Every setoid relation gives rise to a morphism, in fact every partial setoid does. *)
 
-Program Instance setoid_morphism `(sa : Setoid A) : Morphism (equiv ++> equiv ++> iff) equiv :=
-  respect.
+Program Instance setoid_morphism `(sa : Setoid A) : Proper (equiv ++> equiv ++> iff) equiv :=
+  proper_prf.
 
-Program Instance setoid_partial_app_morphism `(sa : Setoid A) (x : A) : Morphism (equiv ++> iff) (equiv x) :=
-  respect.
-
-Ltac morphism_tac := try red ; unfold arrow ; intros ; program_simpl ; try tauto.
-
-Ltac obligation_tactic ::= morphism_tac.
-
-(** These are morphisms used to rewrite at the top level of a proof, 
-   using [iff_impl_id_morphism] if the proof is in [Prop] and
-   [eq_arrow_id_morphism] if it is in Type. *)
-
-Program Instance iff_impl_id_morphism : Morphism (iff ++> impl) id.
+Program Instance setoid_partial_app_morphism `(sa : Setoid A) (x : A) : Proper (equiv ++> iff) (equiv x) :=
+  proper_prf.
 
 (** Partial setoids don't require reflexivity so we can build a partial setoid on the function space. *)
 
-Class PartialSetoid (A : Type) := 
+Class PartialSetoid (A : Type) :=
   { pequiv : relation A ; pequiv_prf :> PER pequiv }.
 
 (** Overloaded notation for partial setoid equivalence. *)
@@ -146,4 +137,4 @@ Infix "=~=" := pequiv (at level 70, no associativity) : type_scope.
 
 (** Reset the default Program tactic. *)
 
-Ltac obligation_tactic ::= program_simpl.
+Obligation Tactic := program_simpl.

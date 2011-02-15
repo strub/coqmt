@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: hashcons.ml 5920 2004-07-16 20:01:26Z herbelin $ *)
+(* $Id: hashcons.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (* Hash consing of datastructures *)
 
@@ -19,7 +19,7 @@
  *   the hash-consing functions u provides.
  * [equal] is a comparison function. It is allowed to use physical equality
  *   on the sub-terms hash-consed by the hash_sub function.
- * [hash] is the hash function given to the Hashtbl.Make function 
+ * [hash] is the hash function given to the Hashtbl.Make function
  *
  * Note that this module type coerces to the argument of Hashtbl.Make.
  *)
@@ -106,7 +106,7 @@ let recursive_loop_hcons h u =
   let rec hrec visited x =
     if List.memq x visited then x
     else hc (hrec (x::visited),u) x
-  in 
+  in
   hrec []
 
 (* For 2 mutually recursive types *)
@@ -164,7 +164,7 @@ let comp_obj o1 o2 =
       else false
   else o1=o2
 
-let hash_obj hrec o = 
+let hash_obj hrec o =
   begin
     if tuple_p o then
       let n = Obj.size o in

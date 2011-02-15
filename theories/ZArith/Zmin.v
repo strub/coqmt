@@ -1,146 +1,90 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
-(*i $Id: Zmin.v 10028 2007-07-18 22:38:06Z letouzey $ i*)
+(*i $Id: Zmin.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-(** Initial version from Pierre Crégut (CNET, Lannion, France), 1996.
-    Further extensions by the Coq development team, with suggestions
-    from Russell O'Connor (Radbout U., Nijmegen, The Netherlands).
- *)
+(** THIS FILE IS DEPRECATED. Use [Zminmax] instead. *)
 
-Require Import Arith_base.
-Require Import BinInt.
-Require Import Zcompare.
-Require Import Zorder.
+Require Import BinInt Zorder Zminmax.
 
 Open Local Scope Z_scope.
 
-(**************************************)
-(** Minimum on binary integer numbers *)
+(** [Zmin] is now [Zminmax.Zmin]. Code that do things like
+  [unfold Zmin.Zmin] will have to be adapted, and neither
+  a [Definition] or a [Notation] here can help much. *)
 
-Unboxed Definition Zmin (n m:Z) :=
-  match n ?= m with
-    | Eq | Lt => n
-    | Gt => m
-  end.
 
 (** * Characterization of the minimum on binary integer numbers *)
 
-Lemma Zmin_case_strong : forall (n m:Z) (P:Z -> Type), 
-  (n<=m -> P n) -> (m<=n -> P m) -> P (Zmin n m).
-Proof.
-  intros n m P H1 H2; unfold Zmin, Zle, Zge in *.
-  rewrite <- (Zcompare_antisym n m) in H2.
-  destruct (n ?= m); (apply H1|| apply H2); discriminate. 
-Qed.
+Definition Zmin_case := Z.min_case.
+Definition Zmin_case_strong := Z.min_case_strong.
 
-Lemma Zmin_case : forall (n m:Z) (P:Z -> Type), P n -> P m -> P (Zmin n m).
+Lemma Zmin_spec : forall x y,
+  x <= y /\ Zmin x y = x  \/  x > y /\ Zmin x y = y.
 Proof.
-  intros n m P H1 H2; unfold Zmin in |- *; case (n ?= m); auto with arith.
-Qed.
-
-Lemma Zmin_spec : forall x y:Z, 
-  x <= y /\ Zmin x y = x  \/
-  x > y /\ Zmin x y = y.
-Proof.
- intros; unfold Zmin, Zle, Zgt.
- destruct (Zcompare x y); [ left | left | right ]; split; auto; discriminate.
+ intros x y. rewrite Zgt_iff_lt, Z.min_comm. destruct (Z.min_spec y x); auto.
 Qed.
 
 (** * Greatest lower bound properties of min *)
 
-Lemma Zle_min_l : forall n m:Z, Zmin n m <= n.
-Proof.
-  intros n m; unfold Zmin in |- *; elim_compare n m; intros E; rewrite E;
-    [ apply Zle_refl
-      | apply Zle_refl
-      | apply Zlt_le_weak; apply Zgt_lt; exact E ].
-Qed.
+Definition Zle_min_l : forall n m, Zmin n m <= n := Z.le_min_l.
+Definition Zle_min_r : forall n m, Zmin n m <= m := Z.le_min_r.
 
-Lemma Zle_min_r : forall n m:Z, Zmin n m <= m.
-Proof.
-  intros n m; unfold Zmin in |- *; elim_compare n m; intros E; rewrite E;
-    [ unfold Zle in |- *; rewrite E; discriminate
-      | unfold Zle in |- *; rewrite E; discriminate
-      | apply Zle_refl ].
-Qed.
+Definition Zmin_glb : forall n m p, p <= n -> p <= m -> p <= Zmin n m
+ := Z.min_glb.
+Definition Zmin_glb_lt : forall n m p, p < n -> p < m -> p < Zmin n m
+ := Z.min_glb_lt.
 
-Lemma Zmin_glb : forall n m p:Z, p <= n -> p <= m -> p <= Zmin n m.
-Proof.
-  intros; apply Zmin_case; assumption.
-Qed.
+(** * Compatibility with order *)
+
+Definition Zle_min_compat_r : forall n m p, n <= m -> Zmin n p <= Zmin m p
+ := Z.min_le_compat_r.
+Definition Zle_min_compat_l : forall n m p, n <= m -> Zmin p n <= Zmin p m
+ := Z.min_le_compat_l.
 
 (** * Semi-lattice properties of min *)
 
-Lemma Zmin_idempotent : forall n:Z, Zmin n n = n.
-Proof.
-  unfold Zmin in |- *; intros; elim (n ?= n); auto.
-Qed.
-
+Definition Zmin_idempotent : forall n, Zmin n n = n := Z.min_id.
 Notation Zmin_n_n := Zmin_idempotent (only parsing).
-
-Lemma Zmin_comm : forall n m:Z, Zmin n m = Zmin m n.
-Proof.
-  intros n m; unfold Zmin.
-  rewrite <- (Zcompare_antisym n m).
-  assert (H:=Zcompare_Eq_eq n m).
-  destruct (n ?= m); simpl; auto.
-Qed.
-
-Lemma Zmin_assoc : forall n m p:Z, Zmin n (Zmin m p) = Zmin (Zmin n m) p.
-Proof.
-  intros n m p; repeat apply Zmin_case_strong; intros; 
-    reflexivity || (try apply Zle_antisym); eauto with zarith.
-Qed.
+Definition Zmin_comm : forall n m, Zmin n m = Zmin m n := Z.min_comm.
+Definition Zmin_assoc : forall n m p, Zmin n (Zmin m p) = Zmin (Zmin n m) p
+ := Z.min_assoc.
 
 (** * Additional properties of min *)
 
-Lemma Zmin_irreducible_inf : forall n m:Z, {Zmin n m = n} + {Zmin n m = m}.
-Proof.
-  unfold Zmin in |- *; intros; elim (n ?= m); auto.
-Qed.
+Lemma Zmin_irreducible_inf : forall n m, {Zmin n m = n} + {Zmin n m = m}.
+Proof. exact Z.min_dec. Qed.
 
-Lemma Zmin_irreducible : forall n m:Z, Zmin n m = n \/ Zmin n m = m.
-Proof.
-  intros n m; destruct (Zmin_irreducible_inf n m); [left|right]; trivial.
-Qed.
+Lemma Zmin_irreducible : forall n m, Zmin n m = n \/ Zmin n m = m.
+Proof. intros; destruct (Z.min_dec n m); auto. Qed.
 
 Notation Zmin_or := Zmin_irreducible (only parsing).
 
-Lemma Zmin_le_prime_inf : forall n m p:Z, Zmin n m <= p -> {n <= p} + {m <= p}.
-Proof.
-  intros n m p; apply Zmin_case; auto.
-Qed.
+Lemma Zmin_le_prime_inf : forall n m p, Zmin n m <= p -> {n <= p} + {m <= p}.
+Proof. intros n m p; apply Zmin_case; auto. Qed.
 
 (** * Operations preserving min *)
 
-Lemma Zsucc_min_distr : 
-  forall n m:Z, Zsucc (Zmin n m) = Zmin (Zsucc n) (Zsucc m).
-Proof.
-  intros n m; unfold Zmin in |- *; rewrite (Zcompare_succ_compat n m);
-    elim_compare n m; intros E; rewrite E; auto with arith.
-Qed.
+Definition Zsucc_min_distr :
+ forall n m, Zsucc (Zmin n m) = Zmin (Zsucc n) (Zsucc m)
+ := Z.succ_min_distr.
 
-Notation Zmin_SS := Zsucc_min_distr (only parsing).
+Notation Zmin_SS := Z.succ_min_distr (only parsing).
 
-Lemma Zplus_min_distr_r : forall n m p:Z, Zmin (n + p) (m + p) = Zmin n m + p.
-Proof.
-  intros x y n; unfold Zmin in |- *.
-  rewrite (Zplus_comm x n); rewrite (Zplus_comm y n);
-    rewrite (Zcompare_plus_compat x y n).
-  case (x ?= y); apply Zplus_comm.
-Qed.
+Definition Zplus_min_distr_r :
+ forall n m p, Zmin (n + p) (m + p) = Zmin n m + p
+ := Z.plus_min_distr_r.
 
-Notation Zmin_plus := Zplus_min_distr_r (only parsing).
+Notation Zmin_plus := Z.plus_min_distr_r (only parsing).
 
 (** * Minimum and Zpos *)
 
-Lemma Zpos_min : forall p q, Zpos (Pmin p q) = Zmin (Zpos p) (Zpos q).
-Proof.
-  intros; unfold Zmin, Pmin; simpl; destruct Pcompare; auto.
-Qed.
+Definition Zpos_min : forall p q, Zpos (Pmin p q) = Zmin (Zpos p) (Zpos q)
+ := Z.pos_min.
+
+
 

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tlm.mli 5920 2004-07-16 20:01:26Z herbelin $ i*)
+(*i $Id: tlm.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (* Tries. This module implements a data structure [('a,'b) t] mapping lists
    of values of type ['a] to sets (as lists) of values of type ['b]. *)

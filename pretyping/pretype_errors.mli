@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: pretype_errors.mli 10860 2008-04-27 21:39:08Z herbelin $ i*)
+(*i $Id: pretype_errors.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Pp
@@ -27,7 +27,7 @@ type pretype_error =
   (* Unification *)
   | OccurCheck of existential_key * constr
   | NotClean of existential_key * constr * Evd.hole_kind
-  | UnsolvableImplicit of Evd.evar_info * Evd.hole_kind * 
+  | UnsolvableImplicit of Evd.evar_info * Evd.hole_kind *
       Evd.unsolvability_explanation option
   | CannotUnify of constr * constr
   | CannotUnifyLocal of constr * constr * constr
@@ -35,6 +35,8 @@ type pretype_error =
   | CannotGeneralize of constr
   | NoOccurrenceFound of constr * identifier option
   | CannotFindWellTypedAbstraction of constr * constr list
+  | AbstractionOverMeta of name * name
+  | NonLinearUnification of name * constr
   (* Pretyping *)
   | VarNotFound of identifier
   | UnexpectedType of constr * constr
@@ -59,22 +61,22 @@ val tj_nf_evar :
 val error_actual_type_loc :
   loc -> env ->  Evd.evar_map -> unsafe_judgment -> constr -> 'b
 
-val error_cant_apply_not_functional_loc : 
+val error_cant_apply_not_functional_loc :
   loc -> env ->  Evd.evar_map ->
       unsafe_judgment -> unsafe_judgment list -> 'b
 
-val error_cant_apply_bad_type_loc : 
-  loc -> env ->  Evd.evar_map -> int * constr * constr -> 
+val error_cant_apply_bad_type_loc :
+  loc -> env ->  Evd.evar_map -> int * constr * constr ->
       unsafe_judgment -> unsafe_judgment list -> 'b
 
 val error_case_not_inductive_loc :
   loc -> env ->  Evd.evar_map -> unsafe_judgment -> 'b
 
-val error_ill_formed_branch_loc : 
+val error_ill_formed_branch_loc :
   loc -> env ->  Evd.evar_map ->
       constr -> int -> constr -> constr -> 'b
 
-val error_number_branches_loc : 
+val error_number_branches_loc :
   loc -> env ->  Evd.evar_map ->
       unsafe_judgment -> int -> 'b
 
@@ -95,7 +97,7 @@ val error_not_clean :
   env -> Evd.evar_map -> existential_key -> constr -> loc * Evd.hole_kind -> 'b
 
 val error_unsolvable_implicit :
-  loc -> env -> Evd.evar_map -> Evd.evar_info -> Evd.hole_kind -> 
+  loc -> env -> Evd.evar_map -> Evd.evar_info -> Evd.hole_kind ->
       Evd.unsolvability_explanation option -> 'b
 
 val error_cannot_unify : env -> Evd.evar_map -> constr * constr -> 'b
@@ -104,6 +106,12 @@ val error_cannot_unify_local : env -> Evd.evar_map -> constr * constr * constr -
 
 val error_cannot_find_well_typed_abstraction : env -> Evd.evar_map ->
       constr -> constr list -> 'b
+
+val error_abstraction_over_meta : env -> Evd.evar_map ->
+  metavariable -> metavariable -> 'b
+
+val error_non_linear_unification : env -> Evd.evar_map ->
+  metavariable -> constr -> 'b
 
 (*s Ml Case errors *)
 

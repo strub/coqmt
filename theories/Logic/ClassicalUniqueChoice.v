@@ -1,12 +1,13 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ClassicalUniqueChoice.v 10170 2007-10-03 14:41:25Z herbelin $ i*)
+(*i $Id: ClassicalUniqueChoice.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file provides classical logic and unique choice; this is
     weaker than providing iota operator and classical logic as the
@@ -15,11 +16,11 @@
     be used to build functions outside the scope of a theorem proof) *)
 
 (** Classical logic and unique choice, as shown in
-    [ChicliPottierSimpson02], implies the double-negation of
+    [[ChicliPottierSimpson02]], implies the double-negation of
     excluded-middle in [Set], hence it implies a strongly classical
     world. Especially it conflicts with the impredicativity of [Set].
 
-    [ChicliPottierSimpson02] Laurent Chicli, Loïc Pottier, Carlos
+    [[ChicliPottierSimpson02]] Laurent Chicli, LoÃ¯c Pottier, Carlos
     Simpson, Mathematical Quotients and Quotient Types in Coq,
     Proceedings of TYPES 2002, Lecture Notes in Computer Science 2646,
     Springer Verlag.  *)
@@ -43,13 +44,14 @@ intros A B.
 apply (dependent_unique_choice A (fun _ => B)).
 Qed.
 
-(** The following proof comes from [ChicliPottierSimpson02] *)
+(** The following proof comes from [[ChicliPottierSimpson02]] *)
 
 Require Import Setoid.
 
-Theorem classic_set : ((forall P:Prop, {P} + {~ P}) -> False) -> False.
+Theorem classic_set_in_prop_context :
+  forall C:Prop, ((forall P:Prop, {P} + {~ P}) -> C) -> C.
 Proof.
-intro HnotEM.
+intros C HnotEM.
 set (R := fun A b => A /\ true = b \/ ~ A /\ false = b).
 assert (H :  exists f : Prop -> bool, (forall A:Prop, R A (f A))).
 apply unique_choice.
@@ -80,4 +82,12 @@ destruct (f P).
     discriminate.
     assumption.
 Qed.
- 
+
+Corollary not_not_classic_set :
+  ((forall P:Prop, {P} + {~ P}) -> False) -> False.
+Proof.
+apply classic_set_in_prop_context.
+Qed.
+
+(* Compatibility *)
+Notation classic_set := not_not_classic_set (only parsing).

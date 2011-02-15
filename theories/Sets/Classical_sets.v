@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -24,7 +24,7 @@
 (* in Summer 1995. Several developments by E. Ledinot were an inspiration.  *)
 (****************************************************************************)
 
-(*i $Id: Classical_sets.v 9245 2006-10-17 12:53:34Z notin $ i*)
+(*i $Id: Classical_sets.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Ensembles.
 Require Export Constructive_sets.
@@ -56,7 +56,7 @@ Section Ensembles_classical.
     forall X Y:Ensemble U,
       Included U X Y -> ~ Included U Y X -> Inhabited U (Setminus U Y X).
   Proof.
-    intros X Y I NI. 
+    intros X Y I NI.
     elim (not_all_ex_not U (fun x:U => In U Y x -> In U X x) NI).
     intros x YX.
     apply Inhabited_intro with x.
@@ -78,7 +78,7 @@ Section Ensembles_classical.
     unfold Subtract at 1 in |- *; auto with sets.
   Qed.
   Hint Resolve Subtract_intro : sets.
-  
+
   Lemma Subtract_inv :
     forall (A:Ensemble U) (x y:U), In U (Subtract U A x) y -> In U A y /\ x <> y.
   Proof.

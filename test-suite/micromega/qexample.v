@@ -10,7 +10,7 @@ Require Import Psatz.
 Require Import QArith.
 Require Import Ring_normalize.
 
-Lemma plus_minus : forall x y, 
+Lemma plus_minus : forall x y,
   0 == x + y -> 0 ==  x -y -> 0 == x /\ 0 == y.
 Proof.
   intros.
@@ -37,7 +37,7 @@ Qed.
 Open Scope Z_scope.
 Open Scope Q_scope.
 
-Lemma vcgen_25 : forall   
+Lemma vcgen_25 : forall
   (n : Q)
   (m : Q)
   (jt : Q)
@@ -67,12 +67,12 @@ Qed.
 Goal forall x, -x^2 >= 0 -> x - 1 >= 0 -> False.
 Proof.
   intros.
-  psatz Q 2.
+  psatz Q 3.
 Qed.
 
 Lemma motzkin' : forall x y, (x^2+y^2+1)*(x^2*y^4 + x^4*y^2 + 1 - (3 # 1) *x^2*y^2) >= 0.
 Proof.
-  intros ; psatz Q.
+  intros ; psatz Q 3.
 Qed.
 
 

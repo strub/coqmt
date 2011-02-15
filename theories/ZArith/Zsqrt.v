@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: Zsqrt.v 10295 2007-11-06 22:46:21Z letouzey $ *)
+(* $Id: Zsqrt.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 Require Import ZArithRing.
 Require Import Omega.
@@ -119,7 +119,7 @@ Definition Zsqrt :
 	| Zneg p =>
           fun h =>
             False_rec
-            {s : Z & 
+            {s : Z &
               {r : Z |
 		Zneg p = s * s + r /\ s * s <= Zneg p < (s + 1) * (s + 1)}}
             (h (refl_equal Datatypes.Gt))
@@ -199,7 +199,7 @@ Qed.
 Theorem Zsqrt_le:
  forall p q, 0 <= p <= q  ->  Zsqrt_plain p <= Zsqrt_plain q.
 Proof.
-  intros p q [H1 H2]; case Zle_lt_or_eq with (1:=H2); clear H2; intros H2; 
+  intros p q [H1 H2]; case Zle_lt_or_eq with (1:=H2); clear H2; intros H2;
   [ | subst q; auto with zarith].
   case (Zle_or_lt (Zsqrt_plain p) (Zsqrt_plain q)); auto; intros H3.
   assert (Hp: (0 <= Zsqrt_plain q)).

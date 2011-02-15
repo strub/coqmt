@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: BinNat.v 11735 2009-01-02 17:22:31Z herbelin $ i*)
+(*i $Id: BinNat.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import BinPos.
 Unset Boxed Definitions.
@@ -45,7 +45,7 @@ Definition Ndouble_plus_one x :=
 
 (** Operation x -> 2*x *)
 
-Definition Ndouble n := 
+Definition Ndouble n :=
   match n with
   | N0 => N0
   | Npos p => Npos (xO p)
@@ -106,6 +106,15 @@ Definition Nmult n m :=
 
 Infix "*" := Nmult : N_scope.
 
+(** Boolean Equality *)
+
+Definition Neqb n m :=
+ match n, m with
+  | N0, N0 => true
+  | Npos n, Npos m => Peqb n m
+  | _,_ => false
+ end.
+
 (** Order *)
 
 Definition Ncompare n m :=
@@ -130,15 +139,23 @@ Infix ">" := Ngt : N_scope.
 
 (** Min and max *)
 
-Definition Nmin (n n' : N) := match Ncompare n n' with 
+Definition Nmin (n n' : N) := match Ncompare n n' with
  | Lt | Eq => n
  | Gt => n'
  end.
 
-Definition Nmax (n n' : N) := match Ncompare n n' with 
+Definition Nmax (n n' : N) := match Ncompare n n' with
  | Lt | Eq => n'
  | Gt => n
  end.
+
+(** Decidability of equality. *)
+
+Definition N_eq_dec : forall n m : N, { n = m } + { n <> m }.
+Proof.
+ decide equality.
+ apply positive_eq_dec.
+Defined.
 
 (** convenient induction principles *)
 
@@ -149,7 +166,7 @@ Lemma N_ind_double :
    (forall a, P a -> P (Ndouble_plus_one a)) -> P a.
 Proof.
   intros; elim a. trivial.
-  simple induction p. intros. 
+  simple induction p. intros.
   apply (H1 (Npos p0)); trivial.
   intros; apply (H0 (Npos p0)); trivial.
   intros; apply (H1 N0); assumption.
@@ -162,7 +179,7 @@ Lemma N_rec_double :
    (forall a, P a -> P (Ndouble_plus_one a)) -> P a.
 Proof.
   intros; elim a. trivial.
-  simple induction p. intros. 
+  simple induction p. intros.
   apply (H1 (Npos p0)); trivial.
   intros; apply (H0 (Npos p0)); trivial.
   intros; apply (H1 N0); assumption.
@@ -354,7 +371,16 @@ destruct p; intros Hp H.
 contradiction Hp; reflexivity.
 destruct n; destruct m; reflexivity || (try discriminate H).
 injection H; clear H; intro H; rewrite Pmult_reg_r with (1 := H); reflexivity.
-Qed. 
+Qed.
+
+(** Properties of boolean order. *)
+
+Lemma Neqb_eq : forall n m, Neqb n m = true <-> n=m.
+Proof.
+destruct n as [|n], m as [|m]; simpl; split; auto; try discriminate.
+intros; f_equal. apply (Peqb_eq n m); auto.
+intros. apply (Peqb_eq n m). congruence.
+Qed.
 
 (** Properties of comparison *)
 
@@ -373,7 +399,7 @@ Qed.
 
 Theorem Ncompare_eq_correct : forall n m:N, (n ?= m) = Eq <-> n = m.
 Proof.
-split; intros; 
+split; intros;
  [ apply Ncompare_Eq_eq; auto | subst; apply Ncompare_refl ].
 Qed.
 
@@ -383,9 +409,28 @@ destruct n; destruct m; simpl; auto.
 exact (Pcompare_antisym p p0 Eq).
 Qed.
 
+Lemma Ngt_Nlt : forall n m, n > m -> m < n.
+Proof.
+unfold Ngt, Nlt; intros n m GT.
+rewrite <- Ncompare_antisym, GT; reflexivity.
+Qed.
+
 Theorem Nlt_irrefl : forall n : N, ~ n < n.
 Proof.
 intro n; unfold Nlt; now rewrite Ncompare_refl.
+Qed.
+
+Theorem Nlt_trans : forall n m q, n < m -> m < q -> n < q.
+Proof.
+destruct n;
+ destruct m; try discriminate;
+ destruct q; try discriminate; auto.
+eapply Plt_trans; eauto.
+Qed.
+
+Theorem Nlt_not_eq : forall n m, n < m -> ~ n = m.
+Proof.
+ intros n m LT EQ. subst m. elim (Nlt_irrefl n); auto.
 Qed.
 
 Theorem Ncompare_n_Sm :
@@ -398,6 +443,21 @@ assert (p = q <-> Npos p = Npos q); [split; congruence | tauto].
 intros H; destruct H; discriminate.
 pose proof (Pcompare_p_Sq p q) as (_,?);
 assert (p = q <-> Npos p = Npos q); [split; congruence | tauto].
+Qed.
+
+Lemma Nle_lteq : forall x y, x <= y <-> x < y \/ x=y.
+Proof.
+unfold Nle, Nlt; intros.
+generalize (Ncompare_eq_correct x y).
+destruct (x ?= y); intuition; discriminate.
+Qed.
+
+Lemma Ncompare_spec : forall x y, CompSpec eq Nlt x y (Ncompare x y).
+Proof.
+intros.
+destruct (Ncompare x y) as [ ]_eqn; constructor; auto.
+apply Ncompare_Eq_eq; auto.
+apply Ngt_Nlt; auto.
 Qed.
 
 (** 0 is the least natural number *)

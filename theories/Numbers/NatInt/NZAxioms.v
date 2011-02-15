@@ -1,99 +1,119 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
-(*                      Evgeny Makarov, INRIA, 2007                     *)
-(************************************************************************)
 
-(*i $Id: NZAxioms.v 11040 2008-06-03 00:04:16Z letouzey $ i*)
+(** Initial Author : Evgeny Makarov, INRIA, 2007 *)
 
-Require Export NumPrelude.
+(*i $Id: NZAxioms.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-Module Type NZAxiomsSig.
+Require Export Equalities Orders NumPrelude GenericMinMax.
 
-Parameter Inline NZ : Type.
-Parameter Inline NZeq : NZ -> NZ -> Prop.
-Parameter Inline NZ0 : NZ.
-Parameter Inline NZsucc : NZ -> NZ.
-Parameter Inline NZpred : NZ -> NZ.
-Parameter Inline NZadd : NZ -> NZ -> NZ.
-Parameter Inline NZsub : NZ -> NZ -> NZ.
-Parameter Inline NZmul : NZ -> NZ -> NZ.
+(** Axiomatization of a domain with zero, successor, predecessor,
+    and a bi-directional induction principle. We require [P (S n) = n]
+    but not the other way around, since this domain is meant
+    to be either N or Z. In fact it can be a few other things,
+    for instance [Z/nZ] (See file [NZDomain] for a study of that).
+*)
 
-(* Unary subtraction (opp) is not defined on natural numbers, so we have 
-   it for integers only *)
+Module Type ZeroSuccPred (Import T:Typ).
+ Parameter Inline zero : t.
+ Parameters Inline succ pred : t -> t.
+End ZeroSuccPred.
 
-Axiom NZeq_equiv : equiv NZ NZeq.
-Add Relation NZ NZeq
- reflexivity proved by (proj1 NZeq_equiv)
- symmetry proved by (proj2 (proj2 NZeq_equiv))
- transitivity proved by (proj1 (proj2 NZeq_equiv))
-as NZeq_rel.
+Module Type ZeroSuccPredNotation (T:Typ)(Import NZ:ZeroSuccPred T).
+ Notation "0" := zero.
+ Notation S := succ.
+ Notation P := pred.
+ Notation "1" := (S 0).
+ Notation "2" := (S 1).
+End ZeroSuccPredNotation.
 
-Add Morphism NZsucc with signature NZeq ==> NZeq as NZsucc_wd.
-Add Morphism NZpred with signature NZeq ==> NZeq as NZpred_wd.
-Add Morphism NZadd with signature NZeq ==> NZeq ==> NZeq as NZadd_wd.
-Add Morphism NZsub with signature NZeq ==> NZeq ==> NZeq as NZsub_wd.
-Add Morphism NZmul with signature NZeq ==> NZeq ==> NZeq as NZmul_wd.
+Module Type ZeroSuccPred' (T:Typ) :=
+ ZeroSuccPred T <+ ZeroSuccPredNotation T.
 
-Delimit Scope NatIntScope with NatInt.
-Open Local Scope NatIntScope.
-Notation "x == y"  := (NZeq x y) (at level 70) : NatIntScope.
-Notation "x ~= y" := (~ NZeq x y) (at level 70) : NatIntScope.
-Notation "0" := NZ0 : NatIntScope.
-Notation S := NZsucc.
-Notation P := NZpred.
-Notation "1" := (S 0) : NatIntScope.
-Notation "x + y" := (NZadd x y) : NatIntScope.
-Notation "x - y" := (NZsub x y) : NatIntScope.
-Notation "x * y" := (NZmul x y) : NatIntScope.
+Module Type IsNZDomain (Import E:Eq')(Import NZ:ZeroSuccPred' E).
+ Declare Instance succ_wd : Proper (eq ==> eq) S.
+ Declare Instance pred_wd : Proper (eq ==> eq) P.
+ Axiom pred_succ : forall n, P (S n) == n.
+ Axiom bi_induction :
+  forall A : t -> Prop, Proper (eq==>iff) A ->
+    A 0 -> (forall n, A n <-> A (S n)) -> forall n, A n.
+End IsNZDomain.
 
-Axiom NZpred_succ : forall n : NZ, P (S n) == n.
+Module Type NZDomainSig := EqualityType <+ ZeroSuccPred <+ IsNZDomain.
+Module Type NZDomainSig' := EqualityType' <+ ZeroSuccPred' <+ IsNZDomain.
 
-Axiom NZinduction :
-  forall A : NZ -> Prop, predicate_wd NZeq A ->
-    A 0 -> (forall n : NZ, A n <-> A (S n)) -> forall n : NZ, A n.
 
-Axiom NZadd_0_l : forall n : NZ, 0 + n == n.
-Axiom NZadd_succ_l : forall n m : NZ, (S n) + m == S (n + m).
+(** Axiomatization of basic operations : [+] [-] [*] *)
 
-Axiom NZsub_0_r : forall n : NZ, n - 0 == n.
-Axiom NZsub_succ_r : forall n m : NZ, n - (S m) == P (n - m).
+Module Type AddSubMul (Import T:Typ).
+ Parameters Inline add sub mul : t -> t -> t.
+End AddSubMul.
 
-Axiom NZmul_0_l : forall n : NZ, 0 * n == 0.
-Axiom NZmul_succ_l : forall n m : NZ, S n * m == n * m + m.
+Module Type AddSubMulNotation (T:Typ)(Import NZ:AddSubMul T).
+ Notation "x + y" := (add x y).
+ Notation "x - y" := (sub x y).
+ Notation "x * y" := (mul x y).
+End AddSubMulNotation.
 
-End NZAxiomsSig.
+Module Type AddSubMul' (T:Typ) := AddSubMul T <+ AddSubMulNotation T.
 
-Module Type NZOrdAxiomsSig.
-Declare Module Export NZAxiomsMod : NZAxiomsSig.
-Open Local Scope NatIntScope.
+Module Type IsAddSubMul (Import E:NZDomainSig')(Import NZ:AddSubMul' E).
+ Declare Instance add_wd : Proper (eq ==> eq ==> eq) add.
+ Declare Instance sub_wd : Proper (eq ==> eq ==> eq) sub.
+ Declare Instance mul_wd : Proper (eq ==> eq ==> eq) mul.
+ Axiom add_0_l : forall n, 0 + n == n.
+ Axiom add_succ_l : forall n m, (S n) + m == S (n + m).
+ Axiom sub_0_r : forall n, n - 0 == n.
+ Axiom sub_succ_r : forall n m, n - (S m) == P (n - m).
+ Axiom mul_0_l : forall n, 0 * n == 0.
+ Axiom mul_succ_l : forall n m, S n * m == n * m + m.
+End IsAddSubMul.
 
-Parameter Inline NZlt : NZ -> NZ -> Prop.
-Parameter Inline NZle : NZ -> NZ -> Prop.
-Parameter Inline NZmin : NZ -> NZ -> NZ.
-Parameter Inline NZmax : NZ -> NZ -> NZ.
+Module Type NZBasicFunsSig := NZDomainSig <+ AddSubMul <+ IsAddSubMul.
+Module Type NZBasicFunsSig' := NZDomainSig' <+ AddSubMul' <+IsAddSubMul.
 
-Add Morphism NZlt with signature NZeq ==> NZeq ==> iff as NZlt_wd.
-Add Morphism NZle with signature NZeq ==> NZeq ==> iff as NZle_wd.
-Add Morphism NZmin with signature NZeq ==> NZeq ==> NZeq as NZmin_wd.
-Add Morphism NZmax with signature NZeq ==> NZeq ==> NZeq as NZmax_wd.
+(** Old name for the same interface: *)
 
-Notation "x < y" := (NZlt x y) : NatIntScope.
-Notation "x <= y" := (NZle x y) : NatIntScope.
-Notation "x > y" := (NZlt y x) (only parsing) : NatIntScope.
-Notation "x >= y" := (NZle y x) (only parsing) : NatIntScope.
+Module Type NZAxiomsSig := NZBasicFunsSig.
+Module Type NZAxiomsSig' := NZBasicFunsSig'.
 
-Axiom NZlt_eq_cases : forall n m : NZ, n <= m <-> n < m \/ n == m.
-Axiom NZlt_irrefl : forall n : NZ, ~ (n < n).
-Axiom NZlt_succ_r : forall n m : NZ, n < S m <-> n <= m.
+(** Axiomatization of order *)
 
-Axiom NZmin_l : forall n m : NZ, n <= m -> NZmin n m == n.
-Axiom NZmin_r : forall n m : NZ, m <= n -> NZmin n m == m.
-Axiom NZmax_l : forall n m : NZ, m <= n -> NZmax n m == n.
-Axiom NZmax_r : forall n m : NZ, n <= m -> NZmax n m == m.
+Module Type NZOrd := NZDomainSig <+ HasLt <+ HasLe.
+Module Type NZOrd' := NZDomainSig' <+ HasLt <+ HasLe <+
+                      LtNotation <+ LeNotation <+ LtLeNotation.
 
-End NZOrdAxiomsSig.
+Module Type IsNZOrd (Import NZ : NZOrd').
+ Declare Instance lt_wd : Proper (eq ==> eq ==> iff) lt.
+ Axiom lt_eq_cases : forall n m, n <= m <-> n < m \/ n == m.
+ Axiom lt_irrefl : forall n, ~ (n < n).
+ Axiom lt_succ_r : forall n m, n < S m <-> n <= m.
+End IsNZOrd.
+
+(** NB: the compatibility of [le] can be proved later from [lt_wd]
+    and [lt_eq_cases] *)
+
+Module Type NZOrdSig := NZOrd <+ IsNZOrd.
+Module Type NZOrdSig' := NZOrd' <+ IsNZOrd.
+
+(** Everything together : *)
+
+Module Type NZOrdAxiomsSig <: NZBasicFunsSig <: NZOrdSig
+ := NZOrdSig <+ AddSubMul <+ IsAddSubMul <+ HasMinMax.
+Module Type NZOrdAxiomsSig' <: NZOrdAxiomsSig
+ := NZOrdSig' <+ AddSubMul' <+ IsAddSubMul <+ HasMinMax.
+
+
+(** Same, plus a comparison function. *)
+
+Module Type NZDecOrdSig := NZOrdSig <+ HasCompare.
+Module Type NZDecOrdSig' := NZOrdSig' <+ HasCompare.
+
+Module Type NZDecOrdAxiomsSig := NZOrdAxiomsSig <+ HasCompare.
+Module Type NZDecOrdAxiomsSig' := NZOrdAxiomsSig' <+ HasCompare.
+

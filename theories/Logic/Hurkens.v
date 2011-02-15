@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -19,7 +19,7 @@
       and Applications (TLCA'95), 1995.
 
     - [Geuvers] "Inconsistency of Classical Logic in Type Theory", 2001
-      (see www.cs.kun.nl/~herman/note.ps.gz).
+      (see http://www.cs.kun.nl/~herman/note.ps.gz).
 *)
 
 Section Paradox.

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -122,7 +122,7 @@ Qed.
 
 Hint Resolve Qceiling_resp_le : qarith.
 
-Add Morphism Qfloor with signature Qeq ==> @eq _ as Qfloor_comp.
+Add Morphism Qfloor with signature Qeq ==> eq as Qfloor_comp.
 Proof.
 intros x y H.
 apply Zle_antisym.
@@ -130,7 +130,7 @@ apply Zle_antisym.
 symmetry in H; auto with *.
 Qed.
 
-Add Morphism Qceiling with signature Qeq ==> @eq _ as Qceiling_comp.
+Add Morphism Qceiling with signature Qeq ==> eq as Qceiling_comp.
 Proof.
 intros x y H.
 apply Zle_antisym.

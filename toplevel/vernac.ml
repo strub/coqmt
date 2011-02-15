@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: vernac.ml 11801 2009-01-18 20:11:41Z herbelin $ *)
+(* $Id: vernac.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (* Parsing of vernacular. *)
 
@@ -25,6 +25,8 @@ open Ppvernac
 
 exception DuringCommandInterp of Util.loc * exn
 
+exception HasNotFailed
+
 (* Specifies which file is read. The intermediate file names are
    discarded here. The Drop exception becomes an error. We forget
    if the error ocurred during interpretation or not *)
@@ -33,8 +35,8 @@ let raise_with_file file exc =
   let (cmdloc,re) =
     match exc with
       | DuringCommandInterp(loc,e)
-      | Stdpp.Exc_located (loc,DuringSyntaxChecking e) -> (loc,e)
-      | e -> (dummy_loc,e) 
+      | DuringSyntaxChecking(loc,e) -> (loc,e)
+      | e -> (dummy_loc,e)
   in
   let (inner,inex) =
     match re with
@@ -42,14 +44,16 @@ let raise_with_file file exc =
           ((b, f, loc), e)
       | Stdpp.Exc_located (loc, e) when loc <> dummy_loc ->
           ((false,file, loc), e)
-      | _ -> ((false,file,cmdloc), re)
-  in 
+      | Stdpp.Exc_located (_, e) | e -> ((false,file,cmdloc), e)
+  in
   raise (Error_in_file (file, inner, disable_drop inex))
 
 let real_error = function
   | Stdpp.Exc_located (_, e) -> e
   | Error_in_file (_, _, e) -> e
   | e -> e
+
+let timeout_handler _ = raise Timeout
 
 (* Opening and closing a channel. Open it twice when verbose: the first
    channel is used to read the commands, and the second one to print them.
@@ -66,7 +70,7 @@ let open_file_twice_if verbosely fname =
   (in_chan, longfname, (po, verb_ch))
 
 let close_input in_chan (_,verb) =
-  try 
+  try
     close_in in_chan;
     match verb with
       | Some verb_ch -> close_in verb_ch
@@ -86,7 +90,7 @@ let verbose_phrase verbch loc =
     | _ -> ()
 
 exception End_of_input
-  
+
 let parse_phrase (po, verbch) =
   match Pcoq.Gram.Entry.parse Pcoq.main_entry po with
     | Some (loc,_ as com) -> verbose_phrase verbch loc; com
@@ -131,7 +135,7 @@ let rec vernac_com interpfun (loc,com) =
         (* end translator state *)
         (* coqdoc state *)
         let cds = Dumpglob.coqdoc_freeze() in
-          if !Flags.beautify_file then 
+          if !Flags.beautify_file then
 	    begin
               let _,f = find_file_in_path ~warn:(Flags.is_verbose())
 		(Library.get_load_paths ())
@@ -139,7 +143,7 @@ let rec vernac_com interpfun (loc,com) =
 		chan_beautify := open_out (f^beautify_suffix);
 		Pp.comments := []
             end;
-          begin 
+          begin
 	    try
 	      read_vernac_file verbosely (make_suffix fname ".v");
               if !Flags.beautify_file then close_out !chan_beautify;
@@ -147,7 +151,7 @@ let rec vernac_com interpfun (loc,com) =
               Lexer.restore_com_state cs;
               Pp.comments := cl;
               Dumpglob.coqdoc_unfreeze cds
-	    with e -> 
+	    with e ->
 	      if !Flags.beautify_file then close_out !chan_beautify;
               chan_beautify := ch;
               Lexer.restore_com_state cs;
@@ -155,23 +159,55 @@ let rec vernac_com interpfun (loc,com) =
               Dumpglob.coqdoc_unfreeze cds;
 	      raise e
 	  end
-	      
+
     | VernacList l -> List.iter (fun (_,v) -> interp v) l
 
+    | VernacFail v ->
+	if not !just_parsing then begin try
+	  interp v; raise HasNotFailed
+	with e -> match real_error e with
+	  | HasNotFailed ->
+	      errorlabstrm "Fail" (str "The command has not failed !")
+	  | e ->
+	      (* if [e] is an anomaly, the next function will re-raise it *)
+	      let msg = Cerrors.explain_exn_no_anomaly e in
+	      if_verbose msgnl (str "The command has indeed failed with message:" ++
+		     fnl () ++ str "=> " ++ hov 0 msg)
+	end
+
     | VernacTime v ->
-	let tstart = System.get_time() in
-        if not !just_parsing then interp v;
-	let tend = System.get_time() in
-        msgnl (str"Finished transaction in " ++
-                 System.fmt_time_difference tstart tend)
+	if not !just_parsing then begin
+	  let tstart = System.get_time() in
+          interp v;
+	  let tend = System.get_time() in
+          msgnl (str"Finished transaction in " ++
+                   System.fmt_time_difference tstart tend)
+	end
 
-    | v -> if not !just_parsing then interpfun v
+    | VernacTimeout(n,v) ->
+	if not !just_parsing then begin
+	  let psh =
+	    Sys.signal Sys.sigalrm (Sys.Signal_handle timeout_handler) in
+	  ignore (Unix.alarm n);
+	  let stop() =
+	    (* stop alarm *)
+	    ignore(Unix.alarm 0);
+	    (* restore handler *)
+	    Sys.set_signal Sys.sigalrm psh in
+	  try interp v; stop()
+	  with e -> stop(); raise e
+	end
 
-  in 
+    | v ->
+        if not !just_parsing then
+          States.with_heavy_rollback interpfun
+            Cerrors.process_vernac_interp_error v
+
+  in
     try
       if do_beautify () then pr_new_syntax loc (Some com);
       interp com
-    with e -> 
+    with e ->
       Format.set_formatter_out_channel stdout;
       raise (DuringCommandInterp (loc, e))
 
@@ -181,10 +217,10 @@ and vernac interpfun input =
 and read_vernac_file verbosely s =
   Flags.make_warn verbosely;
   let interpfun =
-    if verbosely then 
+    if verbosely then
       Vernacentries.interp
-    else 
-      Flags.silently Vernacentries.interp 
+    else
+      Flags.silently Vernacentries.interp
   in
   let (in_chan, fname, input) = open_file_twice_if verbosely s in
   try
@@ -206,7 +242,7 @@ and read_vernac_file verbosely s =
  * backtracking. *)
 
 let raw_do_vernac po =
-  vernac (States.with_heavy_rollback Vernacentries.interp) (po,None);
+  vernac Vernacentries.interp (po,None);
   Lib.add_frozen_state();
   Lib.mark_end_of_command()
 
@@ -221,17 +257,17 @@ let set_xml_end_library f = xml_end_library := f
 let load_vernac verb file =
   chan_beautify :=
     if !Flags.beautify_file then open_out (file^beautify_suffix) else stdout;
-  try 
+  try
     read_vernac_file verb file;
     if !Flags.beautify_file then close_out !chan_beautify;
-  with e -> 
+  with e ->
     if !Flags.beautify_file then close_out !chan_beautify;
     raise_with_file file e
 
 (* Compile a vernac file (f is assumed without .v suffix) *)
 let compile verbosely f =
   let ldir,long_f_dot_v = Flags.verbosely Library.start_library f in
-    if Dumpglob.multi_dump () then 
+    if Dumpglob.multi_dump () then
       Dumpglob.open_glob_file (f ^ ".glob");
     Dumpglob.dump_string ("F" ^ Names.string_of_dirpath ldir ^ "\n");
     if !Flags.xml_export then !xml_start_library ();
@@ -241,4 +277,5 @@ let compile verbosely f =
       if !Flags.xml_export then !xml_end_library ();
       if Dumpglob.multi_dump () then Dumpglob.close_glob_file ();
       Library.save_library_to ldir (long_f_dot_v ^ "o")
+
 

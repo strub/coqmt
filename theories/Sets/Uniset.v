@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Uniset.v 5920 2004-07-16 20:01:26Z herbelin $ i*)
+(*i $Id: Uniset.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Sets as characteristic functions *)
 
@@ -90,10 +90,10 @@ Qed.
 Definition union (m1 m2:uniset) :=
   Charac (fun a:A => orb (charac m1 a) (charac m2 a)).
 
-Lemma union_empty_left : forall x:uniset, seq x (union Emptyset x).  
-Proof.  
-unfold seq in |- *; unfold union in |- *; simpl in |- *; auto.  
-Qed. 
+Lemma union_empty_left : forall x:uniset, seq x (union Emptyset x).
+Proof.
+unfold seq in |- *; unfold union in |- *; simpl in |- *; auto.
+Qed.
 Hint Resolve union_empty_left.
 
 Lemma union_empty_right : forall x:uniset, seq x (union x Emptyset).
@@ -203,7 +203,7 @@ apply uniset_twist2.
 Qed.
 
 
-(*i theory of minter to do similarly 
+(*i theory of minter to do similarly
 Require Min.
 (* uniset intersection *)
 Definition minter := [m1,m2:uniset]

@@ -1,44 +1,33 @@
-(* -*- coq-prog-args: ("-emacs-U" "-top" "Coq.Classes.SetoidTactics") -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* Tactics for typeclass-based setoids.
- *
- * Author: Matthieu Sozeau
- * Institution: LRI, CNRS UMR 8623 - UniversitÃcopyright Paris Sud
- *              91405 Orsay, France *)
+(** * Tactics for typeclass-based setoids.
 
-(* $Id: SetoidTactics.v 12187 2009-06-13 19:36:59Z msozeau $ *)
+   Author: Matthieu Sozeau
+   Institution: LRI, CNRS UMR 8623 - University Paris Sud
+*)
+
+(* $Id: SetoidTactics.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 Require Import Coq.Classes.Morphisms Coq.Classes.Morphisms_Prop.
 Require Export Coq.Classes.RelationClasses Coq.Relations.Relation_Definitions.
 Require Import Coq.Classes.Equivalence Coq.Program.Basics.
 
-Export MorphismNotations.
+Generalizable Variables A R.
+
+Export ProperNotations.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-(** Setoid relation on a given support: declares a relation as a setoid
-   for use with rewrite. It helps choosing if a rewrite should be handled
-   by setoid_rewrite or the regular rewrite using leibniz equality.
-   Users can declare an [SetoidRelation A RA] anywhere to declare default 
-   relations. This is also done automatically by the [Declare Relation A RA]
-   commands. *)
-
-Class SetoidRelation A (R : relation A).
-
-Instance impl_setoid_relation : SetoidRelation impl.
-Instance iff_setoid_relation : SetoidRelation iff.
-
 (** Default relation on a given support. Can be used by tactics
-   to find a sensible default relation on any carrier. Users can 
-   declare an [Instance def : DefaultRelation A RA] anywhere to 
+   to find a sensible default relation on any carrier. Users can
+   declare an [Instance def : DefaultRelation A RA] anywhere to
    declare default relations. *)
 
 Class DefaultRelation A (R : relation A).
@@ -47,12 +36,13 @@ Class DefaultRelation A (R : relation A).
 
 Definition default_relation `{DefaultRelation A R} := R.
 
-(** Every [Equivalence] gives a default relation, if no other is given (lowest priority). *)
+(** Every [Equivalence] gives a default relation, if no other is given
+  (lowest priority). *)
 
 Instance equivalence_default `(Equivalence A R) : DefaultRelation R | 4.
 
-(** The setoid_replace tactics in Ltac, defined in terms of default relations and
-   the setoid_rewrite tactic. *)
+(** The setoid_replace tactics in Ltac, defined in terms of default relations
+  and the setoid_rewrite tactic. *)
 
 Ltac setoidreplace H t :=
   let Heq := fresh "Heq" in
@@ -73,86 +63,88 @@ Ltac setoidreplaceat H t occs :=
 Tactic Notation "setoid_replace" constr(x) "with" constr(y) :=
   setoidreplace (default_relation x y) idtac.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "at" int_or_var_list(o) :=
   setoidreplaceat (default_relation x y) idtac o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "in" hyp(id) :=
   setoidreplacein (default_relation x y) id idtac.
 
 Tactic Notation "setoid_replace" constr(x) "with" constr(y)
-  "in" hyp(id) 
+  "in" hyp(id)
   "at" int_or_var_list(o) :=
   setoidreplaceinat (default_relation x y) id idtac o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "by" tactic3(t) :=
   setoidreplace (default_relation x y) ltac:t.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "at" int_or_var_list(o) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "at" int_or_var_list(o)
   "by" tactic3(t) :=
   setoidreplaceat (default_relation x y) ltac:t o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "in" hyp(id) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "in" hyp(id)
   "by" tactic3(t) :=
   setoidreplacein (default_relation x y) id ltac:t.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "in" hyp(id) 
-  "at" int_or_var_list(o) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "in" hyp(id)
+  "at" int_or_var_list(o)
   "by" tactic3(t) :=
   setoidreplaceinat (default_relation x y) id ltac:t o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "using" "relation" constr(rel) :=
   setoidreplace (rel x y) idtac.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "using" "relation" constr(rel)
   "at" int_or_var_list(o) :=
   setoidreplaceat (rel x y) idtac o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "using" "relation" constr(rel) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "using" "relation" constr(rel)
   "by" tactic3(t) :=
   setoidreplace (rel x y) ltac:t.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "using" "relation" constr(rel) 
-  "at" int_or_var_list(o)  
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "using" "relation" constr(rel)
+  "at" int_or_var_list(o)
   "by" tactic3(t) :=
   setoidreplaceat (rel x y) ltac:t o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "using" "relation" constr(rel)
   "in" hyp(id) :=
   setoidreplacein (rel x y) id idtac.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "using" "relation" constr(rel)
-  "in" hyp(id) 
+  "in" hyp(id)
   "at" int_or_var_list(o) :=
   setoidreplaceinat (rel x y) id idtac o.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
   "using" "relation" constr(rel)
   "in" hyp(id)
   "by" tactic3(t) :=
   setoidreplacein (rel x y) id ltac:t.
 
-Tactic Notation "setoid_replace" constr(x) "with" constr(y) 
-  "using" "relation" constr(rel) 
+Tactic Notation "setoid_replace" constr(x) "with" constr(y)
+  "using" "relation" constr(rel)
   "in" hyp(id)
-  "at" int_or_var_list(o)  
+  "at" int_or_var_list(o)
   "by" tactic3(t) :=
   setoidreplaceinat (rel x y) id ltac:t o.
 
-(** The [add_morphism_tactic] tactic is run at each [Add Morphism] command before giving the hand back
-   to the user to discharge the proof. It essentially amounts to unfold the right amount of [respectful] calls
-   and substitute leibniz equalities. One can redefine it using [Ltac add_morphism_tactic ::= t]. *)
+(** The [add_morphism_tactic] tactic is run at each [Add Morphism]
+   command before giving the hand back to the user to discharge the
+   proof. It essentially amounts to unfold the right amount of
+   [respectful] calls and substitute leibniz equalities. One can
+   redefine it using [Ltac add_morphism_tactic ::= t]. *)
 
 Require Import Coq.Program.Tactics.
 
@@ -165,9 +157,9 @@ Ltac red_subst_eq_morphism concl :=
     | _ => idtac
   end.
 
-Ltac destruct_morphism :=
+Ltac destruct_proper :=
   match goal with
-    | [ |- @Morphism ?A ?R ?m ] => red
+    | [ |- @Proper ?A ?R ?m ] => red
   end.
 
 Ltac reverse_arrows x :=
@@ -179,11 +171,13 @@ Ltac reverse_arrows x :=
 
 Ltac default_add_morphism_tactic :=
   unfold flip ; intros ;
-  (try destruct_morphism) ;
+  (try destruct_proper) ;
   match goal with
     | [ |- (?x ==> ?y) _ _ ] => red_subst_eq_morphism (x ==> y) ; reverse_arrows (x ==> y)
   end.
 
 Ltac add_morphism_tactic := default_add_morphism_tactic.
 
-Ltac obligation_tactic ::= program_simpl.
+Obligation Tactic := program_simpl.
+
+(* Notation "'Morphism' s t " := (@Proper _ (s%signature) t) (at level 10, s at next level, t at next level). *)

@@ -6,7 +6,7 @@
 (*         *       GNU Lesser General Public License Version 2.1       *)
 (***********************************************************************)
 
-(* $Id: FSets.v 10699 2008-03-19 20:56:43Z letouzey $ *)
+(* $Id: FSets.v 13297 2010-07-19 23:32:42Z letouzey $ *)
 
 Require Export OrderedType.
 Require Export OrderedTypeEx.
@@ -21,4 +21,5 @@ Require Export FSetProperties.
 Require Export FSetEqProperties.
 Require Export FSetWeakList.
 Require Export FSetList.
+Require Export FSetPositive.
 Require Export FSetAVL.

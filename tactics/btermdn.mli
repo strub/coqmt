@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: btermdn.mli 11282 2008-07-28 11:51:53Z msozeau $ i*)
+(*i $Id: btermdn.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Term
@@ -15,15 +15,19 @@ open Names
 (*i*)
 
 (* Discrimination nets with bounded depth. *)
+module Make :
+  functor (Z : Map.OrderedType) ->
+sig
+  type t
 
-type 'a t
+  val create : unit ->  t
 
-val create : unit -> 'a t
+  val add : transparent_state option -> t -> (constr_pattern * Z.t) -> t
+  val rmv : transparent_state option -> t -> (constr_pattern * Z.t) -> t
 
-val add : transparent_state option -> 'a t -> (constr_pattern * 'a) -> 'a t
-val rmv : transparent_state option -> 'a t -> (constr_pattern * 'a) -> 'a t
-  
-val lookup : transparent_state option -> 'a t -> constr -> (constr_pattern * 'a) list
-val app : ((constr_pattern * 'a) -> unit) -> 'a t -> unit
-
+  val lookup : transparent_state option -> t -> constr -> (constr_pattern * Z.t) list
+  val app : ((constr_pattern * Z.t) -> unit) -> t -> unit
+end
+    
 val dnet_depth : int ref
+

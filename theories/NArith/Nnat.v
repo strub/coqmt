@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Nnat.v 10739 2008-04-01 14:45:20Z herbelin $ i*)
+(*i $Id: Nnat.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Arith_base.
 Require Import Compare_dec.
@@ -39,7 +39,7 @@ Definition N_of_nat (n:nat) :=
 Lemma N_of_nat_of_N : forall a:N, N_of_nat (nat_of_N a) = a.
 Proof.
   destruct a as [| p]. reflexivity.
-  simpl in |- *. elim (ZL4 p). intros n H. rewrite H. simpl in |- *. 
+  simpl in |- *. elim (ZL4 p). intros n H. rewrite H. simpl in |- *.
   rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ in H.
   rewrite nat_of_P_inj with (1 := H). reflexivity.
 Qed.
@@ -66,14 +66,14 @@ Proof.
   apply N_of_nat_of_N.
 Qed.
 
-Lemma nat_of_Ndouble_plus_one : 
+Lemma nat_of_Ndouble_plus_one :
   forall a, nat_of_N (Ndouble_plus_one a) = S (2*(nat_of_N a)).
 Proof.
   destruct a; simpl nat_of_N; auto.
   apply nat_of_P_xI.
 Qed.
 
-Lemma N_of_double_plus_one : 
+Lemma N_of_double_plus_one :
   forall n, N_of_nat (S (2*n)) = Ndouble_plus_one (N_of_nat n).
 Proof.
   intros.
@@ -97,14 +97,14 @@ Proof.
   apply N_of_nat_of_N.
 Qed.
 
-Lemma nat_of_Nplus : 
+Lemma nat_of_Nplus :
   forall a a', nat_of_N (Nplus a a') = (nat_of_N a)+(nat_of_N a').
 Proof.
   destruct a; destruct a'; simpl; auto.
   apply nat_of_P_plus_morphism.
 Qed.
 
-Lemma N_of_plus : 
+Lemma N_of_plus :
   forall n n', N_of_nat (n+n') = Nplus (N_of_nat n) (N_of_nat n').
 Proof.
   intros.
@@ -138,14 +138,14 @@ Proof.
   apply N_of_nat_of_N.
 Qed.
 
-Lemma nat_of_Nmult : 
+Lemma nat_of_Nmult :
   forall a a', nat_of_N (Nmult a a') = (nat_of_N a)*(nat_of_N a').
 Proof.
   destruct a; destruct a'; simpl; auto.
   apply nat_of_P_mult_morphism.
 Qed.
 
-Lemma N_of_mult : 
+Lemma N_of_mult :
   forall n n', N_of_nat (n*n') = Nmult (N_of_nat n) (N_of_nat n').
 Proof.
   intros.
@@ -155,7 +155,7 @@ Proof.
   apply N_of_nat_of_N.
 Qed.
 
-Lemma nat_of_Ndiv2 : 
+Lemma nat_of_Ndiv2 :
   forall a, nat_of_N (Ndiv2 a) = div2 (nat_of_N a).
 Proof.
   destruct a; simpl in *; auto.
@@ -164,9 +164,9 @@ Proof.
   rewrite div2_double_plus_one; auto.
   rewrite nat_of_P_xO.
   rewrite div2_double; auto.
-Qed.  
+Qed.
 
-Lemma N_of_div2 : 
+Lemma N_of_div2 :
   forall n, N_of_nat (div2 n) = Ndiv2 (N_of_nat n).
 Proof.
   intros.
@@ -175,29 +175,19 @@ Proof.
   apply N_of_nat_of_N.
 Qed.
 
-Lemma nat_of_Ncompare : 
+Lemma nat_of_Ncompare :
  forall a a', Ncompare a a' = nat_compare (nat_of_N a) (nat_of_N a').
 Proof.
   destruct a; destruct a'; simpl.
-  compute; auto.
-  generalize (lt_O_nat_of_P p).
-  unfold nat_compare.
-  destruct (lt_eq_lt_dec 0 (nat_of_P p)) as [[H|H]|H]; auto.
-  rewrite <- H; inversion 1.
-  intros; generalize (lt_trans _ _ _ H0 H); inversion 1.
-  generalize (lt_O_nat_of_P p).
-  unfold nat_compare.
-  destruct (lt_eq_lt_dec (nat_of_P p) 0) as [[H|H]|H]; auto.
-  intros; generalize (lt_trans _ _ _ H0 H); inversion 1.
-  rewrite H; inversion 1.
-  unfold nat_compare.
-  destruct (lt_eq_lt_dec (nat_of_P p) (nat_of_P p0)) as [[H|H]|H]; auto.
-  apply nat_of_P_lt_Lt_compare_complement_morphism; auto.
-  rewrite (nat_of_P_inj _ _ H); apply Pcompare_refl.
-  apply nat_of_P_gt_Gt_compare_complement_morphism; auto.
+  reflexivity.
+  assert (NZ : 0 < nat_of_P p) by auto using lt_O_nat_of_P.
+  destruct nat_of_P; [inversion NZ|auto].
+  assert (NZ : 0 < nat_of_P p) by auto using lt_O_nat_of_P.
+  destruct nat_of_P; [inversion NZ|auto].
+  apply nat_of_P_compare_morphism.
 Qed.
 
-Lemma N_of_nat_compare : 
+Lemma N_of_nat_compare :
  forall n n', nat_compare n n' = Ncompare (N_of_nat n) (N_of_nat n').
 Proof.
   intros.
@@ -210,8 +200,8 @@ Lemma nat_of_Nmin :
   forall a a', nat_of_N (Nmin a a') = min (nat_of_N a) (nat_of_N a').
 Proof.
   intros; unfold Nmin; rewrite nat_of_Ncompare.
-  unfold nat_compare.
-  destruct (lt_eq_lt_dec (nat_of_N a) (nat_of_N a')) as [[|]|]; 
+  rewrite nat_compare_equiv; unfold nat_compare_alt.
+  destruct (lt_eq_lt_dec (nat_of_N a) (nat_of_N a')) as [[|]|];
     simpl; intros; symmetry; auto with arith.
   apply min_l; rewrite e; auto with arith.
 Qed.
@@ -230,8 +220,8 @@ Lemma nat_of_Nmax :
   forall a a', nat_of_N (Nmax a a') = max (nat_of_N a) (nat_of_N a').
 Proof.
   intros; unfold Nmax; rewrite nat_of_Ncompare.
-  unfold nat_compare.
-  destruct (lt_eq_lt_dec (nat_of_N a) (nat_of_N a')) as [[|]|]; 
+  rewrite nat_compare_equiv; unfold nat_compare_alt.
+  destruct (lt_eq_lt_dec (nat_of_N a) (nat_of_N a')) as [[|]|];
     simpl; intros; symmetry; auto with arith.
   apply max_r; rewrite e; auto with arith.
 Qed.
@@ -331,17 +321,17 @@ Qed.
 Lemma Z_of_N_of_nat : forall n:nat, Z_of_N (N_of_nat n) = Z_of_nat n.
 Proof.
  destruct n; simpl; auto.
-Qed. 
+Qed.
 
 Lemma Z_of_N_pos : forall p:positive, Z_of_N (Npos p) = Zpos p.
 Proof.
  destruct p; simpl; auto.
-Qed. 
+Qed.
 
 Lemma Z_of_N_abs : forall z:Z, Z_of_N (Zabs_N z) = Zabs z.
 Proof.
  destruct z; simpl; auto.
-Qed. 
+Qed.
 
 Lemma Z_of_N_le_0 : forall n, (0 <= Z_of_N n)%Z.
 Proof.
@@ -358,22 +348,22 @@ Proof.
  destruct n; destruct m; auto.
 Qed.
 
-Lemma Z_of_N_minus : forall n m:N, Z_of_N (n-m) = Zmax 0 (Z_of_N n - Z_of_N m). 
+Lemma Z_of_N_minus : forall n m:N, Z_of_N (n-m) = Zmax 0 (Z_of_N n - Z_of_N m).
 Proof.
  intros; do 3 rewrite <- Z_of_nat_of_N; rewrite nat_of_Nminus; apply inj_minus.
 Qed.
 
-Lemma Z_of_N_succ : forall n:N, Z_of_N (Nsucc n) = Zsucc (Z_of_N n). 
+Lemma Z_of_N_succ : forall n:N, Z_of_N (Nsucc n) = Zsucc (Z_of_N n).
 Proof.
  intros; do 2 rewrite <- Z_of_nat_of_N; rewrite nat_of_Nsucc; apply inj_S.
 Qed.
 
-Lemma Z_of_N_min : forall n m:N, Z_of_N (Nmin n m) = Zmin (Z_of_N n) (Z_of_N m). 
+Lemma Z_of_N_min : forall n m:N, Z_of_N (Nmin n m) = Zmin (Z_of_N n) (Z_of_N m).
 Proof.
  intros; do 3 rewrite <- Z_of_nat_of_N; rewrite nat_of_Nmin; apply inj_min.
 Qed.
 
-Lemma Z_of_N_max : forall n m:N, Z_of_N (Nmax n m) = Zmax (Z_of_N n) (Z_of_N m). 
+Lemma Z_of_N_max : forall n m:N, Z_of_N (Nmax n m) = Zmax (Z_of_N n) (Z_of_N m).
 Proof.
  intros; do 3 rewrite <- Z_of_nat_of_N; rewrite nat_of_Nmax; apply inj_max.
 Qed.

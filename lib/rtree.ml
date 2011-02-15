@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: rtree.ml 10690 2008-03-18 13:30:04Z barras $ i*)
+(*i $Id: rtree.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Util
 
@@ -53,7 +53,7 @@ let rec subst_rtree_rec depth sub = function
 
 let subst_rtree sub t = subst_rtree_rec 0 [|sub|] t
 
-(* To avoid looping, we must check that every body introduces a node 
+(* To avoid looping, we must check that every body introduces a node
    or a parameter *)
 let rec expand = function
   | Rec(j,defs) ->
@@ -81,17 +81,17 @@ the last one should be accepted
 *)
 
 (* Tree destructors, expanding loops when necessary *)
-let dest_param t = 
+let dest_param t =
   match expand t with
       Param (i,j) -> (i,j)
     | _ -> failwith "Rtree.dest_param"
 
-let dest_node t = 
+let dest_node t =
   match expand t with
       Node (l,sons) -> (l,sons)
     | _ -> failwith "Rtree.dest_node"
 
-let is_node t = 
+let is_node t =
   match expand t with
       Node _ -> true
     | _ -> false
@@ -104,13 +104,13 @@ let rec map f t = match t with
 
 let rec smartmap f t = match t with
     Param _ -> t
-  | Node (a,sons) -> 
+  | Node (a,sons) ->
       let a'=f a and sons' = Util.array_smartmap (map f) sons in
 	if a'==a && sons'==sons then
 	  t
 	else
 	  Node (a',sons')
-  | Rec(j,defs) -> 
+  | Rec(j,defs) ->
       let defs' = Util.array_smartmap (map f) defs in
 	if defs'==defs then
 	  t
@@ -175,11 +175,11 @@ let rec pp_tree prl t =
     | Node(lab,[||]) -> hov 2 (str"("++prl lab++str")")
     | Node(lab,v) ->
         hov 2 (str"("++prl lab++str","++brk(1,0)++
-               Util.prvect_with_sep Util.pr_coma (pp_tree prl) v++str")")
+               Util.prvect_with_sep Util.pr_comma (pp_tree prl) v++str")")
     | Rec(i,v) ->
         if Array.length v = 0 then str"Rec{}"
         else if Array.length v = 1 then
           hov 2 (str"Rec{"++pp_tree prl v.(0)++str"}")
         else
           hov 2 (str"Rec{"++int i++str","++brk(1,0)++
-                 Util.prvect_with_sep Util.pr_coma (pp_tree prl) v++str"}")
+                 Util.prvect_with_sep Util.pr_comma (pp_tree prl) v++str"}")

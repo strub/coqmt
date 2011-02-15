@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: bstack.ml 10441 2008-01-15 16:37:46Z lmamane $ *)
+(* $Id: bstack.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 (* Queues of a given length *)
 
@@ -47,10 +47,10 @@ let push bs e =
   incr_size bs;
   bs.depth <- bs.depth + 1;
   bs.stack.(bs.pos) <- e
-	  
+
 let pop bs =
   if bs.size > 1 then begin
-    bs.size <- bs.size - 1; 
+    bs.size <- bs.size - 1;
     bs.depth <- bs.depth - 1;
     let oldpos = bs.pos in
     decr_pos bs;
@@ -61,7 +61,7 @@ let pop bs =
 let top bs =
   if bs.size >= 1 then bs.stack.(bs.pos)
   else error "Nothing on the stack"
-	  
+
 let app_push bs f =
   if bs.size = 0 then error "Nothing on the stack"
   else push bs (f (bs.stack.(bs.pos)))

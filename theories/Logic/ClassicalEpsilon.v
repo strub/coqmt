@@ -1,12 +1,13 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ClassicalEpsilon.v 10170 2007-10-03 14:41:25Z herbelin $ i*)
+(*i $Id: ClassicalEpsilon.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file provides classical logic and indefinite description under
     the form of Hilbert's epsilon operator *)
@@ -22,11 +23,11 @@ Require Import ChoiceFacts.
 Set Implicit Arguments.
 
 Axiom constructive_indefinite_description :
-  forall (A : Type) (P : A->Prop), 
+  forall (A : Type) (P : A->Prop),
     (exists x, P x) -> { x : A | P x }.
 
 Lemma constructive_definite_description :
-  forall (A : Type) (P : A->Prop), 
+  forall (A : Type) (P : A->Prop),
     (exists! x, P x) -> { x : A | P x }.
 Proof.
   intros; apply constructive_indefinite_description; firstorder.
@@ -34,18 +35,18 @@ Qed.
 
 Theorem excluded_middle_informative : forall P:Prop, {P} + {~ P}.
 Proof.
-  apply 
-    (constructive_definite_descr_excluded_middle 
+  apply
+    (constructive_definite_descr_excluded_middle
       constructive_definite_description classic).
 Qed.
 
-Theorem classical_indefinite_description : 
+Theorem classical_indefinite_description :
   forall (A : Type) (P : A->Prop), inhabited A ->
     { x : A | (exists x, P x) -> P x }.
 Proof.
   intros A P i.
   destruct (excluded_middle_informative (exists x, P x)) as [Hex|HnonP].
-  apply constructive_indefinite_description 
+  apply constructive_indefinite_description
     with (P:= fun x => (exists x, P x) -> P x).
   destruct Hex as (x,Hx).
     exists x; intros _; exact Hx.
@@ -60,7 +61,7 @@ Defined.
 Definition epsilon (A : Type) (i:inhabited A) (P : A->Prop) : A
   := proj1_sig (classical_indefinite_description P i).
 
-Definition epsilon_spec (A : Type) (i:inhabited A) (P : A->Prop) : 
+Definition epsilon_spec (A : Type) (i:inhabited A) (P : A->Prop) :
   (exists x, P x) -> P (epsilon i P)
   := proj2_sig (classical_indefinite_description P i).
 
@@ -74,9 +75,9 @@ Definition epsilon_spec (A : Type) (i:inhabited A) (P : A->Prop) :
 
 (** A proof that if [P] is inhabited, [epsilon a P] does not depend on
     the actual proof that the domain of [P] is inhabited
-    (proof idea kindly provided by Pierre Castéran) *)
+    (proof idea kindly provided by Pierre CastÃ©ran) *)
 
-Lemma epsilon_inh_irrelevance : 
+Lemma epsilon_inh_irrelevance :
    forall (A:Type) (i j : inhabited A) (P:A->Prop),
    (exists x, P x) -> epsilon i P = epsilon j P.
 Proof.

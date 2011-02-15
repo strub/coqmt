@@ -103,9 +103,20 @@ the preferences.
 These tactics are general ones, in particular they do not refer to
 particular hypotheses. You may also try specific tactics related to
 the goal or one of the hypotheses, by clicking with the right mouse
-button one the goal or the considered hypothesis. This is the
+button on the goal or the considered hypothesis. This is the
 ``contextual menu on goals'' feature, that may be disabled in the
 preferences if undesirable.
+
+\section{Proof folding}
+
+As your script grows bigger and bigger, it might be useful to hide the proofs
+of your theorems and lemmas.
+
+This feature is toggled via the \texttt{Hide} entry of the \texttt{Navigation}
+menu. The proof shall be enclosed between \texttt{Proof.} and \texttt{Qed.},
+both with their final dots. The proof that shall be hidden or revealed is the
+first one whose beginning statement (such as \texttt{Theorem}) precedes the
+insertion cursor.
  
 \section{Vernacular commands, templates}
 
@@ -250,43 +261,26 @@ CONTROL and the SHIFT keys, and type the hexadecimal code of the
 symbol required, for example \verb|2200| for the $\forall$ symbol.
 A list of symbol codes is available at \url{http://www.unicode.org}. 
 
-Of course, this method is painful for symbols you use often. There is
-always the possibility to copy-paste a symbol already typed in.
-Another method is to bind some key combinations for frequently used
-symbols. For example, to bind keys \verb|F11| and \verb|F12| to
-$\forall$ and $\exists$ respectively, you may add
-\begin{quote}\tt
-  bind "F11" {"insert-at-cursor" ("$\forall$")}\\
-  bind "F12" {"insert-at-cursor" ("$\exists$")}
-\end{quote}
-to your \verb|binding "text"| section in \verb|.coqide-gtk2rc|.
+This method obviously doesn't scale, that's why the preferred alternative is to
+use an Input Method Editor. On POSIX systems (Linux distros, BSD variants and
+MacOS X), you can use \texttt{uim} version 1.6 or later which provides a \LaTeX{}-style
+input method.
 
+To configure \texttt{uim}, execute \texttt{uim-pref-gtk} as your regular user.
+In the "Global Settings" group set the default Input Method to "ELatin" (don't
+forget to tick the checkbox "Specify default IM"). In the "ELatin" group set the
+layout to "TeX", and remember the content of the "[ELatin] on" field (by default
+"<Control>\"). You can now execute CoqIDE with the following commands (assuming
+you use a Bourne-style shell):
 
-%  such a binding is system-dependent. We
-% give here a solution for X11:
-% \begin{itemize}
-% \item first, using \verb|xmodmap|, bind some key combination into a
-%   new key name such as Fxx where xx greater that 12: for example (on a
-%   french keyboard)
-%   \begin{quote}\tt
-%     xmodmap -e "keycode  24 = a A F13 F13" \\
-%     xmodmap -e "keycode  26 = e E F14 F14" 
-%   \end{quote}
-%   will rebind "<AltGr>a" to F13 and "<AltGr>e" to F14.
-% \item then add   
-%   \begin{quote}\tt
-%     bind "F13" {"insert-at-cursor" ("$\forall$")}\\
-%     bind "F14" {"insert-at-cursor" ("$\exists$")}
-%   \end{quote}
-%   to your \verb|binding "text"| section in \verb|.coqide-gtk2rc|.
-%        The strange \verb|∀| argument is the UTF-8 encoding for
-%        0x2200, that is the symbol $\forall$. Computing UTF-8 encoding
-%        for a unicode can be done in various ways, including
-%        launching a \verb|lablgtk2| toplevel and use
-%\begin{verbatim}
-%     Glib.Utf8.from_unichar 0x2200;;
-%\end{verbatim}
-%\end{itemize}
+\begin{verbatim}
+$ export GTK_IM_MODULE=uim
+$ coqide
+\end{verbatim}
+
+Activate the ELatin Input Method with Ctrl-\textbackslash, then type the
+sequence "\verb=\Gamma=". You will see the sequence being
+replaced by $\Gamma$ as soon as you type the second "a".
 
 \subsection[Character encoding for saved files]{Character encoding for saved files\label{sec:coqidecharencoding}}
 
@@ -320,7 +314,7 @@ or
 
     
 
-% $Id: RefMan-ide.tex 9828 2007-05-17 14:55:44Z herbelin $ 
+% $Id: RefMan-ide.tex 12789 2010-02-18 17:53:17Z vgross $ 
 
 %%% Local Variables: 
 %%% mode: latex

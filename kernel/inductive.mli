@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: inductive.mli 11301 2008-08-04 19:41:18Z herbelin $ i*)
+(*i $Id: inductive.mli 13368 2010-08-03 13:22:49Z barras $ i*)
 
 (*i*)
 open Names
@@ -51,8 +51,9 @@ val arities_of_constructors : inductive -> mind_specif -> types array
 val type_of_constructors : inductive -> mind_specif -> types array
 
 (* Transforms inductive specification into types (in nf) *)
-val arities_of_specif : mutual_inductive -> mind_specif -> types array 
+val arities_of_specif : mutual_inductive -> mind_specif -> types array
 
+val inductive_params : mind_specif -> int
 
 (* [type_case_branches env (I,args) (p:A) c] computes useful types
    about the following Cases expression:
@@ -65,8 +66,12 @@ val type_case_branches :
   env -> inductive * constr list -> unsafe_judgment -> constr
     -> types array * types * constraints
 
+val build_branches_type :
+  inductive -> mutual_inductive_body * one_inductive_body ->
+    constr list -> constr -> types array
+
 (* Return the arity of an inductive type *)
-val mind_arity : one_inductive_body -> Sign.rel_context * sorts_family
+val mind_arity : one_inductive_body -> rel_context * sorts_family
 
 val inductive_sort_family : one_inductive_body -> sorts_family
 
@@ -85,8 +90,8 @@ val type_of_inductive_knowing_parameters :
 
 val max_inductive_sort : sorts array -> universe
 
-val instantiate_universes : env -> Sign.rel_context ->
-    polymorphic_arity -> types array -> Sign.rel_context * sorts
+val instantiate_universes : env -> rel_context ->
+    polymorphic_arity -> types array -> rel_context * sorts
 
 (***************************************************************)
 (* Debug *)
@@ -105,9 +110,9 @@ type guard_env =
     (* the recarg information of inductive family *)
     recvec  : wf_paths array;
     (* dB of variables denoting subterms *)
-    genv    : subterm_spec list;
+    genv    : subterm_spec Lazy.t list;
   }
 
 val subterm_specif : guard_env -> constr -> subterm_spec
-val case_branches_specif : guard_env -> subterm_spec -> inductive ->
+val case_branches_specif : guard_env -> subterm_spec Lazy.t -> inductive ->
   constr array -> (guard_env * constr) array

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: clenvtac.ml 12102 2009-04-24 10:48:11Z herbelin $ *)
+(* $Id: clenvtac.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -30,34 +30,34 @@ open Pattern
 open Tacexpr
 open Clenv
 
-    
+
 (* This function put casts around metavariables whose type could not be
  * infered by the refiner, that is head of applications, predicates and
  * subject of Cases.
  * Does check that the casted type is closed. Anyway, the refiner would
  * fail in this case... *)
 
-let clenv_cast_meta clenv = 
+let clenv_cast_meta clenv =
   let rec crec u =
     match kind_of_term u with
       | App _ | Case _ -> crec_hd u
       | Cast (c,_,_) when isMeta c -> u
       | _  -> map_constr crec u
-	    
+
   and crec_hd u =
     match kind_of_term (strip_outer_cast u) with
-    | Meta mv ->
-	(try 
+      | Meta mv ->
+	  (try
             let b = Typing.meta_type clenv.evd mv in
-	      if occur_meta b then
-		raise (RefinerError (MetaInType b));
-	      mkCast (mkMeta mv, DEFAULTcast, b)
+	    assert (not (occur_meta b));
+	    if occur_meta b then u
+            else mkCast (mkMeta mv, DEFAULTcast, b)
 	  with Not_found -> u)
-    | App(f,args) -> mkApp (crec_hd f, Array.map crec args)
-    | Case(ci,p,c,br) ->
-	mkCase (ci, crec_hd p, crec_hd c, Array.map crec br)
-    | _ -> u
-  in 
+      | App(f,args) -> mkApp (crec_hd f, Array.map crec args)
+      | Case(ci,p,c,br) ->
+	  mkCase (ci, crec_hd p, crec_hd c, Array.map crec br)
+      | _ -> u
+  in
   crec
 
 let clenv_value_cast_meta clenv =
@@ -70,16 +70,17 @@ let clenv_pose_dependent_evars with_evars clenv =
       (RefinerError (UnresolvedBindings (List.map (meta_name clenv.evd) dep_mvs)));
   clenv_pose_metas_as_evars clenv dep_mvs
 
-
 let clenv_refine with_evars ?(with_classes=true) clenv gls =
   let clenv = clenv_pose_dependent_evars with_evars clenv in
-  let evd' = 
-    if with_classes then 
-      Typeclasses.resolve_typeclasses ~fail:(not with_evars) clenv.env clenv.evd 
+  let evd' =
+    if with_classes then
+      Typeclasses.resolve_typeclasses ~fail:(not with_evars)
+	clenv.env clenv.evd
     else clenv.evd
   in
+  let clenv = { clenv with evd = evd' } in
   tclTHEN
-    (tclEVARS (evars_of evd')) 
+    (tclEVARS evd')
     (refine (clenv_cast_meta clenv (clenv_value clenv)))
     gls
 
@@ -104,18 +105,20 @@ let e_res_pf clenv = res_pf clenv ~with_evars:true ~allow_K:false ~flags:dft
 open Unification
 
 let fail_quick_unif_flags = {
-  modulo_conv_on_closed_terms = Some full_transparent_state; 
+  modulo_conv_on_closed_terms = Some full_transparent_state;
   use_metas_eagerly = false;
   modulo_delta = empty_transparent_state;
-  can_dp_delayed = false;
+  resolve_evars = false;
+  use_evars_pattern_unification = false;
+  can_dp_delayed = true;
 }
 
 (* let unifyTerms m n = walking (fun wc -> fst (w_Unify CONV m n [] wc)) *)
-let unifyTerms ?(flags=fail_quick_unif_flags) m n gls = 
+let unifyTerms ?(flags=fail_quick_unif_flags) m n gls =
   let env = pf_env gls in
   let evd = create_goal_evar_defs (project gls) in
   let evd' = w_unify false env CONV ~flags m n evd in
-  tclIDTAC {it = gls.it; sigma = evars_of evd'}
+  tclIDTAC {it = gls.it; sigma =  evd'}
 
 let unify ?(flags=fail_quick_unif_flags) m gls =
   let n = pf_concl gls in unifyTerms ~flags m n gls

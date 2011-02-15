@@ -1,17 +1,18 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
-(* $Id: Combinators.v 11709 2008-12-20 11:42:15Z msozeau $ *)
+(* $Id: Combinators.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
-(** Proofs about standard combinators, exports functional extensionality.
+(** * Proofs about standard combinators, exports functional extensionality.
 
    Author: Matthieu Sozeau
-   Institution: LRI, CNRS UMR 8623 - UniversitÃcopyright Paris Sud
-   91405 Orsay, France *)
+   Institution: LRI, CNRS UMR 8623 - University Paris Sud
+*)
 
 Require Import Coq.Program.Basics.
 Require Export FunctionalExtensionality.
@@ -34,7 +35,7 @@ Proof.
   symmetry ; apply eta_expansion.
 Qed.
 
-Lemma compose_assoc : forall A B C D (f : A -> B) (g : B -> C) (h : C -> D), 
+Lemma compose_assoc : forall A B C D (f : A -> B) (g : B -> C) (h : C -> D),
   h ∘ g ∘ f = h ∘ (g ∘ f).
 Proof.
   intros.

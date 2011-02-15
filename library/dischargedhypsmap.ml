@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: dischargedhypsmap.ml 9902 2007-06-21 17:01:21Z herbelin $ *)
+(* $Id: dischargedhypsmap.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Libnames
@@ -20,11 +20,11 @@ open Libobject
 open Lib
 open Nametab
 
-type discharged_hyps = section_path list
+type discharged_hyps = full_path list
 
 let discharged_hyps_map = ref Spmap.empty
 
-let set_discharged_hyps sp hyps = 
+let set_discharged_hyps sp hyps =
   discharged_hyps_map := Spmap.add sp hyps !discharged_hyps_map
 
 let get_discharged_hyps sp =
@@ -42,10 +42,8 @@ let freeze () = !discharged_hyps_map
 
 let unfreeze dhm = discharged_hyps_map := dhm
 
-let _ = 
+let _ =
   Summary.declare_summary "discharged_hypothesis"
     { Summary.freeze_function = freeze;
       Summary.unfreeze_function = unfreeze;
-      Summary.init_function = init;
-      Summary.survive_module = false;
-      Summary.survive_section = true }
+      Summary.init_function = init }

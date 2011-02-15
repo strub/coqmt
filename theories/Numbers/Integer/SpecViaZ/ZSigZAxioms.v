@@ -1,124 +1,79 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ZSigZAxioms.v 11282 2008-07-28 11:51:53Z msozeau $ i*)
+(*i $Id: ZSigZAxioms.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-Require Import ZArith.
-Require Import ZAxioms.
-Require Import ZSig.
+Require Import ZArith ZAxioms ZDivFloor ZSig.
 
-(** * The interface [ZSig.ZType] implies the interface [ZAxiomsSig] *)
+(** * The interface [ZSig.ZType] implies the interface [ZAxiomsSig]
 
-Module ZSig_ZAxioms (Z:ZType) <: ZAxiomsSig.
+    It also provides [sgn], [abs], [div], [mod]
+*)
 
-Delimit Scope IntScope with Int.
-Bind Scope IntScope with Z.t.
-Open Local Scope IntScope.
-Notation "[ x ]" := (Z.to_Z x) : IntScope.
-Infix "=="  := Z.eq (at level 70) : IntScope.
-Notation "0" := Z.zero : IntScope.
-Infix "+" := Z.add : IntScope.
-Infix "-" := Z.sub : IntScope.
-Infix "*" := Z.mul : IntScope.
-Notation "- x" := (Z.opp x) : IntScope.
 
-Hint Rewrite 
- Z.spec_0 Z.spec_1 Z.spec_add Z.spec_sub Z.spec_pred Z.spec_succ
- Z.spec_mul Z.spec_opp Z.spec_of_Z : Zspec.
+Module ZTypeIsZAxioms (Import Z : ZType').
 
-Ltac zsimpl := unfold Z.eq in *; autorewrite with Zspec.
+Hint Rewrite
+ spec_0 spec_1 spec_add spec_sub spec_pred spec_succ
+ spec_mul spec_opp spec_of_Z spec_div spec_modulo
+ spec_compare spec_eq_bool spec_max spec_min spec_abs spec_sgn
+ : zsimpl.
 
-Module Export NZOrdAxiomsMod <: NZOrdAxiomsSig.
-Module Export NZAxiomsMod <: NZAxiomsSig.
+Ltac zsimpl := autorewrite with zsimpl.
+Ltac zcongruence := repeat red; intros; zsimpl; congruence.
+Ltac zify := unfold eq, lt, le in *; zsimpl.
 
-Definition NZ := Z.t.
-Definition NZeq := Z.eq.
-Definition NZ0 := Z.zero.
-Definition NZsucc := Z.succ.
-Definition NZpred := Z.pred.
-Definition NZadd := Z.add.
-Definition NZsub := Z.sub.
-Definition NZmul := Z.mul.
+Instance eq_equiv : Equivalence eq.
+Proof. unfold eq. firstorder. Qed.
 
-Theorem NZeq_equiv : equiv Z.t Z.eq.
+Local Obligation Tactic := zcongruence.
+
+Program Instance succ_wd : Proper (eq ==> eq) succ.
+Program Instance pred_wd : Proper (eq ==> eq) pred.
+Program Instance add_wd : Proper (eq ==> eq ==> eq) add.
+Program Instance sub_wd : Proper (eq ==> eq ==> eq) sub.
+Program Instance mul_wd : Proper (eq ==> eq ==> eq) mul.
+
+Theorem pred_succ : forall n, pred (succ n) == n.
 Proof.
-repeat split; repeat red; intros; auto; congruence.
-Qed.
-
-Add Relation Z.t Z.eq
- reflexivity proved by (proj1 NZeq_equiv)
- symmetry proved by (proj2 (proj2 NZeq_equiv))
- transitivity proved by (proj1 (proj2 NZeq_equiv))
- as NZeq_rel.
-
-Add Morphism NZsucc with signature Z.eq ==> Z.eq as NZsucc_wd.
-Proof.
-intros; zsimpl; f_equal; assumption.
-Qed.
-
-Add Morphism NZpred with signature Z.eq ==> Z.eq as NZpred_wd.
-Proof.
-intros; zsimpl; f_equal; assumption.
-Qed.
-
-Add Morphism NZadd with signature Z.eq ==> Z.eq ==> Z.eq as NZadd_wd.
-Proof.
-intros; zsimpl; f_equal; assumption.
-Qed.
-
-Add Morphism NZsub with signature Z.eq ==> Z.eq ==> Z.eq as NZsub_wd.
-Proof.
-intros; zsimpl; f_equal; assumption.
-Qed.
-
-Add Morphism NZmul with signature Z.eq ==> Z.eq ==> Z.eq as NZmul_wd.
-Proof.
-intros; zsimpl; f_equal; assumption.
-Qed.
-
-Theorem NZpred_succ : forall n, Z.pred (Z.succ n) == n.
-Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
 Section Induction.
 
 Variable A : Z.t -> Prop.
-Hypothesis A_wd : predicate_wd Z.eq A.
+Hypothesis A_wd : Proper (eq==>iff) A.
 Hypothesis A0 : A 0.
-Hypothesis AS : forall n, A n <-> A (Z.succ n). 
+Hypothesis AS : forall n, A n <-> A (succ n).
 
-Add Morphism A with signature Z.eq ==> iff as A_morph.
-Proof. apply A_wd. Qed.
-
-Let B (z : Z) := A (Z.of_Z z).
+Let B (z : Z) := A (of_Z z).
 
 Lemma B0 : B 0.
 Proof.
 unfold B; simpl.
 rewrite <- (A_wd 0); auto.
-zsimpl; auto.
+zify. auto.
 Qed.
 
 Lemma BS : forall z : Z, B z -> B (z + 1).
 Proof.
 intros z H.
 unfold B in *. apply -> AS in H.
-setoid_replace (Z.of_Z (z + 1)) with (Z.succ (Z.of_Z z)); auto.
-zsimpl; auto.
+setoid_replace (of_Z (z + 1)) with (succ (of_Z z)); auto.
+zify. auto.
 Qed.
 
 Lemma BP : forall z : Z, B z -> B (z - 1).
 Proof.
 intros z H.
 unfold B in *. rewrite AS.
-setoid_replace (Z.succ (Z.of_Z (z - 1))) with (Z.of_Z z); auto.
-zsimpl; auto with zarith.
+setoid_replace (succ (of_Z (z - 1))) with (of_Z z); auto.
+zify. auto with zarith.
 Qed.
 
 Lemma B_holds : forall z : Z, B z.
@@ -135,172 +90,170 @@ intros; rewrite Zopp_succ; unfold Zpred; apply BP; auto.
 subst z'; auto with zarith.
 Qed.
 
-Theorem NZinduction : forall n, A n.
+Theorem bi_induction : forall n, A n.
 Proof.
-intro n. setoid_replace n with (Z.of_Z (Z.to_Z n)).
+intro n. setoid_replace n with (of_Z (to_Z n)).
 apply B_holds.
-zsimpl; auto.
+zify. auto.
 Qed.
 
 End Induction.
 
-Theorem NZadd_0_l : forall n, 0 + n == n.
+Theorem add_0_l : forall n, 0 + n == n.
 Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZadd_succ_l : forall n m, (Z.succ n) + m == Z.succ (n + m).
+Theorem add_succ_l : forall n m, (succ n) + m == succ (n + m).
 Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZsub_0_r : forall n, n - 0 == n.
+Theorem sub_0_r : forall n, n - 0 == n.
 Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZsub_succ_r : forall n m, n - (Z.succ m) == Z.pred (n - m).
+Theorem sub_succ_r : forall n m, n - (succ m) == pred (n - m).
 Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZmul_0_l : forall n, 0 * n == 0.
+Theorem mul_0_l : forall n, 0 * n == 0.
 Proof.
-intros; zsimpl; auto with zarith.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZmul_succ_l : forall n m, (Z.succ n) * m == n * m + m.
+Theorem mul_succ_l : forall n m, (succ n) * m == n * m + m.
 Proof.
-intros; zsimpl; ring.
+intros. zify. ring.
 Qed.
 
-End NZAxiomsMod.
+(** Order *)
 
-Definition NZlt := Z.lt.
-Definition NZle := Z.le.
-Definition NZmin := Z.min.
-Definition NZmax := Z.max.
-
-Infix "<=" := Z.le : IntScope.
-Infix "<" := Z.lt : IntScope.
-
-Lemma spec_compare_alt : forall x y, Z.compare x y = ([x] ?= [y])%Z.
+Lemma compare_spec : forall x y, CompSpec eq lt x y (compare x y).
 Proof.
- intros; generalize (Z.spec_compare x y).
- destruct (Z.compare x y); auto.
- intros H; rewrite H; symmetry; apply Zcompare_refl.
+ intros. zify. destruct (Zcompare_spec [x] [y]); auto.
 Qed.
 
-Lemma spec_lt : forall x y, (x<y) <-> ([x]<[y])%Z.
+Definition eqb := eq_bool.
+
+Lemma eqb_eq : forall x y, eq_bool x y = true <-> x == y.
 Proof.
- intros; unfold Z.lt, Zlt; rewrite spec_compare_alt; intuition.
+ intros. zify. symmetry. apply Zeq_is_eq_bool.
 Qed.
 
-Lemma spec_le : forall x y, (x<=y) <-> ([x]<=[y])%Z.
+Instance compare_wd : Proper (eq ==> eq ==> Logic.eq) compare.
 Proof.
- intros; unfold Z.le, Zle; rewrite spec_compare_alt; intuition.
+intros x x' Hx y y' Hy. rewrite 2 spec_compare, Hx, Hy; intuition.
 Qed.
 
-Lemma spec_min : forall x y, [Z.min x y] = Zmin [x] [y].
+Instance lt_wd : Proper (eq ==> eq ==> iff) lt.
 Proof.
- intros; unfold Z.min, Zmin.
- rewrite spec_compare_alt; destruct Zcompare; auto.
+intros x x' Hx y y' Hy; unfold lt; rewrite Hx, Hy; intuition.
 Qed.
 
-Lemma spec_max : forall x y, [Z.max x y] = Zmax [x] [y].
+Theorem lt_eq_cases : forall n m, n <= m <-> n < m \/ n == m.
 Proof.
- intros; unfold Z.max, Zmax.
- rewrite spec_compare_alt; destruct Zcompare; auto.
+intros. zify. omega.
 Qed.
 
-Add Morphism Z.compare with signature Z.eq ==> Z.eq ==> (@eq comparison) as compare_wd.
-Proof. 
-intros x x' Hx y y' Hy.
-rewrite 2 spec_compare_alt; unfold Z.eq in *; rewrite Hx, Hy; intuition.
-Qed.
-
-Add Morphism Z.lt with signature Z.eq ==> Z.eq ==> iff as NZlt_wd.
+Theorem lt_irrefl : forall n, ~ n < n.
 Proof.
-intros x x' Hx y y' Hy; unfold Z.lt; rewrite Hx, Hy; intuition.
+intros. zify. omega.
 Qed.
 
-Add Morphism Z.le with signature Z.eq ==> Z.eq ==> iff as NZle_wd.
+Theorem lt_succ_r : forall n m, n < (succ m) <-> n <= m.
 Proof.
-intros x x' Hx y y' Hy; unfold Z.le; rewrite Hx, Hy; intuition.
+intros. zify. omega.
 Qed.
 
-Add Morphism Z.min with signature Z.eq ==> Z.eq ==> Z.eq as NZmin_wd.
+Theorem min_l : forall n m, n <= m -> min n m == n.
 Proof.
-intros; red; rewrite 2 spec_min; congruence.
+intros n m. zify. omega with *.
 Qed.
 
-Add Morphism Z.max with signature Z.eq ==> Z.eq ==> Z.eq as NZmax_wd.
+Theorem min_r : forall n m, m <= n -> min n m == m.
 Proof.
-intros; red; rewrite 2 spec_max; congruence.
+intros n m. zify. omega with *.
 Qed.
 
-Theorem NZlt_eq_cases : forall n m, n <= m <-> n < m \/ n == m.
+Theorem max_l : forall n m, m <= n -> max n m == n.
 Proof.
-intros.
-unfold Z.eq; rewrite spec_lt, spec_le; omega.
+intros n m. zify. omega with *.
 Qed.
 
-Theorem NZlt_irrefl : forall n, ~ n < n.
+Theorem max_r : forall n m, n <= m -> max n m == m.
 Proof.
-intros; rewrite spec_lt; auto with zarith.
+intros n m. zify. omega with *.
 Qed.
 
-Theorem NZlt_succ_r : forall n m, n < (Z.succ m) <-> n <= m.
+(** Part specific to integers, not natural numbers *)
+
+Program Instance opp_wd : Proper (eq ==> eq) opp.
+
+Theorem succ_pred : forall n, succ (pred n) == n.
 Proof.
-intros; rewrite spec_lt, spec_le, Z.spec_succ; omega.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZmin_l : forall n m, n <= m -> Z.min n m == n.
+Theorem opp_0 : - 0 == 0.
 Proof.
-intros n m; unfold Z.eq; rewrite spec_le, spec_min.
-generalize (Zmin_spec [n] [m]); omega.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZmin_r : forall n m, m <= n -> Z.min n m == m.
+Theorem opp_succ : forall n, - (succ n) == pred (- n).
 Proof.
-intros n m; unfold Z.eq; rewrite spec_le, spec_min.
-generalize (Zmin_spec [n] [m]); omega.
+intros. zify. auto with zarith.
 Qed.
 
-Theorem NZmax_l : forall n m, m <= n -> Z.max n m == n.
+Theorem abs_eq : forall n, 0 <= n -> abs n == n.
 Proof.
-intros n m; unfold Z.eq; rewrite spec_le, spec_max.
-generalize (Zmax_spec [n] [m]); omega.
+intros n. zify. omega with *.
 Qed.
 
-Theorem NZmax_r : forall n m, n <= m -> Z.max n m == m.
+Theorem abs_neq : forall n, n <= 0 -> abs n == -n.
 Proof.
-intros n m; unfold Z.eq; rewrite spec_le, spec_max.
-generalize (Zmax_spec [n] [m]); omega.
+intros n. zify. omega with *.
 Qed.
 
-End NZOrdAxiomsMod.
-
-Definition Zopp := Z.opp.
-
-Add Morphism Z.opp with signature Z.eq ==> Z.eq as Zopp_wd.
+Theorem sgn_null : forall n, n==0 -> sgn n == 0.
 Proof.
-intros; zsimpl; auto with zarith.
+intros n. zify. omega with *.
 Qed.
 
-Theorem Zsucc_pred : forall n, Z.succ (Z.pred n) == n.
+Theorem sgn_pos : forall n, 0<n -> sgn n == succ 0.
 Proof.
-red; intros; zsimpl; auto with zarith.
+intros n. zify. omega with *.
 Qed.
 
-Theorem Zopp_0 : - 0 == 0.
+Theorem sgn_neg : forall n, n<0 -> sgn n == opp (succ 0).
 Proof.
-red; intros; zsimpl; auto with zarith.
+intros n. zify. omega with *.
 Qed.
 
-Theorem Zopp_succ : forall n, - (Z.succ n) == Z.pred (- n).
+Program Instance div_wd : Proper (eq==>eq==>eq) div.
+Program Instance mod_wd : Proper (eq==>eq==>eq) modulo.
+
+Theorem div_mod : forall a b, ~b==0 -> a == b*(div a b) + (modulo a b).
 Proof.
-intros; zsimpl; auto with zarith.
+intros a b. zify. intros. apply Z_div_mod_eq_full; auto.
 Qed.
 
-End ZSig_ZAxioms.
+Theorem mod_pos_bound :
+ forall a b, 0 < b -> 0 <= modulo a b /\ modulo a b < b.
+Proof.
+intros a b. zify. intros. apply Z_mod_lt; auto with zarith.
+Qed.
+
+Theorem mod_neg_bound :
+ forall a b, b < 0 -> b < modulo a b /\ modulo a b <= 0.
+Proof.
+intros a b. zify. intros. apply Z_mod_neg; auto with zarith.
+Qed.
+
+End ZTypeIsZAxioms.
+
+Module ZType_ZAxioms (Z : ZType)
+ <: ZAxiomsSig <: ZDivSig <: HasCompare Z <: HasEqBool Z <: HasMinMax Z
+ := Z <+ ZTypeIsZAxioms.

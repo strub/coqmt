@@ -1,5 +1,4 @@
-Require Import Coq.Program.Program.
-
+Require Import Coq.Program.Program Coq.Program.Equality.
 
 Variable A : Set.
 
@@ -39,7 +38,7 @@ Delimit Scope context_scope with ctx.
 
 Arguments Scope snoc [context_scope].
 
-Notation " Γ ,, τ " := (snoc Γ τ) (at level 25, t at next level, left associativity).
+Notation " Γ , τ " := (snoc Γ τ) (at level 25, τ at next level, left associativity) : context_scope.
 
 Fixpoint conc (Δ Γ : ctx) : ctx :=
   match Δ with
@@ -47,60 +46,64 @@ Fixpoint conc (Δ Γ : ctx) : ctx :=
     | snoc Δ' x => snoc (conc Δ' Γ) x
   end.
 
-Notation " Γ ;; Δ " := (conc Δ Γ) (at level 25, left associativity) : context_scope.
+Notation " Γ  ; Δ " := (conc Δ Γ) (at level 25, left associativity) : context_scope.
+
+Reserved Notation " Γ ⊢ τ " (at level 30, no associativity).
+
+Generalizable All Variables.
 
 Inductive term : ctx -> type -> Type :=
-| ax : forall Γ τ, term (snoc Γ τ) τ
-| weak : forall Γ τ, term Γ τ -> forall τ', term (Γ ,, τ') τ
-| abs : forall Γ τ τ', term (snoc Γ τ) τ' -> term Γ (τ --> τ')
-| app : forall Γ τ τ', term Γ (τ --> τ') -> term Γ τ -> term Γ τ'.
+| ax : `(Γ, τ ⊢ τ)
+| weak : `{Γ ⊢ τ -> Γ, τ' ⊢ τ}
+| abs : `{Γ, τ ⊢ τ' -> Γ ⊢ τ --> τ'}
+| app : `{Γ ⊢ τ --> τ' -> Γ ⊢ τ -> Γ ⊢ τ'}
+
+where " Γ ⊢ τ " := (term Γ τ) : type_scope.
 
 Hint Constructors term : lambda.
 
 Open Local Scope context_scope.
 
-Notation " Γ |-- τ " := (term Γ τ) (at level 0) : type_scope.
+Ltac eqns := subst ; reverse ; simplify_dep_elim ; simplify_IH_hyps.
 
-Lemma weakening : forall Γ Δ τ, term (Γ ;; Δ) τ -> 
-  forall τ', term (Γ ,, τ' ;; Δ) τ.
-Proof with simpl in * ; reverse ; simplify_dep_elim ; simplify_IH_hyps ; eauto with lambda.
+Lemma weakening : forall Γ Δ τ, Γ ; Δ ⊢ τ ->
+  forall τ', Γ , τ' ; Δ ⊢ τ.
+Proof with simpl in * ; eqns ; eauto with lambda.
   intros Γ Δ τ H.
 
   dependent induction H.
 
-  destruct Δ...
+  destruct Δ as [|Δ τ'']...
 
-  destruct Δ...
+  destruct Δ as [|Δ τ'']...
 
-  destruct Δ...
-    apply abs...
-    
-    specialize (IHterm (Δ,, t,, τ)%ctx Γ0)...
+  destruct Δ as [|Δ τ'']...
+    apply abs.
+    specialize (IHterm Γ (Δ, τ'', τ))...
 
-  intro.
-  apply app with τ...
-Qed.
+  intro. eapply app...
+Defined.
 
-Lemma exchange : forall Γ Δ α β τ, term (Γ,, α,, β ;; Δ) τ -> term (Γ,, β,, α ;; Δ) τ.
-Proof with simpl in * ; subst ; reverse ; simplify_dep_elim ; simplify_IH_hyps ; auto.
+Lemma exchange : forall Γ Δ α β τ, term (Γ, α, β ; Δ) τ -> term (Γ, β, α ; Δ) τ.
+Proof with simpl in * ; eqns ; eauto.
   intros until 1.
   dependent induction H.
 
-  destruct Δ...
+  destruct Δ ; eqns.
     apply weak ; apply ax.
 
     apply ax.
 
   destruct Δ...
-    pose (weakening Γ0 (empty,, α))...
+    pose (weakening Γ (empty, α))...
 
     apply weak...
 
-  apply abs... 
-  specialize (IHterm (Δ ,, τ))...
+  apply abs...
+    specialize (IHterm Γ (Δ, τ))...
 
-  eapply app with τ...
-Save.
+  eapply app...
+Defined.
 
 (** Example by Andrew Kenedy, uses simplification of the first component of dependent pairs. *)
 
@@ -124,5 +127,5 @@ Inductive Ev : forall t, Exp t -> Exp t -> Prop :=
                Ev (Fst e) e1.
 
 Lemma EvFst_inversion : forall t1 t2 (e:Exp (Prod t1 t2)) e1, Ev (Fst e) e1 -> exists e2, Ev e (Pair e1 e2).
-intros t1 t2 e e1 ev. dependent destruction ev. exists e2 ; assumption. 
+intros t1 t2 e e1 ev. dependent destruction ev. exists e2 ; assumption.
 Qed.

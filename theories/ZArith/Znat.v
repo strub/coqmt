@@ -1,12 +1,13 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Znat.v 10726 2008-03-28 18:15:23Z notin $ i*)
+(*i $Id: Znat.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Binary Integers (Pierre Crégut, CNET, Lannion, France) *)
 
@@ -57,15 +58,15 @@ Proof.
 	| discriminate H0
 	| discriminate H0
 	| simpl in H0; injection H0;
-	  do 2 rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ; 
+	  do 2 rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ;
 	    intros E; rewrite E; auto with arith ].
-Qed. 
+Qed.
 
 Theorem inj_eq_rev : forall n m:nat, Z_of_nat n = Z_of_nat m -> n = m.
 Proof.
   intros x y H.
   destruct (eq_nat_dec x y) as [H'|H']; auto.
-  elimtype False.
+  exfalso.
   exact (inj_neq _ _ H' H).
 Qed.
 
@@ -90,7 +91,7 @@ Qed.
 
 Theorem inj_lt : forall n m:nat, (n < m)%nat -> Z_of_nat n < Z_of_nat m.
 Proof.
-  intros x y H; apply Zgt_lt; apply Zlt_succ_gt; rewrite <- inj_S; apply inj_le;
+  intros x y H; apply Zgt_lt; apply Zle_succ_gt; rewrite <- inj_S; apply inj_le;
     exact H.
 Qed.
 
@@ -110,7 +111,7 @@ Theorem inj_le_rev : forall n m:nat, Z_of_nat n <= Z_of_nat m -> (n <= m)%nat.
 Proof.
   intros x y H.
   destruct (le_lt_dec x y) as [H0|H0]; auto.
-  elimtype False.
+  exfalso.
   assert (H1:=inj_lt _ _ H0).
   red in H; red in H1.
   rewrite <- Zcompare_antisym in H; rewrite H1 in H; auto.
@@ -120,7 +121,7 @@ Theorem inj_lt_rev : forall n m:nat, Z_of_nat n < Z_of_nat m -> (n < m)%nat.
 Proof.
   intros x y H.
   destruct (le_lt_dec y x) as [H0|H0]; auto.
-  elimtype False.
+  exfalso.
   assert (H1:=inj_le _ _ H0).
   red in H; red in H1.
   rewrite <- Zcompare_antisym in H1; rewrite H in H1; auto.
@@ -130,7 +131,7 @@ Theorem inj_ge_rev : forall n m:nat, Z_of_nat n >= Z_of_nat m -> (n >= m)%nat.
 Proof.
   intros x y H.
   destruct (le_lt_dec y x) as [H0|H0]; auto.
-  elimtype False.
+  exfalso.
   assert (H1:=inj_gt _ _ H0).
   red in H; red in H1.
   rewrite <- Zcompare_antisym in H; rewrite H1 in H; auto.
@@ -140,7 +141,7 @@ Theorem inj_gt_rev : forall n m:nat, Z_of_nat n > Z_of_nat m -> (n > m)%nat.
 Proof.
   intros x y H.
   destruct (le_lt_dec x y) as [H0|H0]; auto.
-  elimtype False.
+  exfalso.
   assert (H1:=inj_ge _ _ H0).
   red in H; red in H1.
   rewrite <- Zcompare_antisym in H1; rewrite H in H1; auto.
@@ -169,7 +170,7 @@ Proof.
 Qed.
 
 (** Injection and usual operations *)
- 
+
 Theorem inj_plus : forall n m:nat, Z_of_nat (n + m) = Z_of_nat n + Z_of_nat m.
 Proof.
   intro x; induction x as [| n H]; intro y; destruct y as [| m];
@@ -186,7 +187,7 @@ Proof.
   intro x; induction x as [| n H];
     [ simpl in |- *; trivial with arith
       | intro y; rewrite inj_S; rewrite <- Zmult_succ_l_reverse; rewrite <- H;
-	rewrite <- inj_plus; simpl in |- *; rewrite plus_comm; 
+	rewrite <- inj_plus; simpl in |- *; rewrite plus_comm;
 	  trivial with arith ].
 Qed.
 
@@ -195,17 +196,17 @@ Theorem inj_minus1 :
 Proof.
   intros x y H; apply (Zplus_reg_l (Z_of_nat y)); unfold Zminus in |- *;
     rewrite Zplus_permute; rewrite Zplus_opp_r; rewrite <- inj_plus;
-      rewrite <- (le_plus_minus y x H); rewrite Zplus_0_r; 
+      rewrite <- (le_plus_minus y x H); rewrite Zplus_0_r;
         trivial with arith.
 Qed.
- 
+
 Theorem inj_minus2 : forall n m:nat, (m > n)%nat -> Z_of_nat (n - m) = 0.
 Proof.
   intros x y H; rewrite not_le_minus_0;
     [ trivial with arith | apply gt_not_le; assumption ].
 Qed.
 
-Theorem inj_minus : forall n m:nat, 
+Theorem inj_minus : forall n m:nat,
  Z_of_nat (minus n m) = Zmax 0 (Z_of_nat n - Z_of_nat m).
 Proof.
  intros.
@@ -225,7 +226,7 @@ Proof.
  unfold Zminus; rewrite H'; auto.
 Qed.
 
-Theorem inj_min : forall n m:nat, 
+Theorem inj_min : forall n m:nat,
   Z_of_nat (min n m) = Zmin (Z_of_nat n) (Z_of_nat m).
 Proof.
  induction n; destruct m; try (compute; auto; fail).
@@ -234,7 +235,7 @@ Proof.
  rewrite <- Zsucc_min_distr; f_equal; auto.
 Qed.
 
-Theorem inj_max : forall n m:nat, 
+Theorem inj_max : forall n m:nat,
   Z_of_nat (max n m) = Zmax (Z_of_nat n) (Z_of_nat m).
 Proof.
  induction n; destruct m; try (compute; auto; fail).
@@ -269,11 +270,11 @@ Proof.
   intros x; exists (Z_of_nat x); split;
     [ trivial with arith
       | rewrite Zmult_comm; rewrite Zmult_1_l; rewrite Zplus_0_r;
-	unfold Zle in |- *; elim x; intros; simpl in |- *; 
+	unfold Zle in |- *; elim x; intros; simpl in |- *;
           discriminate ].
 Qed.
 
-Lemma Zpos_P_of_succ_nat : forall n:nat, 
+Lemma Zpos_P_of_succ_nat : forall n:nat,
  Zpos (P_of_succ_nat n) = Zsucc (Z_of_nat n).
 Proof.
   intros.

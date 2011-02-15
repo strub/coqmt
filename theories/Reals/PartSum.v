@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: PartSum.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: PartSum.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -31,7 +31,7 @@ Lemma tech2 :
   forall (An:nat -> R) (m n:nat),
     (m < n)%nat ->
     sum_f_R0 An n =
-    sum_f_R0 An m + sum_f_R0 (fun i:nat => An (S m + i)%nat) (n - S m). 
+    sum_f_R0 An m + sum_f_R0 (fun i:nat => An (S m + i)%nat) (n - S m).
 Proof.
   intros; induction  n as [| n Hrecn].
   elim (lt_n_O _ H).
@@ -155,7 +155,7 @@ Lemma tech12 :
 Proof.
   intros; unfold Pser in |- *; unfold infinite_sum in |- *; unfold Un_cv in H;
     assumption.
-Qed. 
+Qed.
 
 Lemma scal_sum :
   forall (An:nat -> R) (N:nat) (x:R),
@@ -256,12 +256,12 @@ Qed.
 
 Lemma minus_sum :
   forall (An Bn:nat -> R) (N:nat),
-    sum_f_R0 (fun i:nat => An i - Bn i) N = sum_f_R0 An N - sum_f_R0 Bn N. 
+    sum_f_R0 (fun i:nat => An i - Bn i) N = sum_f_R0 An N - sum_f_R0 Bn N.
 Proof.
-  intros; induction  N as [| N HrecN]. 
-  simpl in |- *; ring. 
-  do 3 rewrite tech5; rewrite HrecN; ring. 
-Qed. 
+  intros; induction  N as [| N HrecN].
+  simpl in |- *; ring.
+  do 3 rewrite tech5; rewrite HrecN; ring.
+Qed.
 
 Lemma sum_decomposition :
   forall (An:nat -> R) (N:nat),
@@ -346,7 +346,7 @@ Qed.
 (**********)
 Lemma Rabs_triang_gen :
   forall (An:nat -> R) (N:nat),
-    Rabs (sum_f_R0 An N) <= sum_f_R0 (fun i:nat => Rabs (An i)) N. 
+    Rabs (sum_f_R0 An N) <= sum_f_R0 (fun i:nat => Rabs (An i)) N.
 Proof.
   intros.
   induction  N as [| N HrecN].

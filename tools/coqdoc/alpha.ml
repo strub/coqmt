@@ -1,14 +1,16 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: alpha.ml 5920 2004-07-16 20:01:26Z herbelin $ i*)
+(*i $Id: alpha.ml 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
-let norm_char c = match Char.uppercase c with
+open Cdglobals
+
+let norm_char_latin1 c = match Char.uppercase c with
   | '\192'..'\198' -> 'A'
   | '\199' -> 'C'
   | '\200'..'\203' -> 'E'
@@ -18,6 +20,13 @@ let norm_char c = match Char.uppercase c with
   | '\217'..'\220' -> 'U'
   | '\221' -> 'Y'
   | c -> c
+
+let norm_char_utf8 c = Char.uppercase c
+
+let norm_char c =
+  if !utf8 then norm_char_utf8 c else
+  if !latin1 then norm_char_latin1 c else
+  Char.uppercase c
 
 let norm_string s =
   let u = String.copy s in
@@ -30,12 +39,14 @@ let compare_char c1 c2 = match norm_char c1, norm_char c2 with
   | ('A'..'Z' as c1), ('A'..'Z' as c2) -> compare c1 c2
   | 'A'..'Z', _ -> -1
   | _, 'A'..'Z' -> 1
+  | '_', _ -> -1
+  | _, '_' -> 1
   | c1, c2 -> compare c1 c2
 
-let compare_string s1 s2 = 
+let compare_string s1 s2 =
   let n1 = String.length s1 in
   let n2 = String.length s2 in
-  let rec cmp i = 
+  let rec cmp i =
     if i == n1 || i == n2 then
       n1 - n2
     else

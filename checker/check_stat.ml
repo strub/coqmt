@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -17,7 +17,7 @@ open Environ
 
 let memory_stat = ref false
 
-let print_memory_stat () = 
+let print_memory_stat () =
   if !memory_stat then begin
     Format.printf "total heap size = %d kbytes\n" (heap_size_kb ());
     Format.print_newline();
@@ -33,11 +33,11 @@ let pr_engt = function
       str "Theory: Set is predicative"
 
 let cst_filter f csts =
-  Cmap.fold
+  Cmap_env.fold
     (fun c ce acc -> if f c ce then c::acc else acc)
     csts []
 
-let is_ax _ cb = cb.const_body = None 
+let is_ax _ cb = cb.const_body = None
 
 let pr_ax csts =
   let axs = cst_filter is_ax csts in

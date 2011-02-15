@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: ZArith_dec.v 9759 2007-04-12 17:46:54Z notin $ i*)
+(*i $Id: ZArith_dec.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Sumbool.
 
@@ -15,35 +15,39 @@ Require Import Zorder.
 Require Import Zcompare.
 Open Local Scope Z_scope.
 
+(* begin hide *)
+(* Trivial, to deprecate? *)
 Lemma Dcompare_inf : forall r:comparison, {r = Eq} + {r = Lt} + {r = Gt}.
 Proof.
-  simple induction r; auto with arith. 
+  induction r; auto.
+Defined.
+(* end hide *)
+
+Lemma Zcompare_rect :
+  forall (P:Type) (n m:Z),
+    ((n ?= m) = Eq -> P) -> ((n ?= m) = Lt -> P) -> ((n ?= m) = Gt -> P) -> P.
+Proof.
+  intros * H1 H2 H3.
+  destruct (n ?= m); auto.
 Defined.
 
 Lemma Zcompare_rec :
   forall (P:Set) (n m:Z),
     ((n ?= m) = Eq -> P) -> ((n ?= m) = Lt -> P) -> ((n ?= m) = Gt -> P) -> P.
 Proof.
-  intros P x y H1 H2 H3.
-  elim (Dcompare_inf (x ?= y)).
-  intro H. elim H; auto with arith. auto with arith.
+  intro; apply Zcompare_rect.
 Defined.
 
 Section decidability.
 
   Variables x y : Z.
-  
+
   (** * Decidability of equality on binary integers *)
 
   Definition Z_eq_dec : {x = y} + {x <> y}.
   Proof.
-    apply Zcompare_rec with (n := x) (m := y).
-    intro. left. elim (Zcompare_Eq_iff_eq x y); auto with arith.
-    intro H3. right. elim (Zcompare_Eq_iff_eq x y). intros H1 H2. unfold not in |- *. intro H4.
-    rewrite (H2 H4) in H3. discriminate H3.
-    intro H3. right. elim (Zcompare_Eq_iff_eq x y). intros H1 H2. unfold not in |- *. intro H4.
-    rewrite (H2 H4) in H3. discriminate H3.
-  Defined. 
+    decide equality; apply positive_eq_dec.
+  Defined.
 
   (** * Decidability of order on binary integers *)
 
@@ -64,7 +68,7 @@ Section decidability.
     left. rewrite H. discriminate.
     right. tauto.
   Defined.
-  
+
   Definition Z_gt_dec : {x > y} + {~ x > y}.
   Proof.
     unfold Zgt in |- *.
@@ -214,13 +218,16 @@ Proof.
     [ right; assumption | left; apply (not_Zeq_inf _ _ H) ].
 Defined.
 
-
-
-Definition Z_zerop : forall x:Z, {x = 0} + {x <> 0}.
+(* begin hide *)
+(* To deprecate ? *)
+Corollary Z_zerop : forall x:Z, {x = 0} + {x <> 0}.
 Proof.
   exact (fun x:Z => Z_eq_dec x 0).
 Defined.
 
-Definition Z_notzerop (x:Z) := sumbool_not _ _ (Z_zerop x).
+Corollary Z_notzerop : forall (x:Z), {x <> 0} + {x = 0}.
+Proof (fun x => sumbool_not _ _ (Z_zerop x)).
 
-Definition Z_noteq_dec (x y:Z) := sumbool_not _ _ (Z_eq_dec x y).
+Corollary Z_noteq_dec : forall (x y:Z), {x <> y} + {x = y}.
+Proof (fun x y => sumbool_not _ _ (Z_eq_dec x y)).
+(* end hide *)

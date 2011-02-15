@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Qreals.v 10739 2008-04-01 14:45:20Z herbelin $ i*)
+(*i $Id: Qreals.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Export Rbase.
 Require Export QArith_base.
@@ -173,7 +173,7 @@ unfold Qinv, Q2R, Qeq in |- *; intros (x1, x2); unfold Qden, Qnum in |- *.
 case x1.
 simpl in |- *; intros; elim H; trivial.
 intros; field; auto.
-intros; 
+intros;
   change (IZR (Zneg x2)) with (- IZR (' x2))%R in |- *;
   change (IZR (Zneg p)) with (- IZR (' p))%R in |- *;
   field; (*auto 8 with real.*)
@@ -193,8 +193,8 @@ Hint Rewrite Q2R_plus Q2R_mult Q2R_opp Q2R_minus Q2R_inv Q2R_div : q2r_simpl.
 Section LegacyQField.
 
 (** In the past, the field tactic was not able to deal with setoid datatypes,
-    so translating from Q to R and applying field on reals was a workaround. 
-    See now Qfield for a direct field tactic on Q. *) 
+    so translating from Q to R and applying field on reals was a workaround.
+    See now Qfield for a direct field tactic on Q. *)
 
 Ltac QField := apply eqR_Qeq; autorewrite with q2r_simpl; try field; auto.
 

@@ -53,6 +53,7 @@
 open Names
 open Term
 open Typeops
+open Term_typing
 open Univ
 open Inductive
 open Indtypes
@@ -89,6 +90,7 @@ open Evarutil
 open Tacred
 open Evd
 open Termops
+open Namegen
 open Indrec
 open Typing
 open Inductiveops
@@ -105,6 +107,8 @@ open Ppextend
 open Reserve
 open Syntax_def
 open Topconstr
+open Prettyp
+open Search
 
 open Clenvtac
 open Evar_refiner
@@ -137,10 +141,15 @@ open Refine
 open Tacinterp
 open Tacticals
 open Tactics
+open Eqschemes
 
 open Cerrors
 open Class
 open Command
+open Indschemes
+open Ind_tables
+open Auto_ind_decl
+open Lemmas
 open Coqinit
 open Coqtop
 open Discharge
@@ -180,7 +189,7 @@ let constr_of_string s =
 open Declarations;;
 
 let constbody_of_string s =
-  let b = Global.lookup_constant (Nametab.locate_constant (qualid_of_sp (path_of_string s))) in
+  let b = Global.lookup_constant (Nametab.locate_constant (qualid_of_string s)) in
   Option.get b.const_body;;
 
 (* Get the current goal *)

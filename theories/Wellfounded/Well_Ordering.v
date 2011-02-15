@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Well_Ordering.v 9598 2007-02-06 19:45:52Z herbelin $ i*)
+(*i $Id: Well_Ordering.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Author: Cristina Cornes.
     From: Constructing Recursion Operators in Type Theory
@@ -16,15 +16,15 @@ Require Import Eqdep.
 
 Section WellOrdering.
   Variable A : Type.
-  Variable B : A -> Type. 
-  
+  Variable B : A -> Type.
+
   Inductive WO : Type :=
     sup : forall (a:A) (f:B a -> WO), WO.
 
 
   Inductive le_WO : WO -> WO -> Prop :=
     le_sup : forall (a:A) (f:B a -> WO) (v:B a), le_WO (f v) (sup a f).
- 
+
   Theorem wf_WO : well_founded le_WO.
   Proof.
     unfold well_founded in |- *; intro.

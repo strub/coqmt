@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: univ.mli 11301 2008-08-04 19:41:18Z herbelin $ i*)
+(*i $Id: univ.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (* Universes. *)
 
@@ -53,7 +53,7 @@ type constraint_function = universe -> universe -> constraints -> constraints
 val enforce_geq : constraint_function
 val enforce_eq : constraint_function
 
-(*s Merge of constraints in a universes graph. 
+(*s Merge of constraints in a universes graph.
   The function [merge_constraints] merges a set of constraints in a given
   universes graph. It raises the exception [UniverseInconsistency] if the
   constraints are not satisfiable. *)
@@ -68,12 +68,12 @@ val merge_constraints : constraints -> universes -> universes
 
 val fresh_local_univ : unit -> universe
 
-val solve_constraints_system : universe option array -> universe array -> 
+val solve_constraints_system : universe option array -> universe array ->
   universe array
 
 val subst_large_constraint : universe -> universe -> universe -> universe
 
-val subst_large_constraints : 
+val subst_large_constraints :
   (universe * universe) list -> universe -> universe
 
 val no_upper_constraints : universe -> constraints -> bool

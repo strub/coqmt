@@ -135,7 +135,7 @@ Qed.
 Definition apply (f:nat->Prop) := forall x, f x.
 Goal apply (fun n => n=0) -> 1=0.
 intro H.
-auto. 
+auto.
 Qed.
 
 (* The following fails if the coercion Zpos is not introduced around p
@@ -157,10 +157,10 @@ Qed.
 
 Definition succ x := S x.
 Goal forall (I : nat -> Set) (P : nat -> Prop) (Q : forall n:nat, I n -> Prop),
-  (forall x y, P x -> Q x y) -> 
+  (forall x y, P x -> Q x y) ->
   (forall x, P (S x)) -> forall y: I (S 0), Q (succ 0) y.
 intros.
-apply H with (y:=y). 
+apply H with (y:=y).
 (* [x] had two possible instances: [S 0], coming from unifying the
    type of [y] with [I ?n] and [succ 0] coming from the unification with
    the goal; only the first one allows to make the next apply (which
@@ -171,14 +171,14 @@ Qed.
 (* A similar example with a arbitrary long conversion between the two
    possible instances *)
 
-Fixpoint compute_succ x := 
+Fixpoint compute_succ x :=
   match x with O => S 0 | S n => S (compute_succ n) end.
 
 Goal forall (I : nat -> Set) (P : nat -> Prop) (Q : forall n:nat, I n -> Prop),
-  (forall x y, P x -> Q x y) -> 
+  (forall x y, P x -> Q x y) ->
   (forall x, P (S x)) -> forall y: I (S 100), Q (compute_succ 100) y.
 intros.
-apply H with (y:=y). 
+apply H with (y:=y).
 apply H0.
 Qed.
 
@@ -187,10 +187,10 @@ Qed.
    subgoal which precisely fails) *)
 
 Definition ID (A:Type) := A.
-Goal forall f:Type -> Type, 
-  forall (P : forall A:Type, A -> Prop), 
-  (forall (B:Type) x, P (f B) x -> P (f B) x) -> 
-  (forall (A:Type) x, P (f (f A)) x) -> 
+Goal forall f:Type -> Type,
+  forall (P : forall A:Type, A -> Prop),
+  (forall (B:Type) x, P (f B) x -> P (f B) x) ->
+  (forall (A:Type) x, P (f (f A)) x) ->
   forall (A:Type) (x:f (f A)), P (f (ID (f A))) x.
 intros.
 apply H.
@@ -239,6 +239,28 @@ Axiom silly_axiom : forall v : exp, v = v -> False.
 Lemma silly_lemma : forall x : atom, False.
 intros x.
 apply silly_axiom with (v := x).  (* fails *)
+reflexivity.
+Qed.
+
+(* Check that unification does not commit too early to a representative
+   of an eta-equivalence class that would be incompatible with other
+   unification constraints *)
+
+Lemma eta : forall f : (forall P, P 1),
+  (forall P, f P = f P) ->
+   forall Q, f (fun x => Q x) = f (fun x => Q x).
+intros.
+apply H.
+Qed.
+
+(* Test propagation of evars from subgoal to brother subgoals *)
+
+  (* This works because unfold calls clos_norm_flags which calls nf_evar *)
+
+Lemma eapply_evar_unfold : let x:=O in O=x -> 0=O.
+intros x H; eapply trans_equal;
+[apply H | unfold x;match goal with |- ?x = ?x => reflexivity end].
+Qed.
 
 (* Test non-regression of (temporary) bug 1981 *)
 
@@ -248,9 +270,124 @@ exact O.
 trivial.
 Qed.
 
-(* Test non-regression of (temporary) bug 1980 *)
+(* Check pattern-unification on evars in apply unification *)
+
+Lemma evar : exists f : nat -> nat, forall x, f x = 0 -> x = 0.
+Proof.
+eexists; intros x H.
+apply H.
+Qed.
+
+(* Check that "as" clause applies to main premise only and leave the
+   side conditions away *)
+
+Lemma side_condition : 
+  forall (A:Type) (B:Prop) x, (True -> B -> x=0) -> B -> x=x.
+Proof.
+intros.
+apply H in H0 as ->.
+reflexivity.
+exact I.
+Qed.
+
+(* Check that "apply" is chained on the last subgoal of each lemma and
+   that side conditions come first (as it is the case since 8.2) *)
+
+Lemma chaining : 
+  forall A B C : Prop,
+  (1=1 -> (2=2 -> A -> B) /\ True) ->
+  (3=3 -> (True /\ (4=4 -> C -> A))) -> C -> B.
+Proof.
+intros.
+apply H, H0.
+exact (refl_equal 1).
+exact (refl_equal 2).
+exact (refl_equal 3).
+exact (refl_equal 4).
+assumption.
+Qed.
+
+(* Check that the side conditions of "apply in", even when chained and
+   used through conjunctions, come last (as it is the case for single
+   calls to "apply in" w/o destruction of conjunction since 8.2) *)
+
+Lemma chaining_in :
+  forall A B C : Prop, 
+  (1=1 -> True /\ (B -> 2=2 -> 5=0)) ->
+  (3=3 -> (A -> 4=4 -> B) /\ True) -> A -> 0=5.
+Proof.
+intros.
+apply H0, H in H1 as ->.
+exact (refl_equal 0).
+exact (refl_equal 1).
+exact (refl_equal 2).
+exact (refl_equal 3).
+exact (refl_equal 4).
+Qed.
+
+(* From 12612, descent in conjunctions is more powerful *)
+(* The following, which was failing badly in bug 1980, is now accepted
+   (even if somehow surprising) *)
 
 Goal True.
-try eapply ex_intro.
-trivial.
+eapply ex_intro.
+instantiate (2:=fun _ :True => True).
+instantiate (1:=I).
+exact I.
 Qed.
+
+(* The following, which were not accepted, are now accepted as
+    expected by descent in conjunctions *)
+
+Goal True.
+eapply (ex_intro (fun _ => True) I).    
+exact I.
+Qed.
+
+Goal True.
+eapply (fun (A:Prop) (x:A) => conj I x).
+exact I.
+Qed.
+
+(* The following was not accepted from r12612 to r12657 *)
+
+Record sig0 := { p1 : nat; p2 : p1 = 0 }.
+
+Goal forall x : sig0, p1 x = 0.
+intro x;
+apply x.
+Qed.
+
+(* The following worked in 8.2 but was not accepted from r12229 to
+   r12926 because "simple apply" started to use pattern unification of
+   evars. Evars pattern unification for simple (e)apply was disabled
+   in 12927 but "simple eapply" below worked from 12898 to 12926
+   because pattern-unification also started supporting abstraction
+   over Metas. However it did not find the "simple" solution and hence
+   the subsequent "assumption" failed. *)
+
+Goal exists f:nat->nat, forall x y, x = y -> f x = f y.
+intros; eexists; intros.
+simple eapply (@f_equal nat).
+assumption.
+Existential 1 := fun x => x.
+Qed.
+
+(* The following worked in 8.2 but was not accepted from r12229 to
+   r12897 for the same reason because eauto uses "simple apply". It
+   worked from 12898 to 12926 because eauto uses eassumption and not
+   assumption. *)
+
+Goal exists f:nat->nat, forall x y, x = y -> f x = f y.
+intros; eexists; intros.
+eauto.
+Existential 1 := fun x => x.
+Qed.
+
+(* The following was accepted before r12612 but is still not accepted in r12658
+
+Goal forall x : { x:nat | x = 0}, proj1_sig x = 0.
+intro x;
+apply x.
+
+*)

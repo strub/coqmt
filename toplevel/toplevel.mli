@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: toplevel.mli 5920 2004-07-16 20:01:26Z herbelin $ i*)
+(*i $Id: toplevel.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Pp
@@ -18,7 +18,7 @@ open Pcoq
 (* A buffer for the character read from a channel. We store the command
  * entered to be able to report errors without pretty-printing. *)
 
-type input_buffer = { 
+type input_buffer = {
   mutable prompt : unit -> string;
   mutable str : string; (* buffer of already read characters *)
   mutable len : int;    (* number of chars in the buffer *)

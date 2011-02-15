@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Rgeom.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: Rgeom.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -32,7 +32,7 @@ Proof.
 Qed.
 
 Lemma distance_symm :
-  forall x0 y0 x1 y1:R, dist_euc x0 y0 x1 y1 = dist_euc x1 y1 x0 y0. 
+  forall x0 y0 x1 y1:R, dist_euc x0 y0 x1 y1 = dist_euc x1 y1 x0 y0.
 Proof.
   intros x0 y0 x1 y1; unfold dist_euc in |- *; apply Rsqr_inj;
     [ apply sqrt_positivity; apply Rplus_le_le_0_compat
@@ -187,7 +187,7 @@ Lemma isometric_rot_trans :
   forall x1 y1 x2 y2 tx ty theta:R,
     Rsqr (x1 - x2) + Rsqr (y1 - y2) =
     Rsqr (xr (xt x1 tx) (yt y1 ty) theta - xr (xt x2 tx) (yt y2 ty) theta) +
-    Rsqr (yr (xt x1 tx) (yt y1 ty) theta - yr (xt x2 tx) (yt y2 ty) theta). 
+    Rsqr (yr (xt x1 tx) (yt y1 ty) theta - yr (xt x2 tx) (yt y2 ty) theta).
 Proof.
   intros; rewrite <- isometric_rotation_0; apply isometric_translation.
 Qed.
@@ -196,7 +196,7 @@ Lemma isometric_trans_rot :
   forall x1 y1 x2 y2 tx ty theta:R,
     Rsqr (x1 - x2) + Rsqr (y1 - y2) =
     Rsqr (xt (xr x1 y1 theta) tx - xt (xr x2 y2 theta) tx) +
-    Rsqr (yt (yr x1 y1 theta) ty - yt (yr x2 y2 theta) ty). 
+    Rsqr (yt (yr x1 y1 theta) ty - yt (yr x2 y2 theta) ty).
 Proof.
   intros; rewrite <- isometric_translation; apply isometric_rotation_0.
 Qed.

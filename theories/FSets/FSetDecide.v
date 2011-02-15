@@ -6,7 +6,7 @@
 (*         *       GNU Lesser General Public License Version 2.1       *)
 (***********************************************************************)
 
-(* $Id: FSetDecide.v 11699 2008-12-18 11:49:08Z letouzey $ *)
+(* $Id: FSetDecide.v 13171 2010-06-18 21:45:40Z letouzey $ *)
 
 (**************************************************************)
 (* FSetDecide.v                                               *)
@@ -148,35 +148,35 @@ the above form:
 
         XXX: This tactic and the similar subsequent ones should
         have been defined using [autorewrite]. However, dealing
-        with multiples rewrite sites and side-conditions is 
-        done more cleverly with the following explicit 
+        with multiples rewrite sites and side-conditions is
+        done more cleverly with the following explicit
         analysis of goals. *)
 
-    Ltac or_not_l_iff P Q tac := 
-      (rewrite (or_not_l_iff_1 P Q) by tac) || 
+    Ltac or_not_l_iff P Q tac :=
+      (rewrite (or_not_l_iff_1 P Q) by tac) ||
       (rewrite (or_not_l_iff_2 P Q) by tac).
 
-    Ltac or_not_r_iff P Q tac := 
-      (rewrite (or_not_r_iff_1 P Q) by tac) || 
+    Ltac or_not_r_iff P Q tac :=
+      (rewrite (or_not_r_iff_1 P Q) by tac) ||
       (rewrite (or_not_r_iff_2 P Q) by tac).
 
-    Ltac or_not_l_iff_in P Q H tac := 
-      (rewrite (or_not_l_iff_1 P Q) in H by tac) || 
+    Ltac or_not_l_iff_in P Q H tac :=
+      (rewrite (or_not_l_iff_1 P Q) in H by tac) ||
       (rewrite (or_not_l_iff_2 P Q) in H by tac).
 
-    Ltac or_not_r_iff_in P Q H tac := 
-      (rewrite (or_not_r_iff_1 P Q) in H by tac) || 
+    Ltac or_not_r_iff_in P Q H tac :=
+      (rewrite (or_not_r_iff_1 P Q) in H by tac) ||
       (rewrite (or_not_r_iff_2 P Q) in H by tac).
 
     Tactic Notation "push" "not" "using" ident(db) :=
-      let dec := solve_decidable using db in 
+      let dec := solve_decidable using db in
       unfold not, iff;
       repeat (
         match goal with
         | |- context [True -> False] => rewrite not_true_iff
         | |- context [False -> False] => rewrite not_false_iff
         | |- context [(?P -> False) -> False] => rewrite (not_not_iff P) by dec
-        | |- context [(?P -> False) -> (?Q -> False)] => 
+        | |- context [(?P -> False) -> (?Q -> False)] =>
             rewrite (contrapositive P Q) by dec
         | |- context [(?P -> False) \/ ?Q] => or_not_l_iff P Q dec
         | |- context [?P \/ (?Q -> False)] => or_not_r_iff P Q dec
@@ -192,23 +192,23 @@ the above form:
 
     Tactic Notation
       "push" "not" "in" "*" "|-" "using" ident(db) :=
-      let dec := solve_decidable using db in 
+      let dec := solve_decidable using db in
       unfold not, iff in * |-;
       repeat (
         match goal with
         | H: context [True -> False] |- _ => rewrite not_true_iff in H
         | H: context [False -> False] |- _ => rewrite not_false_iff in H
-        | H: context [(?P -> False) -> False] |- _ => 
+        | H: context [(?P -> False) -> False] |- _ =>
           rewrite (not_not_iff P) in H by dec
         | H: context [(?P -> False) -> (?Q -> False)] |- _ =>
           rewrite (contrapositive P Q) in H by dec
         | H: context [(?P -> False) \/ ?Q] |- _ => or_not_l_iff_in P Q H dec
         | H: context [?P \/ (?Q -> False)] |- _ => or_not_r_iff_in P Q H dec
-        | H: context [(?P -> False) -> ?Q] |- _ => 
+        | H: context [(?P -> False) -> ?Q] |- _ =>
           rewrite (imp_not_l P Q) in H by dec
         | H: context [?P \/ ?Q -> False] |- _ => rewrite (not_or_iff P Q) in H
         | H: context [?P /\ ?Q -> False] |- _ => rewrite (not_and_iff P Q) in H
-        | H: context [(?P -> ?Q) -> False] |- _ => 
+        | H: context [(?P -> ?Q) -> False] |- _ =>
           rewrite (not_imp_iff P Q) in H by dec
         end);
       fold any not.
@@ -253,7 +253,7 @@ the above form:
         the hypotheses and goal together. *)
 
     Tactic Notation "pull" "not" "using" ident(db) :=
-      let dec := solve_decidable using db in 
+      let dec := solve_decidable using db in
       unfold not, iff;
       repeat (
         match goal with
@@ -269,7 +269,7 @@ the above form:
           rewrite <- (not_or_iff P Q)
         | |- context [?P -> ?Q -> False] => rewrite <- (not_and_iff P Q)
         | |- context [?P /\ (?Q -> False)] => rewrite <- (not_imp_iff P Q) by dec
-        | |- context [(?Q -> False) /\ ?P] => 
+        | |- context [(?Q -> False) /\ ?P] =>
           rewrite <- (not_imp_rev_iff P Q) by dec
         end);
       fold any not.
@@ -279,7 +279,7 @@ the above form:
 
     Tactic Notation
       "pull" "not" "in" "*" "|-" "using" ident(db) :=
-      let dec := solve_decidable using db in 
+      let dec := solve_decidable using db in
       unfold not, iff in * |-;
       repeat (
         match goal with
@@ -294,8 +294,8 @@ the above form:
         | H: context [(?P -> False) -> ?Q] |- _ =>
           rewrite (imp_not_l P Q) in H by dec
         | H: context [(?P -> False) /\ (?Q -> False)] |- _ =>
-          rewrite <- (not_or_iff P Q) in H 
-        | H: context [?P -> ?Q -> False] |- _ => 
+          rewrite <- (not_or_iff P Q) in H
+        | H: context [?P -> ?Q -> False] |- _ =>
           rewrite <- (not_and_iff P Q) in H
         | H: context [?P /\ (?Q -> False)] |- _ =>
           rewrite <- (not_imp_iff P Q) in H by dec
@@ -345,6 +345,19 @@ the above form:
 
     (** ** Generic Tactics
         We begin by defining a few generic, useful tactics. *)
+
+    (** remove logical hypothesis inter-dependencies (fix #2136). *)
+
+    Ltac no_logical_interdep :=
+      match goal with
+        | H : ?P |- _ =>
+          match type of P with
+            | Prop =>
+              match goal with H' : context [ H ] |- _ => clear dependent H' end
+            | _ => fail
+          end; no_logical_interdep
+        | _ => idtac
+      end.
 
     (** [if t then t1 else t2] executes [t] and, if it does not
         fail, then [t1] will be applied to all subgoals
@@ -405,7 +418,7 @@ the above form:
         propositions of interest. *)
 
     Inductive FSet_elt_Prop : Prop -> Prop :=
-    | eq_Prop : forall (S : Set) (x y : S),
+    | eq_Prop : forall (S : Type) (x y : S),
         FSet_elt_Prop (x = y)
     | eq_elt_prop : forall x y,
         FSet_elt_Prop (E.eq x y)
@@ -664,6 +677,9 @@ the above form:
         [intros] to leave us with a goal of [~ P] than a goal of
         [False]. *)
     fold any not; intros;
+    (** We remove dependencies to logical hypothesis. This way,
+        later "clear" will work nicely (see bug #2136) *)
+    no_logical_interdep;
     (** Now we decompose conjunctions, which will allow the
         [discard_nonFSet] and [assert_decidability] tactics to
         do a much better job. *)

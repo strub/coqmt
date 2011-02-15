@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Ranalysis2.v 10710 2008-03-23 09:24:09Z herbelin $ i*)
+(*i $Id: Ranalysis2.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rfunctions.
@@ -36,29 +36,27 @@ Proof.
   replace (l1 * (/ f2 x * / f2 (x + h)) * - f2 (x + h)) with
   (- (l1 * / f2 x * (f2 (x + h) * / f2 (x + h)))); [ idtac | ring ].
   replace (f1 x * (/ f2 x * / f2 (x + h)) * (f2 (x + h) * / h)) with
-  (f1 x * / f2 x * / h * (f2 (x + h) * / f2 (x + h))); 
+  (f1 x * / f2 x * / h * (f2 (x + h) * / f2 (x + h)));
   [ idtac | ring ].
   replace (f1 x * (/ f2 x * / f2 (x + h)) * (- f2 x * / h)) with
-  (- (f1 x * / f2 (x + h) * / h * (f2 x * / f2 x))); 
+  (- (f1 x * / f2 (x + h) * / h * (f2 x * / f2 x)));
   [ idtac | ring ].
   replace (l2 * f1 x * (/ f2 x * / f2 x * / f2 (x + h)) * f2 (x + h)) with
   (l2 * f1 x * / f2 x * / f2 x * (f2 (x + h) * / f2 (x + h)));
   [ idtac | ring ].
   replace (l2 * f1 x * (/ f2 x * / f2 x * / f2 (x + h)) * - f2 x) with
-  (- (l2 * f1 x * / f2 x * / f2 (x + h) * (f2 x * / f2 x))); 
+  (- (l2 * f1 x * / f2 x * / f2 (x + h) * (f2 x * / f2 x)));
   [ idtac | ring ].
   repeat rewrite <- Rinv_r_sym; try assumption || ring.
   apply prod_neq_R0; assumption.
 Qed.
 
-Lemma Rmin_pos : forall x y:R, 0 < x -> 0 < y -> 0 < Rmin x y.
-Proof.
-  intros; unfold Rmin in |- *.
-  case (Rle_dec x y); intro; assumption.
-Qed.
+(* begin hide *)
+Notation Rmin_pos := Rmin_pos (only parsing). (* compat *)
+(* end hide *)
 
 Lemma maj_term1 :
-  forall (x h eps l1 alp_f2:R) (eps_f2 alp_f1d:posreal) 
+  forall (x h eps l1 alp_f2:R) (eps_f2 alp_f1d:posreal)
     (f1 f2:R -> R),
     0 < eps ->
     f2 x <> 0 ->
@@ -105,7 +103,7 @@ Proof.
 Qed.
 
 Lemma maj_term2 :
-  forall (x h eps l1 alp_f2 alp_f2t2:R) (eps_f2:posreal) 
+  forall (x h eps l1 alp_f2 alp_f2t2:R) (eps_f2:posreal)
     (f2:R -> R),
     0 < eps ->
     f2 x <> 0 ->
@@ -143,7 +141,7 @@ Proof.
   replace (Rabs 2) with 2.
   rewrite (Rmult_comm 2).
   replace (Rabs l1 * (Rabs (/ f2 x) * Rabs (/ f2 x)) * 2) with
-  (Rabs l1 * (Rabs (/ f2 x) * (Rabs (/ f2 x) * 2))); 
+  (Rabs l1 * (Rabs (/ f2 x) * (Rabs (/ f2 x) * 2)));
   [ idtac | ring ].
   repeat apply Rmult_lt_compat_l.
   apply Rabs_pos_lt; assumption.
@@ -176,7 +174,7 @@ Proof.
 Qed.
 
 Lemma maj_term3 :
-  forall (x h eps l2 alp_f2:R) (eps_f2 alp_f2d:posreal) 
+  forall (x h eps l2 alp_f2:R) (eps_f2 alp_f2d:posreal)
     (f1 f2:R -> R),
     0 < eps ->
     f2 x <> 0 ->
@@ -218,7 +216,7 @@ Proof.
   replace (Rabs 2) with 2.
   rewrite (Rmult_comm 2).
   replace (Rabs (f1 x) * (Rabs (/ f2 x) * Rabs (/ f2 x)) * 2) with
-  (Rabs (f1 x) * (Rabs (/ f2 x) * (Rabs (/ f2 x) * 2))); 
+  (Rabs (f1 x) * (Rabs (/ f2 x) * (Rabs (/ f2 x) * 2)));
   [ idtac | ring ].
   repeat apply Rmult_lt_compat_l.
   apply Rabs_pos_lt; assumption.
@@ -251,7 +249,7 @@ Proof.
 Qed.
 
 Lemma maj_term4 :
-  forall (x h eps l2 alp_f2 alp_f2c:R) (eps_f2:posreal) 
+  forall (x h eps l2 alp_f2 alp_f2c:R) (eps_f2:posreal)
     (f1 f2:R -> R),
     0 < eps ->
     f2 x <> 0 ->
@@ -386,10 +384,9 @@ Proof.
   apply Rplus_lt_compat_l; assumption.
 Qed.
 
-Lemma Rmin_2 : forall a b c:R, a < b -> a < c -> a < Rmin b c.
-Proof.
-  intros; unfold Rmin in |- *; case (Rle_dec b c); intro; assumption.
-Qed.
+(* begin hide *)
+Notation Rmin_2 := Rmin_glb_lt (only parsing).
+(* end hide *)
 
 Lemma quadruple : forall x:R, 4 * x = x + x + x + x.
 Proof.
@@ -431,7 +428,7 @@ Proof.
   assert (Hyp : 0 < 2).
   prove_sup0.
   intro; rewrite H11 in H10; assert (H12 := Rmult_lt_compat_l 2 _ _ Hyp H10);
-    rewrite Rmult_1_r in H12; rewrite <- Rinv_r_sym in H12; 
+    rewrite Rmult_1_r in H12; rewrite <- Rinv_r_sym in H12;
       [ idtac | discrR ].
   cut (IZR 1 < IZR 2).
   unfold IZR in |- *; unfold INR, nat_of_P in |- *; simpl in |- *; intro;

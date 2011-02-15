@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: proof_trees.mli 9154 2006-09-20 17:18:18Z corbinea $ i*)
+(*i $Id: proof_trees.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Util
@@ -33,7 +33,7 @@ val is_complete_proof : proof_tree -> bool
 val is_leaf_proof     : proof_tree -> bool
 val is_tactic_proof   : proof_tree -> bool
 
-val pf_lookup_name_as_renamed  : env -> constr -> identifier -> int option
+val pf_lookup_name_as_displayed  : env -> constr -> identifier -> int option
 val pf_lookup_index_as_renamed : env -> constr -> int -> int option
 
 val is_proof_instr : rule -> bool

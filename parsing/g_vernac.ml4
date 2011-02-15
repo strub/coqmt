@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -9,20 +9,20 @@
 (*i camlp4deps: "parsing/grammar.cma" i*)
 (*i camlp4use: "pa_extend.cmo" i*)
 
-(* $Id: g_vernac.ml4 12187 2009-06-13 19:36:59Z msozeau $ *)
+(* $Id: g_vernac.ml4 13332 2010-07-26 22:12:43Z msozeau $ *)
 
 
 open Pp
 open Util
 open Names
 open Topconstr
+open Extend
 open Vernacexpr
 open Pcoq
 open Decl_mode
 open Tactic
 open Decl_kinds
 open Genarg
-open Extend
 open Ppextend
 open Goptions
 
@@ -50,6 +50,7 @@ let decl_notation = Gram.Entry.create "vernac:decl_notation"
 let typeclass_context = Gram.Entry.create "vernac:typeclass_context"
 let record_field = Gram.Entry.create "vernac:record_field"
 let of_type_with_opt_coercion = Gram.Entry.create "vernac:of_type_with_opt_coercion"
+let instance_name = Gram.Entry.create "vernac:instance_name"
 
 let get_command_entry () =
   match Decl_mode.get_current_mode () with
@@ -58,34 +59,34 @@ let get_command_entry () =
     | Mode_none -> noedit_mode
 
 let default_command_entry =
-  Gram.Entry.of_parser "command_entry" 
+  Gram.Entry.of_parser "command_entry"
     (fun strm -> Gram.Entry.parse_token (get_command_entry ()) strm)
 
 let no_hook _ _ = ()
 GEXTEND Gram
   GLOBAL: vernac gallina_ext tactic_mode proof_mode noedit_mode;
   vernac: FIRST
-    [ [ IDENT "Time"; locality; v = vernac_aux -> 
-          check_locality (); VernacTime v 
-      | locality; v = vernac_aux -> 
-	  check_locality (); v ] ]
+    [ [ IDENT "Time"; v = vernac -> VernacTime v
+      | IDENT "Timeout"; n = natural; v = vernac -> VernacTimeout(n,v)
+      | IDENT "Fail"; v = vernac -> VernacFail v
+      | locality; v = vernac_aux -> v ] ]
   ;
   vernac_aux:
     (* Better to parse "." here: in case of failure (e.g. in coerce_to_var), *)
     (* "." is still in the stream and discard_to_dot works correctly         *)
-    [ [ g = gallina; "." -> g 
+    [ [ g = gallina; "." -> g
       | g = gallina_ext; "." -> g
-      | c = command; "." -> c 
+      | c = command; "." -> c
       | c = syntax; "." -> c
       | "["; l = LIST1 located_vernac; "]"; "." -> VernacList l
     ] ]
   ;
-  vernac_aux: LAST  
+  vernac_aux: LAST
     [ [ prfcom = default_command_entry -> prfcom ] ]
   ;
   locality:
-    [ [ IDENT "Local" -> locality_flag := Some true
-      | IDENT "Global" -> locality_flag := Some false
+    [ [ IDENT "Local" -> locality_flag := Some (loc,true)
+      | IDENT "Global" -> locality_flag := Some (loc,false)
       | -> locality_flag := None ] ]
   ;
   noedit_mode:
@@ -104,11 +105,11 @@ GEXTEND Gram
             VernacSolve(g,tac,use_dft_tac)) ] ]
   ;
   proof_mode:
-    [ [ instr = proof_instr; "." -> VernacProofInstr instr ] ] 
+    [ [ instr = proof_instr; "." -> VernacProofInstr instr ] ]
   ;
   proof_mode: LAST
     [ [ c=subgoal_command -> c (Some 1) ] ]
-  ; 
+  ;
   located_vernac:
     [ [ v = vernac -> loc, v ] ]
   ;
@@ -120,10 +121,11 @@ let test_plurial_form = function
    "Keywords Variables/Hypotheses/Parameters expect more than one assumption"
   | _ -> ()
 
-let no_coercion loc (c,x) =
-  if c then Util.user_err_loc
-    (loc,"no_coercion",str"No coercion allowed here.");
-  x
+let test_plurial_form_types = function
+  | [([_],_)] ->
+      Flags.if_verbose warning
+   "Keywords Implicit Types expect more than one type"
+  | _ -> ()
 
 (* Gallina declarations *)
 GEXTEND Gram
@@ -132,28 +134,28 @@ GEXTEND Gram
 
   gallina:
       (* Definition, Theorem, Variable, Axiom, ... *)
-    [ [ thm = thm_token; id = identref; bl = binders_let; ":"; c = lconstr;
-        l = LIST0 
-          [ "with"; id = identref; bl = binders_let; ":"; c = lconstr ->
-            (Some id,(bl,c)) ] ->
-          VernacStartTheoremProof (thm,(Some id,(bl,c))::l, false, no_hook)
-      | stre = assumption_token; nl = inline; bl = assum_list -> 
+    [ [ thm = thm_token; id = identref; bl = binders; ":"; c = lconstr;
+        l = LIST0
+          [ "with"; id = identref; bl = binders; ":"; c = lconstr ->
+            (Some id,(bl,c,None)) ] ->
+          VernacStartTheoremProof (thm,(Some id,(bl,c,None))::l, false, no_hook)
+      | stre = assumption_token; nl = inline; bl = assum_list ->
 	  VernacAssumption (stre, nl, bl)
       | stre = assumptions_token; nl = inline; bl = assum_list ->
 	  test_plurial_form bl;
 	  VernacAssumption (stre, nl, bl)
-      | IDENT "Boxed";"Definition";id = identref; b = def_body -> 
+      | IDENT "Boxed";"Definition";id = identref; b = def_body ->
 	  VernacDefinition ((Global,true,Definition), id, b, no_hook)
-      | IDENT "Unboxed";"Definition";id = identref; b = def_body -> 
+      | IDENT "Unboxed";"Definition";id = identref; b = def_body ->
 	  VernacDefinition ((Global,false,Definition), id, b, no_hook)
-      | (f,d) = def_token; id = identref; b = def_body -> 
+      | (f,d) = def_token; id = identref; b = def_body ->
           VernacDefinition (d, id, b, f)
       (* Gallina inductive declarations *)
       | f = finite_token;
         indl = LIST1 inductive_definition SEP "with" ->
- 	  let (k,f) = f in
- 	  let indl=List.map (fun ((a,b,c,d),e) -> ((a,b,c,k,d),e)) indl in
-          VernacInductive (f,indl)
+	  let (k,f) = f in
+	  let indl=List.map (fun ((a,b,c,d),e) -> ((a,b,c,k,d),e)) indl in
+          VernacInductive (f,false,indl)
       | IDENT "Boxed";"Fixpoint"; recs = LIST1 rec_definition SEP "with" ->
           VernacFixpoint (recs,true)
       | IDENT "Unboxed";"Fixpoint"; recs = LIST1 rec_definition SEP "with" ->
@@ -163,21 +165,21 @@ GEXTEND Gram
       | "CoFixpoint"; corecs = LIST1 corec_definition SEP "with" ->
           VernacCoFixpoint (corecs,false)
       | IDENT "Scheme"; l = LIST1 scheme SEP "with" -> VernacScheme l
-      | IDENT "Combined"; IDENT "Scheme"; id = identref; IDENT "from"; 
+      | IDENT "Combined"; IDENT "Scheme"; id = identref; IDENT "from";
 	l = LIST1 identref SEP "," -> VernacCombinedScheme (id, l) ] ]
   ;
   gallina_ext:
-    [ [ b = record_token; oc = opt_coercion; name = identref;
-        ps = binders_let; 
+    [ [ b = record_token; infer = infer_token; oc = opt_coercion; name = identref;
+        ps = binders;
 	s = OPT [ ":"; s = lconstr -> s ];
 	cfs = [ ":="; l = constructor_list_or_record_decl -> l
 	  | -> RecordDecl (None, []) ] ->
 	  let (recf,indf) = b in
-	    VernacInductive (indf,[((oc,name),ps,s,recf,cfs),None])
+	    VernacInductive (indf,infer,[((oc,name),ps,s,recf,cfs),[]])
   ] ]
   ;
   typeclass_context:
-    [ [ "["; l=LIST1 typeclass_constraint SEP ","; "]" -> l 
+    [ [ "["; l=LIST1 typeclass_constraint SEP ","; "]" -> l
     | -> [] ] ]
   ;
   thm_token:
@@ -190,14 +192,14 @@ GEXTEND Gram
       | IDENT "Property" -> Property ] ]
   ;
   def_token:
-    [ [ "Definition" -> 
+    [ [ "Definition" ->
 	no_hook, (Global, Flags.boxed_definitions(), Definition)
-      | IDENT "Let" -> 
+      | IDENT "Let" ->
 	no_hook, (Local, Flags.boxed_definitions(), Definition)
-      | IDENT "Example" -> 
+      | IDENT "Example" ->
 	no_hook, (Global, Flags.boxed_definitions(), Example)
       | IDENT "SubClass"  ->
-          Class.add_subclass_hook, (use_locality_exp (), false, SubClass) ] ] 
+          Class.add_subclass_hook, (use_locality_exp (), false, SubClass) ] ]
   ;
   assumption_token:
     [ [ "Hypothesis" -> (Local, Logical)
@@ -219,45 +221,52 @@ GEXTEND Gram
     [ [ "Inductive" -> (Inductive_kw,Finite)
       | "CoInductive" -> (CoInductive,CoFinite) ] ]
   ;
+  infer_token:
+    [ [ IDENT "Infer" -> true | -> false ] ]
+  ;
   record_token:
     [ [ IDENT "Record" -> (Record,BiFinite)
-      | IDENT "Structure" -> (Structure,BiFinite) 
+      | IDENT "Structure" -> (Structure,BiFinite)
       | IDENT "Class" -> (Class true,BiFinite) ] ]
   ;
   (* Simple definitions *)
   def_body:
-    [ [ bl = binders_let; ":="; red = reduce; c = lconstr ->
+    [ [ bl = binders; ":="; red = reduce; c = lconstr ->
       (match c with
           CCast(_,c, Rawterm.CastConv (k,t)) -> DefineBody (bl, red, c, Some t)
         | _ -> DefineBody (bl, red, c, None))
-    | bl = binders_let; ":"; t = lconstr; ":="; red = reduce; c = lconstr ->
+    | bl = binders; ":"; t = lconstr; ":="; red = reduce; c = lconstr ->
 	DefineBody (bl, red, c, Some t)
-    | bl = binders_let; ":"; t = lconstr ->
+    | bl = binders; ":"; t = lconstr ->
         ProveBody (bl, t) ] ]
   ;
   reduce:
     [ [ IDENT "Eval"; r = Tactic.red_expr; "in" -> Some r
       | -> None ] ]
   ;
+  one_decl_notation:
+    [ [ ntn = ne_lstring; ":="; c = constr;
+        scopt = OPT [ ":"; sc = IDENT -> sc] -> (ntn,c,scopt) ] ]
+  ;
   decl_notation:
-    [ [ OPT [ "where"; ntn = ne_string; ":="; c = constr; 
-         scopt = OPT [ ":"; sc = IDENT -> sc] -> (ntn,c,scopt) ] ] ]
-    ;
+    [ [ "where"; l = LIST1 one_decl_notation SEP IDENT "and" -> l
+    | -> [] ] ]
+  ;
   (* Inductives and records *)
   inductive_definition:
-    [ [ id = identref; oc = opt_coercion; indpar = binders_let; 
+    [ [ id = identref; oc = opt_coercion; indpar = binders;
         c = OPT [ ":"; c = lconstr -> c ];
         ":="; lc = constructor_list_or_record_decl; ntn = decl_notation ->
 	   (((oc,id),indpar,c,lc),ntn) ] ]
   ;
   constructor_list_or_record_decl:
     [ [ "|"; l = LIST1 constructor SEP "|" -> Constructors l
-      | id = identref ; c = constructor_type; "|"; l = LIST0 constructor SEP "|" -> 
+      | id = identref ; c = constructor_type; "|"; l = LIST0 constructor SEP "|" ->
 	  Constructors ((c id)::l)
       | id = identref ; c = constructor_type -> Constructors [ c id ]
-      | cstr = identref; "{"; fs = LIST0 record_field SEP ";"; "}" -> 
-	  RecordDecl (Some cstr,fs) 
-      | "{";fs = LIST0 record_field SEP ";"; "}" -> RecordDecl (None,fs) 
+      | cstr = identref; "{"; fs = LIST0 record_field SEP ";"; "}" ->
+	  RecordDecl (Some cstr,fs)
+      | "{";fs = LIST0 record_field SEP ";"; "}" -> RecordDecl (None,fs)
       |  -> Constructors [] ] ]
   ;
 (*
@@ -271,36 +280,19 @@ GEXTEND Gram
   ;
   (* (co)-fixpoints *)
   rec_definition:
-    [ [ id = identref; 
-	bl = binders_let_fixannot;
-        ty = type_cstr; 
-	":="; def = lconstr; ntn = decl_notation ->
-	  let bl, annot = bl in
-          let names = names_of_local_assums bl in
-          let ni =
-            match fst annot with
-                Some (loc, id) ->
-                  (if List.exists (fun (_, id') -> Name id = id') names then
-		    Some (loc, id)
-		    else Util.user_err_loc
-                      (loc,"Fixpoint",
-                       str "No argument named " ++ Nameops.pr_id id ++ str"."))
-              | None -> 
-		  (* If there is only one argument, it is the recursive one, 
-		     otherwise, we search the recursive index later *)
-		  match names with
-		    | [(loc, Name na)] -> Some (loc, na)
-		    | _ -> None	  
-	  in 
-	  ((id,(ni,snd annot),bl,ty,def),ntn) ] ]
+    [ [ id = identref;
+	bl = binders_fixannot;
+        ty = type_cstr;
+	def = OPT [":="; def = lconstr -> def]; ntn = decl_notation ->
+	  let bl, annot = bl in ((id,annot,bl,ty,def),ntn) ] ]
   ;
   corec_definition:
-    [ [ id = identref; bl = binders_let; ty = type_cstr; ":=";
-        def = lconstr; ntn = decl_notation ->
+    [ [ id = identref; bl = binders; ty = type_cstr;
+        def = OPT [":="; def = lconstr -> def]; ntn = decl_notation ->
           ((id,bl,ty,def),ntn) ] ]
   ;
   type_cstr:
-    [ [ ":"; c=lconstr -> c 
+    [ [ ":"; c=lconstr -> c
       | -> CHole (loc, None) ] ]
   ;
   (* Inductive schemes *)
@@ -309,11 +301,15 @@ GEXTEND Gram
       | id = identref; ":="; kind = scheme_kind -> (Some id,kind) ] ]
   ;
   scheme_kind:
-    [ [ IDENT "Induction"; "for"; ind = global;
+    [ [ IDENT "Induction"; "for"; ind = smart_global;
           IDENT "Sort"; s = sort-> InductionScheme(true,ind,s)
-      | IDENT "Minimality"; "for"; ind = global;
+      | IDENT "Minimality"; "for"; ind = smart_global;
           IDENT "Sort"; s = sort-> InductionScheme(false,ind,s)
-      | IDENT "Equality"; "for" ; ind = global -> EqualityScheme(ind)  ] ]
+      | IDENT "Elimination"; "for"; ind = smart_global;
+          IDENT "Sort"; s = sort-> CaseScheme(true,ind,s)
+      | IDENT "Case"; "for"; ind = smart_global;
+          IDENT "Sort"; s = sort-> CaseScheme(false,ind,s)
+      | IDENT "Equality"; "for" ; ind = smart_global -> EqualityScheme(ind) ] ]
   ;
   (* Various Binders *)
 (*
@@ -331,16 +327,22 @@ GEXTEND Gram
   record_field:
     [ [ bd = record_binder; ntn = decl_notation -> bd,ntn ] ]
   ;
+  record_binder_body:
+    [ [ l = binders; oc = of_type_with_opt_coercion;
+         t = lconstr -> fun id -> (oc,AssumExpr (id,mkCProdN loc l t))
+      | l = binders; oc = of_type_with_opt_coercion;
+         t = lconstr; ":="; b = lconstr -> fun id ->
+	   (oc,DefExpr (id,mkCLambdaN loc l b,Some (mkCProdN loc l t)))
+      | l = binders; ":="; b = lconstr -> fun id ->
+         match b with
+	 | CCast(_,b, Rawterm.CastConv (_, t)) ->
+	     (false,DefExpr(id,mkCLambdaN loc l b,Some (mkCProdN loc l t)))
+         | _ ->
+	     (false,DefExpr(id,mkCLambdaN loc l b,None)) ] ]
+  ;
   record_binder:
     [ [ id = name -> (false,AssumExpr(id,CHole (loc, None)))
-      | id = name; oc = of_type_with_opt_coercion; t = lconstr ->
-         (oc,AssumExpr (id,t))
-      | id = name; oc = of_type_with_opt_coercion;
-             t = lconstr; ":="; b = lconstr -> (oc,DefExpr (id,b,Some t))
-      | id = name; ":="; b = lconstr ->
-         match b with
-             CCast(_,b, Rawterm.CastConv (_, t)) -> (false,DefExpr(id,b,Some t))
-           | _ -> (false,DefExpr(id,b,None)) ] ]
+      | id = name; f = record_binder_body -> f id ] ]
   ;
   assum_list:
     [ [ bl = LIST1 assum_coe -> bl | b = simple_assum_coe -> [b] ] ]
@@ -349,12 +351,12 @@ GEXTEND Gram
     [ [ "("; a = simple_assum_coe; ")" -> a ] ]
   ;
   simple_assum_coe:
-    [ [ idl = LIST1 identref; oc = of_type_with_opt_coercion; c = lconstr -> 
+    [ [ idl = LIST1 identref; oc = of_type_with_opt_coercion; c = lconstr ->
         (oc,(idl,c)) ] ]
   ;
 
   constructor_type:
-    [[ l = binders_let; 
+    [[ l = binders;
       t= [ coe = of_type_with_opt_coercion; c = lconstr ->
 	            fun l id -> (coe,(id,mkCProdN loc l c))
             |  ->
@@ -380,18 +382,17 @@ GEXTEND Gram
 
   gallina_ext:
     [ [ (* Interactive module declaration *)
-        IDENT "Module"; export = export_token; id = identref; 
-	bl = LIST0 module_binder; mty_o = OPT of_module_type; 
-	mexpr_o = OPT is_module_expr ->
-	  VernacDefineModule (export, id, bl, mty_o, mexpr_o)
-	  
-      | IDENT "Module"; "Type"; id = identref; 
-	bl = LIST0 module_binder; mty_o = OPT is_module_type ->
-	  VernacDeclareModuleType (id, bl, mty_o)
-	  
-      | IDENT "Declare"; IDENT "Module"; export = export_token; id = identref; 
-	bl = LIST0 module_binder; ":"; mty = module_type ->
-	  VernacDeclareModule (export, id, bl, (mty,true))
+        IDENT "Module"; export = export_token; id = identref;
+	bl = LIST0 module_binder; sign = of_module_type;
+	body = is_module_expr ->
+	  VernacDefineModule (export, id, bl, sign, body)
+      | IDENT "Module"; "Type"; id = identref;
+	bl = LIST0 module_binder; sign = check_module_types;
+	body = is_module_type ->
+	  VernacDeclareModuleType (id, bl, sign, body)
+      | IDENT "Declare"; IDENT "Module"; export = export_token; id = identref;
+	bl = LIST0 module_binder; ":"; mty = module_type_inl ->
+	  VernacDeclareModule (export, id, bl, mty)
       (* Section beginning *)
       | IDENT "Section"; id = identref -> VernacBeginSection id
       | IDENT "Chapter"; id = identref -> VernacBeginSection id
@@ -402,43 +403,66 @@ GEXTEND Gram
       (* Requiring an already compiled module *)
       | IDENT "Require"; export = export_token; qidl = LIST1 global ->
           VernacRequire (export, None, qidl)
-      | IDENT "Require"; export = export_token; filename = ne_string -> 
+      | IDENT "Require"; export = export_token; filename = ne_string ->
 	  VernacRequireFrom (export, None, filename)
       | IDENT "Import"; qidl = LIST1 global -> VernacImport (false,qidl)
-      | IDENT "Export"; qidl = LIST1 global -> VernacImport (true,qidl) 
-      | IDENT "Include"; expr = module_expr -> VernacInclude(CIME(expr))
-      | IDENT "Include"; "Type"; expr = module_type -> VernacInclude(CIMTE(expr)) ] ]
+      | IDENT "Export"; qidl = LIST1 global -> VernacImport (true,qidl)
+      | IDENT "Include"; e = module_expr_inl; l = LIST0 ext_module_expr ->
+	  VernacInclude(e::l)
+      | IDENT "Include"; "Type"; e = module_type_inl; l = LIST0 ext_module_type ->
+	  warning "Include Type is deprecated; use Include instead";
+          VernacInclude(e::l) ] ]
   ;
   export_token:
     [ [ IDENT "Import" -> Some false
       | IDENT "Export" -> Some true
       |  -> None ] ]
   ;
+  ext_module_type:
+    [ [ "<+"; mty = module_type_inl -> mty ] ]
+  ;
+  ext_module_expr:
+    [ [ "<+"; mexpr = module_expr_inl -> mexpr ] ]
+  ;
+  check_module_type:
+    [ [ "<:"; mty = module_type_inl -> mty ] ]
+  ;
+  check_module_types:
+    [ [ mtys = LIST0 check_module_type -> mtys ] ]
+  ;
   of_module_type:
-    [ [ ":"; mty = module_type -> (mty, true) 
-      | "<:"; mty = module_type -> (mty, false) ] ]
+    [ [ ":"; mty = module_type_inl -> Enforce mty
+      | mtys = check_module_types -> Check mtys ] ]
   ;
   is_module_type:
-    [ [ ":="; mty = module_type -> mty ] ]
+    [ [ ":="; mty = module_type_inl ; l = LIST0 ext_module_type -> (mty::l)
+      | -> [] ] ]
   ;
   is_module_expr:
-    [ [ ":="; mexpr = module_expr -> mexpr ] ]
+    [ [ ":="; mexpr = module_expr_inl; l = LIST0 ext_module_expr -> (mexpr::l)
+      | -> [] ] ]
   ;
-
+  module_expr_inl:
+    [ [ "!"; me = module_expr -> (me,false)
+      | me = module_expr -> (me,true) ] ]
+  ;
+  module_type_inl:
+    [ [ "!"; me = module_type -> (me,false)
+      | me = module_type -> (me,true) ] ]
+  ;
   (* Module binder  *)
   module_binder:
     [ [ "("; export = export_token; idl = LIST1 identref; ":";
-         mty = module_type; ")" -> (export,idl,mty) ] ]
+         mty = module_type_inl; ")" -> (export,idl,mty) ] ]
   ;
-
   (* Module expressions *)
   module_expr:
     [ [ me = module_expr_atom -> me
-      | me1 = module_expr; me2 = module_expr_atom -> CMEapply (me1,me2)
+      | me1 = module_expr; me2 = module_expr_atom -> CMapply (me1,me2)
       ] ]
   ;
   module_expr_atom:
-    [ [ qid = qualid -> CMEident qid | "("; me = module_expr; ")" -> me ] ]
+    [ [ qid = qualid -> CMident qid | "("; me = module_expr; ")" -> me ] ]
   ;
   with_declaration:
     [ [ "Definition"; fqid = fullyqualid; ":="; c = Constr.lconstr ->
@@ -447,94 +471,106 @@ GEXTEND Gram
 	  CWith_Module (fqid,qid)
       ] ]
   ;
-  module_type_atom:
-    [ [ qid = qualid -> CMTEident qid
-      | mty = module_type_atom; me = module_expr_atom -> CMTEapply (mty,me) 
-      ] ]
-  ;
   module_type:
-    [ [ mty = module_type_atom -> mty
-      | mty = module_type; "with"; decl = with_declaration -> CMTEwith (mty,decl)
+    [ [ qid = qualid -> CMident qid
+      | "("; mt = module_type; ")" -> mt
+      | mty = module_type; me = module_expr_atom -> CMapply (mty,me)
+      | mty = module_type; "with"; decl = with_declaration -> CMwith (mty,decl)
       ] ]
   ;
 END
 
-(* Extensions: implicits, coercions, etc. *)   
+(* Extensions: implicits, coercions, etc. *)
 GEXTEND Gram
-  GLOBAL: gallina_ext;
+  GLOBAL: gallina_ext instance_name;
 
   gallina_ext:
     [ [ (* Transparent and Opaque *)
-        IDENT "Transparent"; l = LIST1 global ->
+        IDENT "Transparent"; l = LIST1 smart_global ->
           VernacSetOpacity (use_non_locality (),[Conv_oracle.transparent,l])
-      | IDENT "Opaque"; l = LIST1 global ->
+      | IDENT "Opaque"; l = LIST1 smart_global ->
           VernacSetOpacity (use_non_locality (),[Conv_oracle.Opaque, l])
       | IDENT "Strategy"; l =
-          LIST1 [ lev=strategy_level; "["; q=LIST1 global; "]" -> (lev,q)] ->
+          LIST1 [ lev=strategy_level; "["; q=LIST1 smart_global; "]" -> (lev,q)] ->
             VernacSetOpacity (use_locality (),l)
       (* Canonical structure *)
       | IDENT "Canonical"; IDENT "Structure"; qid = global ->
-	  VernacCanonical qid
-      | IDENT "Canonical"; IDENT "Structure"; qid = global; d = def_body ->
-          let s = coerce_global_to_id qid in
-	  VernacDefinition 
+	  VernacCanonical (AN qid)
+      | IDENT "Canonical"; IDENT "Structure"; ntn = by_notation ->
+	  VernacCanonical (ByNotation ntn)
+      | IDENT "Canonical"; IDENT "Structure"; qid = global;
+          d = def_body ->
+          let s = coerce_reference_to_id qid in
+	  VernacDefinition
 	    ((Global,false,CanonicalStructure),(dummy_loc,s),d,
 	     (fun _ -> Recordops.declare_canonical_structure))
 
       (* Coercions *)
       | IDENT "Coercion"; qid = global; d = def_body ->
-          let s = coerce_global_to_id qid in
+          let s = coerce_reference_to_id qid in
 	  VernacDefinition ((use_locality_exp (),false,Coercion),(dummy_loc,s),d,Class.add_coercion_hook)
       | IDENT "Coercion"; IDENT "Local"; qid = global; d = def_body ->
-           let s = coerce_global_to_id qid in
-	  VernacDefinition ((enforce_locality_exp (),false,Coercion),(dummy_loc,s),d,Class.add_coercion_hook)
+           let s = coerce_reference_to_id qid in
+	  VernacDefinition ((enforce_locality_exp true,false,Coercion),(dummy_loc,s),d,Class.add_coercion_hook)
       | IDENT "Identity"; IDENT "Coercion"; IDENT "Local"; f = identref;
-         ":"; s = class_rawexpr; ">->"; t = class_rawexpr -> 
-	   VernacIdentityCoercion (enforce_locality_exp (), f, s, t)
+         ":"; s = class_rawexpr; ">->"; t = class_rawexpr ->
+	   VernacIdentityCoercion (enforce_locality_exp true, f, s, t)
       | IDENT "Identity"; IDENT "Coercion"; f = identref; ":";
-         s = class_rawexpr; ">->"; t = class_rawexpr -> 
+         s = class_rawexpr; ">->"; t = class_rawexpr ->
 	   VernacIdentityCoercion (use_locality_exp (), f, s, t)
       | IDENT "Coercion"; IDENT "Local"; qid = global; ":";
-	 s = class_rawexpr; ">->"; t = class_rawexpr -> 
-	  VernacCoercion (enforce_locality_exp (), qid, s, t)
+	 s = class_rawexpr; ">->"; t = class_rawexpr ->
+	  VernacCoercion (enforce_locality_exp true, AN qid, s, t)
+      | IDENT "Coercion"; IDENT "Local"; ntn = by_notation; ":";
+	 s = class_rawexpr; ">->"; t = class_rawexpr ->
+	  VernacCoercion (enforce_locality_exp true, ByNotation ntn, s, t)
       | IDENT "Coercion"; qid = global; ":"; s = class_rawexpr; ">->";
          t = class_rawexpr ->
-	  VernacCoercion (use_locality_exp (), qid, s, t)
-	     
-      | IDENT "Context"; c = binders_let -> 
-	  VernacContext c
-	    
-      | IDENT "Instance"; name = identref; sup = OPT binders_let; ":";
-	 expl = [ "!" -> Rawterm.Implicit | -> Rawterm.Explicit ] ; t = operconstr LEVEL "200";
-	 pri = OPT [ "|"; i = natural -> i ] ; 
-	 props = [ ":="; "{"; r = record_declaration; "}" -> r | 
-	     ":="; c = lconstr -> c | -> CRecord (loc, None, []) ] ->
-	   let sup =
-	     match sup with
-		 None -> []
-	       | Some l -> l
-	   in
-	   let n = 
-	     let (loc, id) = name in 
-	       (loc, Name id)
-	   in
-	     VernacInstance (not (use_non_locality ()), sup, (n, expl, t), props, pri)
+	  VernacCoercion (use_locality_exp (), AN qid, s, t)
+      | IDENT "Coercion"; ntn = by_notation; ":"; s = class_rawexpr; ">->";
+         t = class_rawexpr ->
+	  VernacCoercion (use_locality_exp (), ByNotation ntn, s, t)
 
-      | IDENT "Existing"; IDENT "Instance"; is = identref -> VernacDeclareInstance is
+      | IDENT "Context"; c = binders ->
+	  VernacContext c
+
+      | IDENT "Instance"; namesup = instance_name; ":";
+	 expl = [ "!" -> Rawterm.Implicit | -> Rawterm.Explicit ] ; t = operconstr LEVEL "200";
+	 pri = OPT [ "|"; i = natural -> i ] ;
+	 props = [ ":="; "{"; r = record_declaration; "}" -> r |
+	     ":="; c = lconstr -> c | -> CRecord (loc, None, []) ] ->
+	   VernacInstance (false, not (use_non_locality ()),
+			   snd namesup, (fst namesup, expl, t), props, pri)
+
+      | IDENT "Existing"; IDENT "Instance"; is = global -> 
+	  VernacDeclareInstance (not (use_section_locality ()), is)
+
+      | IDENT "Existing"; IDENT "Class"; is = global -> VernacDeclareClass is
 
       (* Implicit *)
-      | IDENT "Implicit"; IDENT "Arguments"; qid = global; 
-	   pos = OPT [ "["; l = LIST0 implicit_name; "]" -> 
+      | IDENT "Implicit"; IDENT "Arguments"; qid = smart_global;
+	   pos = LIST0 [ "["; l = LIST0 implicit_name; "]" ->
 	     List.map (fun (id,b,f) -> (ExplByName id,b,f)) l ] ->
 	   VernacDeclareImplicits (use_section_locality (),qid,pos)
 
-      | IDENT "Implicit"; ["Type" | IDENT "Types"];
-	   idl = LIST1 identref; ":"; c = lconstr -> VernacReserve (idl,c) ] ]
+      | IDENT "Implicit"; "Type"; bl = reserv_list ->
+	   VernacReserve bl
+
+      | IDENT "Implicit"; IDENT "Types"; bl = reserv_list ->
+          test_plurial_form_types bl;
+           VernacReserve bl
+
+      | IDENT "Generalizable"; 
+	   gen = [IDENT "All"; IDENT "Variables" -> Some []
+	     | IDENT "No"; IDENT "Variables" -> None
+	     | ["Variable" | IDENT "Variables"];
+		  idl = LIST1 identref -> Some idl ] ->
+	     VernacGeneralizable (use_non_locality (), gen) ] ]
   ;
   implicit_name:
     [ [ "!"; id = ident -> (id, false, true)
     | id = ident -> (id,false,false)
-    | "["; "!"; id = ident; "]" -> (id,true,true) 
+    | "["; "!"; id = ident; "]" -> (id,true,true)
     | "["; id = ident; "]" -> (id,true, false) ] ]
   ;
   strategy_level:
@@ -544,6 +580,22 @@ GEXTEND Gram
       | "-"; n=INT -> Conv_oracle.Level (- int_of_string n)
       | IDENT "transparent" -> Conv_oracle.transparent ] ]
   ;
+  instance_name:
+    [ [ name = identref; sup = OPT binders ->
+	  (let (loc,id) = name in (loc, Name id)),
+          (Option.default [] sup)
+      | -> (loc, Anonymous), []  ] ]
+  ;
+  reserv_list:
+    [ [ bl = LIST1 reserv_tuple -> bl | b = simple_reserv -> [b] ] ]
+  ;
+  reserv_tuple:
+    [ [ "("; a = simple_reserv; ")" -> a ] ]
+  ;
+  simple_reserv:
+    [ [ idl = LIST1 identref; ":"; c = lconstr -> (idl,c) ] ]
+  ;
+
 END
 
 GEXTEND Gram
@@ -552,6 +604,14 @@ GEXTEND Gram
   command:
     [ [ IDENT "Comments"; l = LIST0 comment -> VernacComments l
 
+      (* Hack! Should be in grammar_ext, but camlp4 factorize badly *)
+      | IDENT "Declare"; IDENT "Instance"; namesup = instance_name; ":";
+	 expl = [ "!" -> Rawterm.Implicit | -> Rawterm.Explicit ] ; t = operconstr LEVEL "200";
+	 pri = OPT [ "|"; i = natural -> i ] ->
+	   VernacInstance (true, not (use_non_locality ()),
+			   snd namesup, (fst namesup, expl, t),
+			   CRecord (loc, None, []), pri)
+
       (* System directory *)
       | IDENT "Pwd" -> VernacChdir None
       | IDENT "Cd" -> VernacChdir None
@@ -559,14 +619,13 @@ GEXTEND Gram
 
       (* Toplevel control *)
       | IDENT "Drop" -> VernacToplevelControl Drop
-      | IDENT "ProtectedLoop" -> VernacToplevelControl ProtectedLoop
       | IDENT "Quit" -> VernacToplevelControl Quit
 
       | IDENT "Load"; verbosely = [ IDENT "Verbose" -> true | -> false ];
 	s = [ s = ne_string -> s | s = IDENT -> s ] ->
 	  VernacLoad (verbosely, s)
       | IDENT "Declare"; IDENT "ML"; IDENT "Module"; l = LIST1 ne_string ->
-	  VernacDeclareMLModule l
+	  VernacDeclareMLModule (use_locality (), l)
 
       | IDENT "Dump"; IDENT "Universes"; fopt = OPT ne_string ->
 	  error "This command is deprecated, use Print Universes"
@@ -576,7 +635,7 @@ GEXTEND Gram
       (* Managing load paths *)
       | IDENT "Add"; IDENT "LoadPath"; dir = ne_string; alias = as_dirpath ->
 	  VernacAddLoadPath (false, dir, alias)
-      | IDENT "Add"; IDENT "Rec"; IDENT "LoadPath"; dir = ne_string; 
+      | IDENT "Add"; IDENT "Rec"; IDENT "LoadPath"; dir = ne_string;
 	  alias = as_dirpath -> VernacAddLoadPath (true, dir, alias)
       | IDENT "Remove"; IDENT "LoadPath"; dir = ne_string ->
 	  VernacRemoveLoadPath dir
@@ -594,24 +653,24 @@ GEXTEND Gram
 
       (* Printing (careful factorization of entries) *)
       | IDENT "Print"; p = printable -> VernacPrint p
-      | IDENT "Print"; qid = global -> VernacPrint (PrintName qid)
-      | IDENT "Print"; IDENT "Module"; "Type"; qid = global -> 
+      | IDENT "Print"; qid = smart_global -> VernacPrint (PrintName qid)
+      | IDENT "Print"; IDENT "Module"; "Type"; qid = global ->
 	  VernacPrint (PrintModuleType qid)
-      | IDENT "Print"; IDENT "Module"; qid = global -> 
+      | IDENT "Print"; IDENT "Module"; qid = global ->
 	  VernacPrint (PrintModule qid)
       | IDENT "Inspect"; n = natural -> VernacPrint (PrintInspect n)
-      | IDENT "About"; qid = global -> VernacPrint (PrintAbout qid)
+      | IDENT "About"; qid = smart_global -> VernacPrint (PrintAbout qid)
 
       (* Searching the environment *)
-      | IDENT "Search"; qid = global; l = in_or_out_modules -> 
-	  VernacSearch (SearchHead qid, l)
+      | IDENT "Search"; c = constr_pattern; l = in_or_out_modules ->
+	  VernacSearch (SearchHead c, l)
       | IDENT "SearchPattern"; c = constr_pattern; l = in_or_out_modules ->
 	  VernacSearch (SearchPattern c, l)
       | IDENT "SearchRewrite"; c = constr_pattern; l = in_or_out_modules ->
 	  VernacSearch (SearchRewrite c, l)
-      | IDENT "SearchAbout"; 
+      | IDENT "SearchAbout";
 	  sl = [ "[";
-	         l = LIST1 [ 
+	         l = LIST1 [
 		   b = positive_search_mark; s = ne_string; sc = OPT scope
 		   -> b, SearchString (s,sc)
 		 | b = positive_search_mark; p = constr_pattern
@@ -619,7 +678,7 @@ GEXTEND Gram
 		 ]; "]" -> l
    	       | p = constr_pattern -> [true,SearchSubPattern p]
    	       | s = ne_string; sc = OPT scope -> [true,SearchString (s,sc)] ];
-	  l = in_or_out_modules -> 
+	  l = in_or_out_modules ->
 	  VernacSearch (SearchAbout sl, l)
 
       | IDENT "Add"; IDENT "ML"; IDENT "Path"; dir = ne_string ->
@@ -629,23 +688,23 @@ GEXTEND Gram
 
       (* Pour intervenir sur les tables de paramètres *)
       | "Set"; table = option_table; v = option_value ->
-  	  VernacSetOption (table,v)
+  	  VernacSetOption (use_locality_full(),table,v)
       | "Set"; table = option_table ->
-  	  VernacSetOption (table,BoolValue true)
+  	  VernacSetOption (use_locality_full(),table,BoolValue true)
       | IDENT "Unset"; table = option_table ->
-  	  VernacUnsetOption table
+  	  VernacUnsetOption (use_locality_full(),table)
 
       | IDENT "Print"; IDENT "Table"; table = option_table ->
 	  VernacPrintOption table
 
       | IDENT "Add"; table = IDENT; field = IDENT; v = LIST1 option_ref_value
-        -> VernacAddOption (SecondaryTable (table,field), v)
+        -> VernacAddOption ([table;field], v)
       (* Un value global ci-dessous va être caché par un field au dessus! *)
       (* En fait, on donne priorité aux tables secondaires *)
       (* Pas de syntaxe pour les tables tertiaires pour cause de conflit *)
       (* (mais de toutes façons, pas utilisées) *)
       | IDENT "Add"; table = IDENT; v = LIST1 option_ref_value ->
-          VernacAddOption (PrimaryTable table, v)
+          VernacAddOption ([table], v)
 
       | IDENT "Test"; table = option_table; "for"; v = LIST1 option_ref_value
         -> VernacMemOption (table, v)
@@ -653,9 +712,9 @@ GEXTEND Gram
           VernacPrintOption table
 
       | IDENT "Remove"; table = IDENT; field = IDENT; v= LIST1 option_ref_value
-        -> VernacRemoveOption (SecondaryTable (table,field), v)
+        -> VernacRemoveOption ([table;field], v)
       | IDENT "Remove"; table = IDENT; v = LIST1 option_ref_value ->
-	  VernacRemoveOption (PrimaryTable table, v) 
+	  VernacRemoveOption ([table], v)
 
       | IDENT "proof" -> VernacDeclProof
       | "return" -> VernacReturn ]]
@@ -663,18 +722,20 @@ GEXTEND Gram
   check_command: (* TODO: rapprocher Eval et Check *)
     [ [ IDENT "Eval"; r = Tactic.red_expr; "in"; c = lconstr ->
           fun g -> VernacCheckMayEval (Some r, g, c)
+      | IDENT "Compute"; c = lconstr ->
+	  fun g -> VernacCheckMayEval (Some Rawterm.CbvVm, g, c)
       | IDENT "Check"; c = lconstr ->
 	  fun g -> VernacCheckMayEval (None, g, c) ] ]
   ;
   printable:
-    [ [ IDENT "Term"; qid = global -> PrintName qid
+    [ [ IDENT "Term"; qid = smart_global -> PrintName qid
       | IDENT "All" -> PrintFullContext
       | IDENT "Section"; s = global -> PrintSectionContext s
       | IDENT "Grammar"; ent = IDENT ->
           (* This should be in "syntax" section but is here for factorization*)
 	  PrintGrammar ent
       | IDENT "LoadPath"; dir = OPT dirpath -> PrintLoadPath dir
-      | IDENT "Modules" -> 
+      | IDENT "Modules" ->
           error "Print Modules is obsolete; use Print Libraries instead"
       | IDENT "Libraries" -> PrintModules
 
@@ -683,28 +744,25 @@ GEXTEND Gram
       | IDENT "Graph" -> PrintGraph
       | IDENT "Classes" ->  PrintClasses
       | IDENT "TypeClasses" -> PrintTypeClasses
-      | IDENT "Instances"; qid = global -> PrintInstances qid
+      | IDENT "Instances"; qid = smart_global -> PrintInstances qid
       | IDENT "Ltac"; qid = global -> PrintLtac qid
       | IDENT "Coercions" -> PrintCoercions
       | IDENT "Coercion"; IDENT "Paths"; s = class_rawexpr; t = class_rawexpr
          -> PrintCoercionPaths (s,t)
       | IDENT "Canonical"; IDENT "Projections" -> PrintCanonicalConversions
       | IDENT "Tables" -> PrintTables
-(* Obsolete: was used for cooking V6.3 recipes ??
-      | IDENT "Proof"; qid = global -> PrintOpaqueName qid
-*)
       | IDENT "Hint" -> PrintHintGoal
-      | IDENT "Hint"; qid = global -> PrintHint qid
+      | IDENT "Hint"; qid = smart_global -> PrintHint qid
       | IDENT "Hint"; "*" -> PrintHintDb
       | IDENT "HintDb"; s = IDENT -> PrintHintDbName s
       | "Rewrite"; IDENT "HintDb"; s = IDENT -> PrintRewriteHintDbName s
       | IDENT "Scopes" -> PrintScopes
       | IDENT "Scope"; s = IDENT -> PrintScope s
       | IDENT "Visibility"; s = OPT IDENT -> PrintVisibility s
-      | IDENT "Implicit"; qid = global -> PrintImplicit qid
+      | IDENT "Implicit"; qid = smart_global -> PrintImplicit qid
       | IDENT "Universes"; fopt = OPT ne_string -> PrintUniverses fopt
-      | IDENT "Assumptions"; qid = global -> PrintAssumptions (false, qid)
-      | IDENT "Opaque"; IDENT "Dependencies"; qid = global -> PrintAssumptions (true, qid)
+      | IDENT "Assumptions"; qid = smart_global -> PrintAssumptions (false, qid)
+      | IDENT "Opaque"; IDENT "Dependencies"; qid = smart_global -> PrintAssumptions (true, qid)
       | IDENT "DP"; IDENT "Theories" -> PrintDPTheories
       | IDENT "DP"; IDENT "Bindings" -> PrintDPBindings None
       | IDENT "DP"; IDENT "Bindings"; IDENT "For"; id = IDENT -> PrintDPBindings (Some id) ] ]
@@ -712,14 +770,14 @@ GEXTEND Gram
   class_rawexpr:
     [ [ IDENT "Funclass" -> FunClass
       | IDENT "Sortclass" -> SortClass
-      | qid = global -> RefClass qid ] ]
+      | qid = smart_global -> RefClass qid ] ]
   ;
   locatable:
-    [ [ qid = global -> LocateTerm qid
+    [ [ qid = smart_global -> LocateTerm qid
       | IDENT "File"; f = ne_string -> LocateFile f
       | IDENT "Library"; qid = global -> LocateLibrary qid
       | IDENT "Module"; qid = global -> LocateModule qid
-      | s = ne_string -> LocateNotation s ] ]
+      | IDENT "Ltac"; qid = global -> LocateTactic qid ] ]
   ;
   option_value:
     [ [ n  = integer   -> IntValue n
@@ -730,9 +788,7 @@ GEXTEND Gram
       | s  = STRING   -> StringRefValue s ] ]
   ;
   option_table:
-    [ [ f1 = IDENT; f2 = IDENT; f3 = IDENT -> TertiaryTable (f1,f2,f3)
-      | f1 = IDENT; f2 = IDENT -> SecondaryTable (f1,f2)
-      | f1 = IDENT -> PrimaryTable f1 ] ]
+    [ [ fl = LIST1 IDENT -> fl ]]
   ;
   as_dirpath:
     [ [ d = OPT [ "as"; d = dirpath -> d ] -> d ] ]
@@ -757,7 +813,7 @@ END;
 
 GEXTEND Gram
   command:
-    [ [ 
+    [ [
 (* State management *)
         IDENT "Write"; IDENT "State"; s = IDENT -> VernacWriteState s
       | IDENT "Write"; IDENT "State"; s = ne_string -> VernacWriteState s
@@ -771,15 +827,21 @@ GEXTEND Gram
       | IDENT "Back" -> VernacBack 1
       | IDENT "Back"; n = natural -> VernacBack n
       | IDENT "BackTo"; n = natural -> VernacBackTo n
-      | IDENT "Backtrack"; n = natural ; m = natural ; p = natural -> 
+      | IDENT "Backtrack"; n = natural ; m = natural ; p = natural ->
 	  VernacBacktrack (n,m,p)
 
 (* Tactic Debugger *)
-      |	IDENT "Debug"; IDENT "On" -> 
-          VernacSetOption (SecondaryTable ("Ltac","Debug"), BoolValue true)
+      |	IDENT "Debug"; IDENT "On" ->
+          VernacSetOption (None,["Ltac";"Debug"], BoolValue true)
 
       |	IDENT "Debug"; IDENT "Off" ->
-          VernacSetOption (SecondaryTable ("Ltac","Debug"), BoolValue false)
+          VernacSetOption (None,["Ltac";"Debug"], BoolValue false)
+
+(* registration of a custom reduction *)
+
+      | IDENT "Declare"; IDENT "Reduction"; s = IDENT; ":=";
+         r = Tactic.red_expr ->
+	   VernacDeclareReduction (use_locality(),s,r)
 
  ] ];
     END
@@ -791,47 +853,54 @@ GEXTEND Gram
   GLOBAL: syntax;
 
   syntax:
-   [ [ IDENT "Open"; local = obsolete_locality; IDENT "Scope"; sc = IDENT -> 
-         VernacOpenCloseScope (enforce_locality_of local,true,sc)
+   [ [ IDENT "Open"; local = obsolete_locality; IDENT "Scope"; sc = IDENT ->
+         VernacOpenCloseScope (enforce_section_locality local,true,sc)
 
-     | IDENT "Close"; local = obsolete_locality; IDENT "Scope"; sc = IDENT -> 
-         VernacOpenCloseScope (enforce_locality_of local,false,sc)
+     | IDENT "Close"; local = obsolete_locality; IDENT "Scope"; sc = IDENT ->
+         VernacOpenCloseScope (enforce_section_locality local,false,sc)
 
      | IDENT "Delimit"; IDENT "Scope"; sc = IDENT; "with"; key = IDENT ->
 	 VernacDelimiters (sc,key)
 
-     | IDENT "Bind"; IDENT "Scope"; sc = IDENT; "with"; 
+     | IDENT "Bind"; IDENT "Scope"; sc = IDENT; "with";
        refl = LIST1 class_rawexpr -> VernacBindScope (sc,refl)
 
-     | IDENT "Arguments"; IDENT "Scope"; qid = global;
-       "["; scl = LIST0 opt_scope; "]" -> 
-	 VernacArgumentsScope (use_non_locality (),qid,scl)
+     | IDENT "Arguments"; IDENT "Scope"; qid = smart_global;
+       "["; scl = LIST0 opt_scope; "]" ->
+	 VernacArgumentsScope (use_section_locality (),qid,scl)
 
      | IDENT "Infix"; local = obsolete_locality;
-	 op = ne_string; ":="; p = global; 
+	 op = ne_lstring; ":="; p = constr;
          modl = [ "("; l = LIST1 syntax_modifier SEP ","; ")" -> l | -> [] ];
 	 sc = OPT [ ":"; sc = IDENT -> sc ] ->
-         VernacInfix (enforce_locality_of local,(op,modl),p,sc)
-     | IDENT "Notation"; local = obsolete_locality; id = identref; 
+         VernacInfix (enforce_module_locality local,(op,modl),p,sc)
+     | IDENT "Notation"; local = obsolete_locality; id = identref;
 	 idl = LIST0 ident; ":="; c = constr;
 	 b = [ "("; IDENT "only"; IDENT "parsing"; ")" -> true | -> false ] ->
-           VernacSyntacticDefinition (id,(idl,c),enforce_locality_of local,b)
-     | IDENT "Notation"; local = obsolete_locality; s = ne_string; ":="; 
+           VernacSyntacticDefinition
+	     (id,(idl,c),enforce_module_locality local,b)
+     | IDENT "Notation"; local = obsolete_locality; s = ne_lstring; ":=";
 	 c = constr;
          modl = [ "("; l = LIST1 syntax_modifier SEP ","; ")" -> l | -> [] ];
 	 sc = OPT [ ":"; sc = IDENT -> sc ] ->
-           VernacNotation (enforce_locality_of local,c,(s,modl),sc)
+           VernacNotation (enforce_module_locality local,c,(s,modl),sc)
 
-     | IDENT "Tactic"; IDENT "Notation"; n = tactic_level; 
+     | IDENT "Tactic"; IDENT "Notation"; n = tactic_level;
 	 pil = LIST1 production_item; ":="; t = Tactic.tactic
          -> VernacTacticNotation (n,pil,t)
 
-     | IDENT "Reserved"; IDENT "Notation"; local = obsolete_locality; 
-	 s = ne_string; 
-	 l = [ "("; l = LIST1 syntax_modifier SEP ","; ")" -> l | -> [] ]
-	 -> VernacSyntaxExtension (enforce_locality_of local,(s,l))
+     | IDENT "Reserved"; IDENT "Infix"; s = ne_lstring;
+	 l = [ "("; l = LIST1 syntax_modifier SEP ","; ")" -> l | -> [] ] ->
+	   Metasyntax.check_infix_modifiers l;
+	   let (loc,s) = s in
+	   VernacSyntaxExtension (use_module_locality(),((loc,"x '"^s^"' y"),l))
 
-     (* "Print" "Grammar" should be here but is in "command" entry in order 
+     | IDENT "Reserved"; IDENT "Notation"; local = obsolete_locality;
+	 s = ne_lstring;
+	 l = [ "("; l = LIST1 syntax_modifier SEP ","; ")" -> l | -> [] ]
+	 -> VernacSyntaxExtension (enforce_module_locality local,(s,l))
+
+     (* "Print" "Grammar" should be here but is in "command" entry in order
         to factorize with other "Print"-based vernac entries *)
   ] ]
   ;
@@ -847,7 +916,7 @@ GEXTEND Gram
   ;
   syntax_modifier:
     [ [ x = IDENT; "at"; lev = level -> SetItemLevel ([x],lev)
-      | x = IDENT; ","; l = LIST1 IDENT SEP ","; "at"; 
+      | x = IDENT; ","; l = LIST1 IDENT SEP ","; "at";
         lev = level -> SetItemLevel (x::l,lev)
       | "at"; IDENT "level"; n = natural -> SetLevel n
       | IDENT "left"; IDENT "associativity" -> SetAssoc Gramext.LeftA
@@ -858,16 +927,19 @@ GEXTEND Gram
       | IDENT "format"; s = [s = STRING -> (loc,s)] -> SetFormat s ] ]
   ;
   syntax_extension_type:
-    [ [ IDENT "ident" -> ETIdent | IDENT "global" -> ETReference
+    [ [ IDENT "ident" -> ETName | IDENT "global" -> ETReference
       | IDENT "bigint" -> ETBigint
+      | IDENT "binder" -> ETBinder true
+      | IDENT "closed"; IDENT "binder" -> ETBinder false
     ] ]
   ;
   opt_scope:
     [ [ "_" -> None | sc = IDENT -> Some sc ] ]
   ;
   production_item:
-    [ [ s = ne_string -> VTerm s
-      | nt = IDENT; po = OPT [ "("; p = ident; ")" -> p ] -> 
-	  VNonTerm (loc,nt,po) ] ]
+    [ [ s = ne_string -> TacTerm s
+      | nt = IDENT;
+        po = OPT [ "("; p = ident; sep = [ -> "" | ","; sep = STRING -> sep ];
+                   ")" -> (p,sep) ] -> TacNonTerm (loc,nt,po) ] ]
   ;
 END

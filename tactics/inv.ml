@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: inv.ml 11784 2009-01-14 11:36:32Z herbelin $ *)
+(* $Id: inv.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Pp
 open Util
@@ -14,6 +14,7 @@ open Names
 open Nameops
 open Term
 open Termops
+open Namegen
 open Global
 open Sign
 open Environ
@@ -37,21 +38,22 @@ open Rawterm
 open Genarg
 open Tacexpr
 
-let collect_meta_variables c = 
+let collect_meta_variables c =
   let rec collrec acc c = match kind_of_term c with
     | Meta mv -> mv::acc
     | _ -> fold_constr collrec acc c
-  in 
+  in
   collrec [] c
 
 let check_no_metas clenv ccl =
   if occur_meta ccl then
-    let metas = List.filter (fun na -> na<>Anonymous)
-      (List.map (Evd.meta_name clenv.evd) (collect_meta_variables ccl)) in
-    errorlabstrm "inversion" 
+    let metas = List.filter (fun m -> not (Evd.meta_defined clenv.evd m))
+      (collect_meta_variables ccl) in
+    let metas = List.map (Evd.meta_name clenv.evd) metas in
+    errorlabstrm "inversion"
       (str ("Cannot find an instantiation for variable"^
 	       (if List.length metas = 1 then " " else "s ")) ++
-	 prlist_with_sep pr_coma pr_name metas
+	 prlist_with_sep pr_comma pr_name metas
 	 (* ajouter "in " ++ pr_lconstr ccl mais il faut le bon contexte *))
 
 let var_occurs_in_pf gl id =
@@ -60,7 +62,7 @@ let var_occurs_in_pf gl id =
   List.exists (occur_var_in_decl env id) (pf_hyps gl)
 
 (* [make_inv_predicate (ity,args) C]
-  
+
    is given the inductive type, its arguments, both the global
    parameters and its local arguments, and is expected to produce a
    predicate P such that if largs is the "local" part of the
@@ -127,16 +129,16 @@ let make_inv_predicate env sigma indf realargs id status concl =
      push <Ai>(mkRel k)=ai (when   Ai is closed).
    In any case, we carry along the rest of pairs *)
   let rec build_concl eqns n = function
-    | [] -> (prod_it concl eqns,n)
+    | [] -> (it_mkProd concl eqns,n)
     | (ai,(xi,ti))::restlist ->
         let (lhs,eqnty,rhs) =
-          if closed0 ti then 
+          if closed0 ti then
 	    (xi,ti,ai)
-          else 
+          else
 	    make_iterated_tuple env' sigma ai (xi,ti)
 	in
         let eq_term = Coqlib.build_coq_eq () in
-        let eqn = applist (eq_term ,[eqnty;lhs;rhs]) in 
+        let eqn = applist (eq_term ,[eqnty;lhs;rhs]) in
 	build_concl ((Anonymous,lift n eqn)::eqns) (n+1) restlist
   in
   let (newconcl,neqns) = build_concl [] 0 pairs in
@@ -188,21 +190,21 @@ let make_inv_predicate env sigma indf realargs id status concl =
    it generalizes them, applies tac to rewrite all occurrencies of t,
    and introduces generalized hypotheis.
    Precondition: t=(mkVar id) *)
-    
-let rec dependent_hyps id idlist gl = 
+
+let rec dependent_hyps id idlist gl =
   let rec dep_rec =function
     | [] -> []
-    | (id1,_,_)::l -> 
+    | (id1,_,_)::l ->
 	(* Update the type of id1: it may have been subject to rewriting *)
 	let d = pf_get_hyp gl id1 in
 	if occur_var_in_decl (Global.env()) id d
         then d :: dep_rec l
         else dep_rec l
-  in 
-  dep_rec idlist 
+  in
+  dep_rec idlist
 
 let split_dep_and_nodep hyps gl =
-  List.fold_right 
+  List.fold_right
     (fun (id,_,_ as d) (l1,l2) ->
        if var_occurs_in_pf gl id then (d::l1,l2) else (l1,d::l2))
     hyps ([],[])
@@ -280,18 +282,18 @@ Summary: nine useless hypotheses!
 Nota: with Inversion_clear, only four useless hypotheses
 *)
 
-let generalizeRewriteIntros tac depids id gls = 
+let generalizeRewriteIntros tac depids id gls =
   let dids = dependent_hyps id depids gls in
   (tclTHENSEQ
-    [bring_hyps dids; tac; 
+    [bring_hyps dids; tac;
      (* may actually fail to replace if dependent in a previous eq *)
      intros_replacing (ids_of_named_context dids)])
   gls
 
 let rec tclMAP_i n tacfun = function
   | [] -> tclDO n (tacfun None)
-  | a::l -> 
-      if n=0 then error "Too much names."
+  | a::l ->
+      if n=0 then error "Too many names."
       else tclTHEN (tacfun (Some a)) (tclMAP_i (n-1) tacfun l)
 
 let remember_first_eq id x = if !x = no_move then x := MoveAfter id
@@ -317,14 +319,14 @@ let projectAndApply thin id eqname names depids gls =
     | _ -> tac id gls
   in
   let deq_trailer id neqns =
-    tclTHENSEQ 
+    tclTHENSEQ
       [(if names <> [] then clear [id] else tclIDTAC);
        (tclMAP_i neqns (fun idopt ->
-	 tclTHEN
+	 tclTRY (tclTHEN
 	   (intro_move idopt no_move)
 	   (* try again to substitute and if still not a variable after *)
 	   (* decomposition, arbitrarily try to rewrite RL !? *)
-	   (tclTRY (onLastHyp (substHypIfVariable (subst_hyp false)))))
+	   (tclTRY (onLastHypId (substHypIfVariable (subst_hyp false))))))
 	 names);
        (if names = [] then clear [id] else tclIDTAC)]
   in
@@ -342,14 +344,14 @@ let rewrite_equations_gene othin neqns ba gl =
   let rewrite_eqns =
     match othin with
       | Some thin ->
-          onLastHyp
+          onLastHypId
             (fun last ->
               tclTHENSEQ
                 [tclDO neqns
                      (tclTHEN intro
-                        (onLastHyp
+                        (onLastHypId
                            (fun id ->
-                              tclTRY 
+                              tclTRY
 			        (projectAndApply thin id (ref no_move)
 				  [] depids))));
                  onHyps (compose List.rev (afterHyp last)) bring_hyps;
@@ -361,8 +363,8 @@ let rewrite_equations_gene othin neqns ba gl =
     [tclDO neqns intro;
      bring_hyps nodepids;
      clear (ids_of_named_context nodepids);
-     onHyps (compose List.rev (nLastHyps neqns)) bring_hyps;
-     onHyps (nLastHyps neqns) (compose clear ids_of_named_context);
+     onHyps (compose List.rev (nLastDecls neqns)) bring_hyps;
+     onHyps (nLastDecls neqns) (compose clear ids_of_named_context);
      rewrite_eqns;
      tclMAP (fun (id,_,_ as d) ->
                (tclORELSE (clear [id])
@@ -378,13 +380,13 @@ let rewrite_equations_gene othin neqns ba gl =
 let rec get_names allow_conj (loc,pat) = match pat with
   | IntroWildcard ->
       error "Discarding pattern not allowed for inversion equations."
-  | IntroAnonymous ->
+  | IntroAnonymous | IntroForthcoming _ ->
       error "Anonymous pattern not allowed for inversion equations."
   | IntroFresh _ ->
       error "Fresh pattern not allowed for inversion equations."
   | IntroRewrite _->
       error "Rewriting pattern not allowed for inversion equations."
-  | IntroOrAndPattern [l] -> 
+  | IntroOrAndPattern [l] ->
       if allow_conj then
 	if l = [] then (None,[]) else
 	  let l = List.map (fun id -> Option.get (fst (get_names false id))) l in
@@ -408,13 +410,13 @@ let rewrite_equations othin neqns names ba gl =
     match othin with
       | Some thin ->
           tclTHENSEQ
-            [onHyps (compose List.rev (nLastHyps neqns)) bring_hyps;
-             onHyps (nLastHyps neqns) (compose clear ids_of_named_context);
+            [onHyps (compose List.rev (nLastDecls neqns)) bring_hyps;
+             onHyps (nLastDecls neqns) (compose clear ids_of_named_context);
 	     tclMAP_i neqns (fun o ->
 	       let idopt,names = extract_eqn_names o in
                (tclTHEN
 		 (intro_move idopt no_move)
-		 (onLastHyp (fun id ->
+		 (onLastHypId (fun id ->
 		   tclTRY (projectAndApply thin id first_eq names depids)))))
 	       names;
 	     tclMAP (fun (id,_,_) gl ->
@@ -440,18 +442,18 @@ let rewrite_equations_tac (gene, othin) id neqns names ba =
   let tac =
     if gene then rewrite_equations_gene othin neqns ba
     else rewrite_equations othin neqns names ba in
-  if othin = Some true (* if Inversion_clear, clear the hypothesis *) then 
+  if othin = Some true (* if Inversion_clear, clear the hypothesis *) then
     tclTHEN tac (tclTRY (clear [id]))
-  else 
+  else
     tac
 
 
 let raw_inversion inv_kind id status names gl =
   let env = pf_env gl and sigma = project gl in
   let c = mkVar id in
-  let (ind,t) = 
+  let (ind,t) =
     try pf_reduce_to_atomic_ind gl (pf_type_of gl c)
-    with UserError _ -> 
+    with UserError _ ->
       errorlabstrm "raw_inversion"
 	(str ("The type of "^(string_of_id id)^" is not inductive.")) in
   let indclause = mk_clenv_from gl (c,t) in
@@ -461,19 +463,19 @@ let raw_inversion inv_kind id status names gl =
   let (elim_predicate,neqns) =
     make_inv_predicate env sigma indf realargs id status (pf_concl gl) in
   let (cut_concl,case_tac) =
-    if status <> NoDep & (dependent c (pf_concl gl)) then 
+    if status <> NoDep & (dependent c (pf_concl gl)) then
       Reduction.beta_appvect elim_predicate (Array.of_list (realargs@[c])),
-      case_then_using 
-    else 
+      case_then_using
+    else
       Reduction.beta_appvect elim_predicate (Array.of_list realargs),
-      case_nodep_then_using 
+      case_nodep_then_using
   in
   (tclTHENS
      (assert_tac Anonymous cut_concl)
-     [case_tac names 
+     [case_tac names
        (introCaseAssumsThen (rewrite_equations_tac inv_kind id neqns))
        (Some elim_predicate) ([],[]) ind indclause;
-      onLastHyp
+      onLastHypId
         (fun id ->
            (tclTHEN
               (apply_term (mkVar id)
@@ -487,7 +489,7 @@ let wrap_inv_error id = function
       (Indrec.NotAllowedCaseAnalysis (_,(Type _ | Prop Pos as k),i)) ->
       errorlabstrm ""
 	(strbrk "Inversion would require case analysis on sort " ++
-	pr_sort k ++ 
+	pr_sort k ++
 	strbrk " which is not allowed for inductive definition " ++
 	pr_inductive (Global.env()) i ++ str ".")
   | e -> raise e
@@ -526,16 +528,16 @@ let invIn k names ids id gls =
   let intros_replace_ids gls =
     let nb_of_new_hyp =
       nb_prod (pf_concl gls) - (List.length hyps + nb_prod_init)
-    in 
-    if nb_of_new_hyp < 1 then 
+    in
+    if nb_of_new_hyp < 1 then
       intros_replacing ids gls
-    else 
+    else
       tclTHEN (tclDO nb_of_new_hyp intro) (intros_replacing ids) gls
   in
-  try 
+  try
     (tclTHENSEQ
       [bring_hyps hyps;
-       inversion (false,k) NoDep names id; 
+       inversion (false,k) NoDep names id;
        intros_replace_ids])
     gls
   with e -> wrap_inv_error id e

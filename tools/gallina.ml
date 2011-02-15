@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: gallina.ml 5920 2004-07-16 20:01:26Z herbelin $ *)
+(* $Id: gallina.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Gallina_lexer
 
@@ -16,29 +16,29 @@ let option_moins = ref false
 
 let option_stdout = ref false
 
-let traite_fichier f = 
-  try 
-    let chan_in = open_in (f^".v") in 
+let traite_fichier f =
+  try
+    let chan_in = open_in (f^".v") in
     let buf = Lexing.from_channel chan_in in
     if not !option_stdout then chan_out := open_out (f ^ ".g");
-    try 
+    try
       while true do Gallina_lexer.action buf done
-    with Fin_fichier -> begin 
+    with Fin_fichier -> begin
       flush !chan_out;
       close_in chan_in;
       if not !option_stdout then close_out !chan_out
     end
-  with Sys_error _ -> 
-    () 
+  with Sys_error _ ->
+    ()
 
 let traite_stdin () =
   try
     let buf = Lexing.from_channel stdin in
-    try 
+    try
       while true do Gallina_lexer.action buf done
-    with Fin_fichier -> 
+    with Fin_fichier ->
       flush !chan_out
-  with Sys_error _ -> 
+  with Sys_error _ ->
     ()
 
 let gallina () =
@@ -52,7 +52,7 @@ let gallina () =
     | "-" -> option_moins := true
     | "-stdout" -> option_stdout := true
     | "-nocomments" -> comments := false
-    | f -> 
+    | f ->
 	if Filename.check_suffix f ".v" then
        	  vfiles := (Filename.chop_suffix f ".v") :: !vfiles
   in

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: cbv.mli 11897 2009-02-09 19:28:02Z barras $ i*)
+(*i $Id: cbv.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -29,17 +29,19 @@ val cbv_norm         : cbv_infos -> constr -> constr
 (*i This is for cbv debug *)
 type cbv_value =
   | VAL of int * constr
+  | STACK of int * cbv_value * cbv_stack
+  | CBN of constr * cbv_value subs
   | LAM of int * (name * constr) list * constr * cbv_value subs
   | FIXP of fixpoint * cbv_value subs * cbv_value array
   | COFIXP of cofixpoint * cbv_value subs * cbv_value array
   | CONSTR of constructor * cbv_value array
 
-val shift_value : int -> cbv_value -> cbv_value
-
-type cbv_stack =
+and cbv_stack =
   | TOP
   | APP of cbv_value array * cbv_stack
   | CASE of constr * constr array * case_info * cbv_value subs * cbv_stack
+
+val shift_value : int -> cbv_value -> cbv_value
 
 val stack_app : cbv_value array -> cbv_stack -> cbv_stack
 val strip_appl : cbv_value -> cbv_stack -> cbv_value * cbv_stack

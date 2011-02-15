@@ -1,23 +1,25 @@
+(* -*- coding: utf-8 -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: String.v 11206 2008-07-04 16:21:28Z letouzey $ *)
+(* $Id: String.v 13323 2010-07-24 15:57:30Z herbelin $ *)
 
-(** Contributed by Laurent Théry (INRIA);
+(** Contributed by Laurent ThÃ©ry (INRIA);
     Adapted to Coq V8 by the Coq Development Team *)
 
 Require Import Arith.
 Require Import Ascii.
+Declare ML Module "string_syntax_plugin".
 
 (** *** Definition of strings *)
 
 (** Implementation of string as list of ascii characters *)
- 
+
 Inductive string : Set :=
   | EmptyString : string
   | String : ascii -> string -> string.
@@ -36,7 +38,7 @@ Defined.
 
 Reserved Notation "x ++ y" (right associativity, at level 60).
 
-Fixpoint append (s1 s2 : string) {struct s1} : string :=
+Fixpoint append (s1 s2 : string) : string :=
   match s1 with
   | EmptyString => s2
   | String c s1' => String c (s1' ++ s2)
@@ -47,7 +49,7 @@ where "s1 ++ s2" := (append s1 s2) : string_scope.
 (******************************)
 (** Length                    *)
 (******************************)
- 
+
 Fixpoint length (s : string) : nat :=
   match s with
   | EmptyString => 0
@@ -57,7 +59,7 @@ Fixpoint length (s : string) : nat :=
 (******************************)
 (** Nth character of a string *)
 (******************************)
- 
+
 Fixpoint get (n : nat) (s : string) {struct s} : option ascii :=
   match s with
   | EmptyString => None
@@ -68,7 +70,7 @@ Fixpoint get (n : nat) (s : string) {struct s} : option ascii :=
   end.
 
 (** Two lists that are identical through get are syntactically equal *)
- 
+
 Theorem get_correct :
   forall s1 s2 : string, (forall n : nat, get n s1 = get n s2) <-> s1 = s2.
 Proof.
@@ -89,7 +91,7 @@ rewrite H1; auto.
 Qed.
 
 (** The first elements of [s1 ++ s2] are the ones of [s1] *)
- 
+
 Theorem append_correct1 :
  forall (s1 s2 : string) (n : nat),
  n < length s1 -> get n s1 = get n (s1 ++ s2).
@@ -102,7 +104,7 @@ apply lt_S_n; auto.
 Qed.
 
 (** The last elements of [s1 ++ s2] are the ones of [s2] *)
- 
+
 Theorem append_correct2 :
  forall (s1 s2 : string) (n : nat),
  get n s2 = get (n + length s1) (s1 ++ s2).
@@ -119,8 +121,8 @@ Qed.
 (** [substring n m s] returns the substring of [s] that starts
     at position [n] and of length [m];
     if this does not make sense it returns [""] *)
- 
-Fixpoint substring (n m : nat) (s : string) {struct s} : string :=
+
+Fixpoint substring (n m : nat) (s : string) : string :=
   match n, m, s with
   | 0, 0, _ => EmptyString
   | 0, S m', EmptyString => s
@@ -130,7 +132,7 @@ Fixpoint substring (n m : nat) (s : string) {struct s} : string :=
   end.
 
 (** The substring is included in the initial string *)
- 
+
 Theorem substring_correct1 :
  forall (s : string) (n m p : nat),
  p < m -> get p (substring n m s) = get (p + n) s.
@@ -148,7 +150,7 @@ intros n' m p H; rewrite <- Plus.plus_Snm_nSm; simpl in |- *; auto.
 Qed.
 
 (** The substring has at most [m] elements *)
- 
+
 Theorem substring_correct2 :
  forall (s : string) (n m p : nat), m <= p -> get p (substring n m s) = None.
 Proof.
@@ -166,7 +168,7 @@ Qed.
 (** *** Test functions *)
 
 (** Test if [s1] is a prefix of [s2] *)
- 
+
 Fixpoint prefix (s1 s2 : string) {struct s2} : bool :=
   match s1 with
   | EmptyString => true
@@ -183,7 +185,7 @@ Fixpoint prefix (s1 s2 : string) {struct s2} : bool :=
 
 (** If [s1] is a prefix of [s2], it is the [substring] of length
     [length s1] starting at position [O] of [s2] *)
- 
+
 Theorem prefix_correct :
  forall s1 s2 : string,
  prefix s1 s2 = true <-> substring 0 (length s1) s2 = s1.
@@ -202,8 +204,8 @@ Qed.
 
 (** Test if, starting at position [n], [s1] occurs in [s2]; if
     so it returns the position *)
- 
-Fixpoint index (n : nat) (s1 s2 : string) {struct s2} : option nat :=
+
+Fixpoint index (n : nat) (s1 s2 : string) : option nat :=
   match s2, n with
   | EmptyString, 0 =>
       match s1 with
@@ -211,7 +213,7 @@ Fixpoint index (n : nat) (s1 s2 : string) {struct s2} : option nat :=
       | String a s1' => None
       end
   | EmptyString, S n' => None
-  | String b s2', 0 => 
+  | String b s2', 0 =>
       if prefix s1 s2 then Some 0
       else
         match index 0 s1 s2' with
@@ -229,7 +231,7 @@ Fixpoint index (n : nat) (s1 s2 : string) {struct s2} : option nat :=
 Opaque prefix.
 
 (** If the result of [index] is [Some m], [s1] in [s2] at position [m] *)
- 
+
 Theorem index_correct1 :
  forall (n m : nat) (s1 s2 : string),
  index n s1 s2 = Some m -> substring m (length s1) s2 = s1.
@@ -259,9 +261,9 @@ intros x H H1; apply H; injection H1; intros H2; injection H2; auto.
 intros; discriminate.
 Qed.
 
-(** If the result of [index] is [Some m], 
+(** If the result of [index] is [Some m],
     [s1] does not occur in [s2] before [m] *)
- 
+
 Theorem index_correct2 :
  forall (n m : nat) (s1 s2 : string),
  index n s1 s2 = Some m ->
@@ -304,9 +306,9 @@ apply Lt.lt_S_n; auto.
 intros; discriminate.
 Qed.
 
-(** If the result of [index] is [None], [s1] does not occur in [s2] 
+(** If the result of [index] is [None], [s1] does not occur in [s2]
     after [n] *)
- 
+
 Theorem index_correct3 :
  forall (n m : nat) (s1 s2 : string),
  index n s1 s2 = None ->
@@ -348,7 +350,7 @@ Transparent prefix.
 
 (** If we are searching for the [Empty] string and the answer is no
     this means that [n] is greater than the size of [s] *)
- 
+
 Theorem index_correct4 :
  forall (n : nat) (s : string),
  index n EmptyString s = None -> length s < n.
@@ -367,7 +369,7 @@ Qed.
 
 (** Same as [index] but with no optional type, we return [0] when it
     does not occur *)
- 
+
 Definition findex n s1 s2 :=
   match index n s1 s2 with
   | Some n => n

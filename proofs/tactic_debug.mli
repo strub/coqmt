@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tactic_debug.mli 11576 2008-11-10 19:13:15Z msozeau $ i*)
+(*i $Id: tactic_debug.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Environ
 open Pattern
@@ -24,7 +24,7 @@ val set_tactic_printer : (glob_tactic_expr ->Pp.std_ppcmds) -> unit
 val set_match_pattern_printer :
   (env -> constr_pattern match_pattern -> Pp.std_ppcmds) -> unit
 val set_match_rule_printer :
-  ((constr_pattern,glob_tactic_expr) match_rule -> Pp.std_ppcmds) ->
+  ((Genarg.rawconstr_and_expr * constr_pattern,glob_tactic_expr) match_rule -> Pp.std_ppcmds) ->
     unit
 
 (* Debug information *)
@@ -41,7 +41,7 @@ val db_constr : debug_info -> env -> constr -> unit
 
 (* Prints the pattern rule *)
 val db_pattern_rule :
-  debug_info -> int -> (constr_pattern,glob_tactic_expr) match_rule -> unit
+  debug_info -> int -> (Genarg.rawconstr_and_expr * constr_pattern,glob_tactic_expr) match_rule -> unit
 
 (* Prints a matched hypothesis *)
 val db_matched_hyp :

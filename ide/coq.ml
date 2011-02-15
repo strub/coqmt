@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: coq.ml 11948 2009-02-27 16:01:53Z glondu $ *)
+(* $Id: coq.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Vernac
 open Vernacexpr
@@ -24,22 +24,23 @@ open Hipattern
 open Tacmach
 open Reductionops
 open Termops
+open Namegen
 open Ideutils
 
 let prerr_endline s = if !debug then prerr_endline s else ()
 
 let output = ref (Format.formatter_of_out_channel stdout)
 
-let msg m = 
+let msg m =
   let b =  Buffer.create 103 in
   Pp.msg_with (Format.formatter_of_buffer b) m;
   Buffer.contents b
 
-let msgnl m = 
+let msgnl m =
   (msg m)^"\n"
 
-let init () = 
-  (* To hide goal in lower window. 
+let init () =
+  (* To hide goal in lower window.
      Problem: should not hide "xx is assumed"
      messages *)
 (**)
@@ -70,7 +71,7 @@ let short_version () =
 
 let version () =
   let (ver,date) = get_version_date () in
-    Printf.sprintf 
+    Printf.sprintf
       "The Coq Proof Assistant, version %s (%s)\
        \nArchitecture %s running %s operating system\
        \nGtk version is %s\
@@ -79,14 +80,14 @@ let version () =
       ver date
       Coq_config.arch Sys.os_type
       (let x,y,z = GMain.Main.version in Printf.sprintf "%d.%d.%d" x y z)
-    (if Mltop.is_native then "native" else "bytecode") 
-    (if Coq_config.best="opt" then "native" else "bytecode") 
+    (if Mltop.is_native then "native" else "bytecode")
+    (if Coq_config.best="opt" then "native" else "bytecode")
 
-let is_in_coq_lib dir = 
+let is_in_coq_lib dir =
   prerr_endline ("Is it a coq theory ? : "^dir);
   let is_same_file = same_file dir in
-  List.exists 
-    (fun s -> 
+  List.exists
+    (fun s ->
       let fdir =
         Filename.concat (Envars.coqlib ()) (Filename.concat "theories" s) in
       prerr_endline (" Comparing to: "^fdir);
@@ -97,19 +98,19 @@ let is_in_coq_lib dir =
 let is_in_loadpath dir =
   Library.is_in_load_paths (System.physical_path_of_string dir)
 
-let is_in_coq_path f = 
-  try 
+let is_in_coq_path f =
+  try
   let base = Filename.chop_extension (Filename.basename f) in
   let _ = Library.locate_qualified_library false
-	    (Libnames.make_qualid Names.empty_dirpath 
+	    (Libnames.make_qualid Names.empty_dirpath
 	       (Names.id_of_string base)) in
   prerr_endline (f ^ " is in coq path");
   true
-  with _ ->  
+  with _ ->
     prerr_endline (f ^ " is NOT in coq path");
-    false  
+    false
 
-let is_in_proof_mode () = 
+let is_in_proof_mode () =
   match Decl_mode.get_current_mode () with
       Decl_mode.Mode_none -> false
     | _ -> true
@@ -156,10 +157,7 @@ let prepare_option (l,dft) =
   let unset = (String.concat " " ("Unset"::l)) ^ "." in
   if dft then unset,set else set,unset
 
-let coqide_known_option = function
-  | Goptions.TertiaryTable (a,b,c) -> List.mem [a;b;c] !known_options
-  | Goptions.SecondaryTable (a,b) -> List.mem [a;b] !known_options
-  | Goptions.PrimaryTable a -> List.mem [a] !known_options
+let coqide_known_option table = List.mem table !known_options
 
 let with_printing_implicit = prepare_option printing_implicit_data
 let with_printing_coercions = prepare_option printing_coercions_data
@@ -194,6 +192,8 @@ type command_attribute =
 let rec attribute_of_vernac_command = function
   (* Control *)
   | VernacTime com -> attribute_of_vernac_command com
+  | VernacTimeout(_,com) -> attribute_of_vernac_command com
+  | VernacFail com -> attribute_of_vernac_command com
   | VernacList _ -> [] (* unsupported *)
   | VernacLoad _ -> []
 
@@ -240,6 +240,7 @@ let rec attribute_of_vernac_command = function
   | VernacInstance _ -> []
   | VernacContext _ -> []
   | VernacDeclareInstance _ -> []
+  | VernacDeclareClass _ -> []
 
   (* Solving *)
   | VernacSolve _ -> [SolveCommand]
@@ -275,11 +276,12 @@ let rec attribute_of_vernac_command = function
   | VernacHints _ -> []
   | VernacSyntacticDefinition _ -> []
   | VernacDeclareImplicits _ -> []
+  | VernacDeclareReduction _ -> []
   | VernacReserve _ -> []
+  | VernacGeneralizable _ -> []
   | VernacSetOpacity _ -> []
-  | VernacSetOption (Goptions.SecondaryTable ("Ltac","Debug"), _) -> 
-      [DebugCommand]
-  | VernacSetOption (o,BoolValue true) | VernacUnsetOption o ->
+  | VernacSetOption (_,["Ltac";"Debug"], _) -> [DebugCommand]
+  | VernacSetOption (_,o,BoolValue true) | VernacUnsetOption (_,o) ->
       if coqide_known_option o then [KnownOptionCommand] else []
   | VernacSetOption _ -> []
   | VernacRemoveOption _ -> []
@@ -358,75 +360,60 @@ type undo_info = identifier list
 
 let undo_info () = Pfedit.get_all_proof_names ()
 
-type reset_mark =
-  | ResetToId of Names.identifier     (* Relying on identifiers only *)
-  | ResetToState of Libnames.object_name (* Relying on states if any *)
+type reset_mark = Libnames.object_name
 
 type reset_status =
   | NoReset
   | ResetAtSegmentStart of Names.identifier
   | ResetAtRegisteredObject of reset_mark
 
-type reset_info = reset_status * undo_info * bool ref
+type reset_info = {
+  status : reset_status;
+  proofs : identifier list;
+  cur_prf : (identifier * int) option;
+  loc_ast : Util.loc * Vernacexpr.vernac_expr;
+}
 
+let compute_reset_info loc_ast = 
+  let status,cur_prf = match snd loc_ast with
+    | com when is_vernac_proof_ending_command com -> NoReset,None
+    | VernacEndSegment _ -> NoReset,None
+    | com when is_vernac_tactic_command com ->
+        NoReset,Some (Pfedit.get_current_proof_name (), Pfedit.current_proof_depth ())
+    | _ ->
+        (match Lib.has_top_frozen_state () with
+           | Some sp -> 
+               prerr_endline ("On top of state "^Libnames.string_of_path (fst sp));
+               ResetAtRegisteredObject sp,None
+           | None -> NoReset,None)
+  in
+  { status = status;
+    proofs = Pfedit.get_all_proof_names ();
+    cur_prf = cur_prf;
+    loc_ast = loc_ast; 
+  }
 
-let reset_mark id = match Lib.has_top_frozen_state () with
-  | Some sp -> 
-      prerr_endline ("On top of state "^Libnames.string_of_path (fst sp));
-      ResetToState sp
-  | None -> ResetToId id
-
-let compute_reset_info = function 
-  | VernacBeginSection id 
-  | VernacDefineModule (_,id, _, _, _) 
-  | VernacDeclareModule (_,id, _, _)
-  | VernacDeclareModuleType (id, _, _) ->
-      ResetAtSegmentStart (snd id), undo_info(), ref true
-
-  | VernacDefinition (_, (_,id), DefineBody _, _)
-  | VernacAssumption (_,_ ,(_,((_,id)::_,_))::_)
-  | VernacInductive (_, (((_,(_,id)),_,_,_,_),_) :: _) ->
-      ResetAtRegisteredObject (reset_mark id), undo_info(), ref true
-
-  | com when is_vernac_proof_ending_command com -> NoReset, undo_info(), ref true
-  | VernacEndSegment _ -> NoReset, undo_info(), ref true
-
-  | com when is_vernac_tactic_command com -> NoReset, undo_info(), ref true
-  | _ ->
-      (match Lib.has_top_frozen_state () with
-      | Some sp -> 
-	  prerr_endline ("On top of state "^Libnames.string_of_path (fst sp));
-	  ResetAtRegisteredObject (ResetToState sp)
-      | None -> NoReset), undo_info(), ref true
-
-let reset_initial () = 
+let reset_initial () =
   prerr_endline "Reset initial called"; flush stderr;
   Vernacentries.abort_refine Lib.reset_initial ()
 
-let reset_to = function
-  | ResetToId id ->
-      prerr_endline ("Reset called with "^(string_of_id id));
-      Lib.reset_name (Util.dummy_loc,id)
-  | ResetToState sp ->
+let reset_to sp =
       prerr_endline
         ("Reset called with state "^(Libnames.string_of_path (fst sp)));
       Lib.reset_to_state sp
 
-let reset_to_mod id = 
-  prerr_endline ("Reset called to Mod/Sect with "^(string_of_id id)); 
-  Lib.reset_mod (Util.dummy_loc,id)
-
 let raw_interp s =
   Vernac.raw_do_vernac (Pcoq.Gram.parsable (Stream.of_string s))
 
-let interp_with_options verbosely options s = 
+let interp_with_options verbosely options s =
   prerr_endline "Starting interp...";
   prerr_endline s;
   let pa = Pcoq.Gram.parsable (Stream.of_string s) in
   let pe = Pcoq.Gram.Entry.parse Pcoq.main_entry pa in
-  (* Temporary hack to make coqide.byte work (WTF???) *)
-  Pervasives.prerr_endline "";
-  match pe with 
+  (* Temporary hack to make coqide.byte work (WTF???) - now with less screen
+  * pollution *)
+  Pervasives.prerr_string " \r"; Pervasives.flush stderr;
+  match pe with
     | None -> assert false
     | Some((loc,vernac) as last) ->
 	if is_vernac_debug_command vernac then
@@ -435,57 +422,27 @@ let interp_with_options verbosely options s =
 	  user_error_loc loc (str "Use CoqIDE navigation instead");
 	if is_vernac_known_option_command vernac then
 	  user_error_loc loc (str "Use CoqIDE display menu instead");
-	if is_vernac_query_command vernac then 
-	  !flash_info
+	if is_vernac_query_command vernac then
+	  flash_info
 	    "Warning: query commands should not be inserted in scripts";
 	if not (is_vernac_goal_printing_command vernac) then
 	  (* Verbose if in small step forward and not a tactic *)
 	  Flags.make_silent (not verbosely);
-	let reset_info = compute_reset_info vernac in
+	let reset_info = compute_reset_info last in
 	List.iter (fun (set_option,_) -> raw_interp set_option) options;
 	raw_interp s;
 	Flags.make_silent true;
 	List.iter (fun (_,unset_option) -> raw_interp unset_option) options;
 	prerr_endline ("...Done with interp of : "^s);
-	reset_info,last
+	reset_info
 
 let interp verbosely phrase =
   interp_with_options verbosely (make_option_commands ()) phrase
 
-let interp_and_replace s = 
+let interp_and_replace s =
   let result = interp false s in
   let msg = read_stdout () in
   result,msg
-
-let nb_subgoals pf =
-  List.length (fst (Refiner.frontier (Tacmach.proof_of_pftreestate pf)))
-
-type tried_tactic = 
-  | Interrupted
-  | Success of int (* nb of goals after *)
-  | Failed
-
-let try_interptac s = 
-  try
-    prerr_endline ("Starting try_interptac: "^s);
-    let pf = get_pftreestate () in
-    let pe = Pcoq.Gram.Entry.parse 
-	       Pcoq.main_entry 
-	       (Pcoq.Gram.parsable (Stream.of_string s)) 
-    in match pe with 
-    | Some (loc,(VernacSolve (n, tac, _))) ->
-	let tac = Tacinterp.interp tac in
-	let pf' = solve_nth_pftreestate n tac pf in
-	prerr_endline "Success";
-	let nb_goals = nb_subgoals pf' - nb_subgoals pf in
-	Success nb_goals
-    | _ ->
-	prerr_endline "try_interptac: not a tactic"; Failed
-  with 
-  | Sys.Break | Stdpp.Exc_located (_,Sys.Break)
-      -> prerr_endline "try_interp: interrupted"; Interrupted
-  | Stdpp.Exc_located (_,e) -> prerr_endline ("try_interp: failed ("^(Printexc.to_string e)); Failed
-  | e -> Failed	  
 
 let rec is_pervasive_exn = function
   | Out_of_memory | Stack_overflow | Sys.Break -> true
@@ -499,7 +456,7 @@ let print_toplevel_error exc =
     match exc with
       | DuringCommandInterp (loc,ie) ->
           if loc = dummy_loc then (None,ie) else (Some loc, ie)
-      | _ -> (None, exc) 
+      | _ -> (None, exc)
   in
   let (loc,exc) =
     match exc with
@@ -509,30 +466,108 @@ let print_toplevel_error exc =
   in
   match exc with
     | End_of_input  -> 	str "Please report: End of input",None
-    | Vernacexpr.ProtectedLoop -> 
-	str "ProtectedLoop  not allowed by coqide!",None
     | Vernacexpr.Drop ->  str "Drop is not allowed by coqide!",None
     | Vernacexpr.Quit -> str "Quit is not allowed by coqide! Use menus.",None
-    | _ -> 
-	(try Cerrors.explain_exn exc with e -> 
+    | _ ->
+	(try Cerrors.explain_exn exc with e ->
 	   str "Failed to explain error. This is an internal Coq error. Please report.\n"
 	   ++ str (Printexc.to_string  e)),
 	(if is_pervasive_exn exc then None else loc)
 
 let process_exn e = let s,loc= print_toplevel_error e in (msgnl s,loc)
 
-let interp_last last = 
+let interp_last last =
   prerr_string "*";
   try
-    vernac_com (States.with_heavy_rollback Vernacentries.interp) last;
+    vernac_com Vernacentries.interp last;
     Lib.add_frozen_state()
   with e ->
     let s,_ = process_exn e in prerr_endline ("Replay during undo failed because: "^s);
     raise e
 
+let push_phrase cmd_stk reset_info ide_payload =
+  Stack.push (ide_payload,reset_info) cmd_stk
+
+type backtrack =
+  | BacktrackToNextActiveMark
+  | BacktrackToMark of reset_mark
+  | NoBacktrack
+
+let apply_reset = function
+  | BacktrackToMark mark -> reset_to mark
+  | NoBacktrack -> ()
+  | BacktrackToNextActiveMark -> assert false
+
+let rewind sequence cmd_stk =
+  let undo_ops = Hashtbl.create 31 in
+  let current_proofs = undo_info () in
+  let pop_state cont seq coq reset_op prev_proofs curprf =
+    prerr_endline "pop";
+    let curprf =
+      Option.map
+        (fun (curprf,depth) ->
+           (if Hashtbl.mem undo_ops curprf then Hashtbl.replace else Hashtbl.add)
+             undo_ops curprf depth;
+           curprf)
+        coq.cur_prf in
+    let reset_op =
+      match coq.status with
+        | ResetAtRegisteredObject mark ->
+            BacktrackToMark mark
+        | _ when is_vernac_state_preserving_command (snd coq.loc_ast) ->
+            reset_op
+        | _ when is_vernac_tactic_command (snd coq.loc_ast) ->
+            reset_op
+        | _ ->
+            BacktrackToNextActiveMark in
+    cont seq reset_op coq.proofs curprf
+  in
+  let rec do_rewind seq reset_op prev_proofs curprf =
+    match seq with
+      | [] when ((reset_op <> BacktrackToNextActiveMark) &&
+                 (Util.list_subset prev_proofs current_proofs)) ->
+          begin
+            Hashtbl.iter
+              (fun id depth ->
+                 if List.mem id prev_proofs then begin
+                   Pfedit.resume_proof (Util.dummy_loc,id);
+                   Pfedit.undo_todepth depth
+                 end)
+              undo_ops;
+            prerr_endline "OK for undos";
+            Option.iter (fun id -> if List.mem id prev_proofs then
+                           Pfedit.resume_proof (Util.dummy_loc,id)) curprf;
+            prerr_endline "OK for focusing";
+            List.iter
+              (fun id -> Pfedit.delete_proof (Util.dummy_loc,id))
+              (Util.list_subtract current_proofs prev_proofs);
+            prerr_endline "OK for aborts";
+            apply_reset reset_op;
+            prerr_endline "OK for reset"
+          end
+      | [] ->
+          begin
+            try 
+              let ide,coq = Stack.pop cmd_stk in
+              pop_state do_rewind [] coq reset_op prev_proofs curprf;
+              prerr_endline "push";
+              let reset_info = compute_reset_info coq.loc_ast in
+              interp_last coq.loc_ast;
+              push_phrase cmd_stk reset_info ide
+            with Stack.Empty -> reset_initial ()
+          end
+      | coq::rem ->
+          pop_state do_rewind rem coq reset_op prev_proofs curprf
+  in
+  do_rewind sequence NoBacktrack current_proofs None
+
+type  tried_tactic =
+  | Interrupted
+  | Success of int (* nb of goals after *)
+  | Failed
 
 type hyp = env * evar_map *
-           ((identifier * string) * constr option * constr) * 
+           ((identifier * string) * constr option * constr) *
            (string * string)
 type concl = env * evar_map * constr * string
 type meta = env * evar_map * string
@@ -540,7 +575,7 @@ type goal = hyp list * concl
 
 let prepare_hyp sigma env ((i,c,d) as a) =
   env, sigma,
-  ((i,string_of_id i),c,d), 
+  ((i,string_of_id i),c,d),
   (msg (pr_var_decl env a), msg (pr_ltype_env env d))
 
 let prepare_hyps sigma env =
@@ -548,7 +583,7 @@ let prepare_hyps sigma env =
   let hyps =
     fold_named_context
       (fun env d acc -> let hyp = prepare_hyp sigma env d in hyp :: acc)
-      env ~init:[] 
+      env ~init:[]
   in
   List.rev hyps
 
@@ -571,74 +606,66 @@ let get_current_pm_goal () =
   let gl = sig_it gls in
     prepare_goal sigma gl
 
-
-let get_current_goals () = 
+let get_current_goals () =
     let pfts = get_pftreestate () in
-    let gls = fst (Refiner.frontier (Tacmach.proof_of_pftreestate pfts)) in 
+    let gls = fst (Refiner.frontier (Tacmach.proof_of_pftreestate pfts)) in
     let sigma = Tacmach.evc_of_pftreestate pfts in
     List.map (prepare_goal sigma) gls
 
-let get_current_goals_nb () = 
-  try List.length (get_current_goals ()) with _ -> 0
-  
 let print_no_goal () =
-    let pfts = get_pftreestate () in
-    let gls = fst (Refiner.frontier (Tacmach.proof_of_pftreestate pfts)) in 
-    assert (gls = []);
-    let sigma = Tacmach.project (Tacmach.top_goal_of_pftreestate pfts) in
-    msg (Printer.pr_subgoals (Decl_mode.get_end_command pfts) sigma gls)
-
+  (* Fall back on standard coq goal printer for completed goal printing *)
+  msg (pr_open_subgoals ())
 
 let hyp_menu (env, sigma, ((coqident,ident),_,ast),(s,pr_ast)) =
   [("clear "^ident),("clear "^ident^".");
-   
+
    ("apply "^ident),
    ("apply "^ident^".");
-   
+
    ("exact "^ident),
    ("exact "^ident^".");
 
    ("generalize "^ident),
    ("generalize "^ident^".");
-   
+
    ("absurd <"^ident^">"),
    ("absurd "^
     pr_ast
     ^".") ] @
 
-   (if is_equation ast then
+   (if is_equality_type ast then
       [ "discriminate "^ident, "discriminate "^ident^".";
 	"injection "^ident, "injection "^ident^"." ]
     else
       []) @
-   
+
    (let _,t = splay_prod env sigma ast in
-    if is_equation t then 
+    if is_equality_type t then
       [ "rewrite "^ident, "rewrite "^ident^".";
 	"rewrite <- "^ident, "rewrite <- "^ident^"." ]
     else
       []) @
-   
+
   [("elim "^ident),
    ("elim "^ident^".");
-   
+
    ("inversion "^ident),
    ("inversion "^ident^".");
-   
-   ("inversion clear "^ident),
-   ("inversion_clear "^ident^".")] 
 
-let concl_menu (_,_,concl,_) = 
-  let is_eq = is_equation concl in
+   ("inversion clear "^ident),
+   ("inversion_clear "^ident^".")]
+
+let concl_menu (_,_,concl,_) =
+  let is_eq = is_equality_type concl in
   ["intro", "intro.";
    "intros", "intros.";
    "intuition","intuition." ] @
-   
-   (if is_eq then 
+
+   (if is_eq then
       ["reflexivity", "reflexivity.";
        "discriminate", "discriminate.";
        "symmetry", "symmetry." ]
-    else 
+    else
       []) @
 
   ["assumption" ,"assumption.";
@@ -660,43 +687,44 @@ let concl_menu (_,_,concl,_) =
   ]
 
 
-let id_of_name = function 
-  | Names.Anonymous -> id_of_string "x" 
+let id_of_name = function
+  | Names.Anonymous -> id_of_string "x"
   | Names.Name x -> x
 
-let make_cases s = 
+let make_cases s =
   let qualified_name = Libnames.qualid_of_string s in
   let glob_ref = Nametab.locate qualified_name in
   match glob_ref with
-    | Libnames.IndRef i -> 
+    | Libnames.IndRef i ->
 	let {Declarations.mind_nparams = np},
 	{Declarations.mind_consnames = carr ;
-	 Declarations.mind_nf_lc = tarr } 
-	= Global.lookup_inductive i 
+	 Declarations.mind_nf_lc = tarr }
+	= Global.lookup_inductive i
 	in
-	Util.array_fold_right2 
-	  (fun n t l ->  
+	Util.array_fold_right2
+	  (fun n t l ->
 	     let (al,_) = Term.decompose_prod t in
 	     let al,_ = Util.list_chop (List.length al - np) al in
-	     let rec rename avoid = function 
+	     let rec rename avoid = function
 	       | [] -> []
-	       | (n,_)::l -> 
-		   let n' = next_global_ident_away true
-			      (id_of_name n) 
+	       | (n,_)::l ->
+		   let n' = next_ident_away_in_goal
+			      (id_of_name n)
 			      avoid
 		   in (string_of_id n')::(rename (n'::avoid) l)
 	     in
 	     let al' = rename [] (List.rev al) in
 	     (string_of_id n :: al') :: l
 	  )
-	  carr 
+	  carr
 	  tarr
 	  []
     | _ -> raise Not_found
 
-let current_status () = 
+let current_status () =
   let path = msg (Libnames.pr_dirpath (Lib.cwd ())) in
   let path = if path = "Top" then "Ready" else "Ready in " ^ String.sub path 4 (String.length path - 4) in
   try
     path ^ ", proving " ^ (Names.string_of_id (Pfedit.get_current_proof_name ()))
   with _ -> path
+

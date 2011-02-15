@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: pre_env.mli 10664 2008-03-14 11:27:37Z soubiran $ *)
+(* $Id: pre_env.mli 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Names
@@ -18,16 +18,15 @@ open Declarations
 (* The type of environments. *)
 
 
-type key = int option ref 
+type key = int option ref
 
 type constant_key = constant_body * key
- 
+
 type globals = {
-  env_constants : constant_key Cmap.t;
-  env_inductives : mutual_inductive_body KNmap.t;
+  env_constants : constant_key Cmap_env.t;
+  env_inductives : mutual_inductive_body Mindmap_env.t;
   env_modules : module_body MPmap.t;
   env_modtypes : module_type_body MPmap.t;
-  env_alias : module_path MPmap.t;
   env_theories : Decproc.dpinfos list }
 
 type stratification = {
@@ -35,7 +34,7 @@ type stratification = {
   env_engagement : engagement option
 }
 
-type val_kind = 
+type val_kind =
     | VKvalue of values * Idset.t
     | VKnone
 
@@ -65,14 +64,14 @@ val empty_env : env
 val nb_rel         : env -> int
 val push_rel       : rel_declaration -> env -> env
 val lookup_rel_val : int -> env -> lazy_val
-val env_of_rel     : int -> env -> env       
+val env_of_rel     : int -> env -> env
 (* Named context *)
 
-val push_named_context_val  : 
+val push_named_context_val  :
     named_declaration -> named_context_val -> named_context_val
 val push_named       : named_declaration -> env -> env
 val lookup_named_val : identifier -> env -> lazy_val
-val env_of_named     : identifier -> env -> env  
+val env_of_named     : identifier -> env -> env
 (* Global constants *)
 
 
@@ -82,5 +81,3 @@ val lookup_constant : constant -> env -> constant_body
 (* Mutual Inductives *)
 val lookup_mind : mutual_inductive -> env -> mutual_inductive_body
 
-(* Find the ultimate inductive in the [mind_equiv] chain *)
-val scrape_mind : env -> mutual_inductive -> mutual_inductive

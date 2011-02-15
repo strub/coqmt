@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -34,7 +34,7 @@ Require Import PartSum.
 Require Import SeqSeries.
 Require Import RiemannInt.
 Require Import Fourier.
- 
+
 Section Arithmetical_dec.
 
 Variable P : nat -> Prop.
@@ -108,7 +108,7 @@ rewrite Rabs_pos_eq.
    intro i.
    unfold f, g.
    elim (HP i); intro; ring_simplify; auto with *.
-  cut (sum_f_R0 g m <= sum_f_R0 g n). 
+  cut (sum_f_R0 g m <= sum_f_R0 g n).
    intro; fourier.
   apply (ge_fun_sums_ge m n g Hnm).
   intro. unfold g.
@@ -177,9 +177,9 @@ assert (Z:  Un_cv (fun N : nat => sum_f_R0 g N) ((1/2)^n)).
   split;
    intros H;
    simpl; unfold g;
-   destruct (eq_nat_dec 0 n); try reflexivity.
+   destruct (eq_nat_dec 0 n) as [t|f]; try reflexivity.
    elim f; auto with *.
-  elimtype False; omega.
+  exfalso; omega.
  destruct IHa as [IHa0 IHa1].
  split;
   intros H;
@@ -191,7 +191,7 @@ assert (Z:  Un_cv (fun N : nat => sum_f_R0 g N) ((1/2)^n)).
    ring_simplify.
    apply IHa0.
    omega.
-  elimtype False; omega.
+  exfalso; omega.
  ring_simplify.
  apply IHa1.
  omega.

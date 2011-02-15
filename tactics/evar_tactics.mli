@@ -1,19 +1,19 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: evar_tactics.mli 12102 2009-04-24 10:48:11Z herbelin $ i*)
+(*i $Id: evar_tactics.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Tacmach
 open Names
 open Tacexpr
 open Termops
 
-val instantiate : int -> Tacinterp.interp_sign * Rawterm.rawconstr -> 
+val instantiate : int -> Tacinterp.interp_sign * Rawterm.rawconstr ->
   (identifier * hyp_location_flag, unit) location -> tactic
 
 (*i

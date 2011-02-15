@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: termops.mli 12058 2009-04-08 10:54:59Z herbelin $ i*)
+(*i $Id: termops.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Util
 open Pp
@@ -35,27 +35,32 @@ val pr_rel_decl : env -> rel_declaration -> std_ppcmds
 val print_rel_context : env -> std_ppcmds
 val print_env : env -> std_ppcmds
 
-(* iterators on terms *)
-val prod_it : init:types -> (name * types) list -> types
-val lam_it : init:constr -> (name * types) list -> constr
+(* about contexts *)
+val push_rel_assum : name * types -> env -> env
+val push_rels_assum : (name * types) list -> env -> env
+val push_named_rec_types : name array * types array * 'a -> env -> env
+val lookup_rel_id : identifier -> rel_context -> int * constr option * types
+
+(* builds argument lists matching a block of binders or a context *)
 val rel_vect : int -> int -> constr array
 val rel_list : int -> int -> constr list
 val extended_rel_list : int -> rel_context -> constr list
 val extended_rel_vect : int -> rel_context -> constr array
-val push_rel_assum : name * types -> env -> env
-val push_rels_assum : (name * types) list -> env -> env
-val push_named_rec_types : name array * types array * 'a -> env -> env
-val lookup_rel_id : identifier -> rel_context -> int * types
+
+(* iterators/destructors on terms *)
 val mkProd_or_LetIn : rel_declaration -> types -> types
 val mkProd_wo_LetIn : rel_declaration -> types -> types
-val it_mkProd_wo_LetIn : init:types -> rel_context -> types
+val it_mkProd : init:types -> (name * types) list -> types
+val it_mkLambda : init:constr -> (name * types) list -> constr
 val it_mkProd_or_LetIn   : init:types -> rel_context -> types
+val it_mkProd_wo_LetIn : init:types -> rel_context -> types
 val it_mkLambda_or_LetIn : init:constr -> rel_context -> constr
+val it_mkNamedProd_or_LetIn   : init:types -> named_context -> types
+val it_mkNamedProd_wo_LetIn   : init:types -> named_context -> types
+val it_mkNamedLambda_or_LetIn : init:constr -> named_context -> constr
+
 val it_named_context_quantifier :
   (named_declaration -> 'a -> 'a) -> init:'a -> named_context -> 'a
-val it_mkNamedProd_or_LetIn   : init:types -> named_context -> types
-val it_mkNamedLambda_or_LetIn : init:constr -> named_context -> constr
-val it_mkNamedProd_wo_LetIn   : init:types -> named_context -> types
 
 (**********************************************************************)
 (* Generic iterators on constr                                        *)
@@ -64,7 +69,7 @@ val map_constr_with_named_binders :
   (name -> 'a -> 'a) ->
   ('a -> constr -> constr) -> 'a -> constr -> constr
 val map_constr_with_binders_left_to_right :
-  (rel_declaration -> 'a -> 'a) -> 
+  (rel_declaration -> 'a -> 'a) ->
   ('a -> constr -> constr) ->
     'a -> constr -> constr
 val map_constr_with_full_binders :
@@ -82,7 +87,7 @@ val fold_constr_with_binders :
   ('a -> 'a) -> ('a -> 'b -> constr -> 'b) -> 'a -> 'b -> constr -> 'b
 
 val iter_constr_with_full_binders :
-  (rel_declaration -> 'a -> 'a) -> ('a -> constr -> unit) -> 'a -> 
+  (rel_declaration -> 'a -> 'a) -> ('a -> constr -> unit) -> 'a ->
     constr -> unit
 
 (**********************************************************************)
@@ -96,18 +101,22 @@ val occur_existential : types -> bool
 val occur_meta_or_existential : types -> bool
 val occur_const : constant -> types -> bool
 val occur_evar : existential_key -> types -> bool
-val occur_in_global : env -> identifier -> constr -> unit
 val occur_var : env -> identifier -> types -> bool
 val occur_var_in_decl :
   env ->
   identifier -> 'a * types option * types -> bool
-val occur_term : constr -> constr -> bool
 val free_rels : constr -> Intset.t
 val dependent : constr -> constr -> bool
+val dependent_no_evar : constr -> constr -> bool
 val collect_metas : constr -> int list
+val occur_term : constr -> constr -> bool (* Synonymous
+ of dependent *)
 (* Substitution of metavariables *)
-type metamap = (metavariable * constr) list 
-val subst_meta : metamap -> constr -> constr
+type meta_value_map = (metavariable * constr) list
+val subst_meta : meta_value_map -> constr -> constr
+
+(* Type assignment for metavariables *)
+type meta_type_map = (metavariable * types) list
 
 (* [pop c] lifts by -1 the positive indexes in [c] *)
 val pop : constr -> constr
@@ -139,7 +148,7 @@ val no_occurrences_in_set : occurrences
 
 (* [subst_term_occ_gen occl n c d] replaces occurrences of [c] at
    positions [occl], counting from [n], by [Rel 1] in [d] *)
-val subst_term_occ_gen : 
+val subst_term_occ_gen :
   occurrences -> int -> constr -> types -> int * types
 
 (* [subst_term_occ occl c d] replaces occurrences of [c] at
@@ -155,43 +164,34 @@ type hyp_location_flag = (* To distinguish body and type of local defs *)
   | InHypValueOnly
 
 val subst_term_occ_decl :
-  occurrences * hyp_location_flag -> constr -> named_declaration -> 
+  occurrences * hyp_location_flag -> constr -> named_declaration ->
       named_declaration
 
 val error_invalid_occurrence : int list -> 'a
 
 (* Alternative term equalities *)
 val base_sort_cmp : Reduction.conv_pb -> sorts -> sorts -> bool
+val compare_constr_univ : (Reduction.conv_pb -> constr -> constr -> bool) ->
+  Reduction.conv_pb -> constr -> constr -> bool
 val constr_cmp : Reduction.conv_pb -> constr -> constr -> bool
 val eq_constr : constr -> constr -> bool
 
 val eta_reduce_head : constr -> constr
 val eta_eq_constr : constr -> constr -> bool
 
-(* finding "intuitive" names to hypotheses *)
-val lowercase_first_char : identifier -> string
-val sort_hdchar : sorts -> string
-val hdchar : env -> types -> string
-val id_of_name_using_hdchar :
-  env -> types -> name -> identifier
-val named_hd : env -> types -> name -> name
+exception CannotFilter
 
-val mkProd_name : env -> name * types * types -> types
-val mkLambda_name : env -> name * types * constr -> constr
+(* Lightweight first-order filtering procedure. Unification
+   variables ar represented by (untyped) Evars.
+   [filtering c1 c2] returns the substitution n'th evar ->
+   (context,term), or raises [CannotFilter].
+   Warning: Outer-kernel sort subtyping are taken into account: c1 has
+   to be smaller than c2 wrt. sorts. *)
+type subst = (rel_context*constr) Intmap.t
+val filtering : rel_context -> Reduction.conv_pb -> constr -> constr -> subst
 
-(* Deprecated synonyms of [mkProd_name] and [mkLambda_name] *)
-val prod_name : env -> name * types * types -> types
-val lambda_name : env -> name * types * constr -> constr
-
-val prod_create : env -> types * types -> constr
-val lambda_create : env -> types * constr -> constr
-val name_assumption : env -> rel_declaration -> rel_declaration
-val name_context : env -> rel_context -> rel_context
-
-val mkProd_or_LetIn_name : env -> types -> rel_declaration -> types
-val mkLambda_or_LetIn_name : env -> constr -> rel_declaration -> constr
-val it_mkProd_or_LetIn_name   : env -> types -> rel_context -> types
-val it_mkLambda_or_LetIn_name : env -> constr -> rel_context -> constr
+val decompose_prod_letin : constr -> int * rel_context * constr
+val align_prod_letin : constr -> constr -> rel_context * constr
 
 (* Get the last arg of a constr intended to be an application *)
 val last_arg : constr -> constr
@@ -213,43 +213,23 @@ val context_chop : int -> rel_context -> (rel_context*rel_context)
 val vars_of_env: env -> Idset.t
 val add_vname : Idset.t -> name -> Idset.t
 
-(* sets of free identifiers *)
-type used_idents = identifier list
-val occur_rel : int -> name list -> identifier -> bool
-val occur_id : name list -> identifier -> constr -> bool
-
-type avoid_flags = bool option
- (* Some true = avoid all globals (as in intro); 
-    Some false = avoid only global constructors; None = don't avoid globals *)
-
-val next_name_away_in_cases_pattern : 
-  name -> identifier list -> identifier
-val next_global_ident_away : 
-  (*allow section vars:*) bool -> identifier -> identifier list -> identifier
-val next_name_not_occuring :
-  avoid_flags -> name -> identifier list -> name list -> constr -> identifier
-val concrete_name :
-  avoid_flags -> identifier list -> name list -> name -> constr -> 
-    name * identifier list
-val concrete_let_name :
-  avoid_flags -> identifier list -> name list -> name -> constr -> 
-    name * identifier list
-val rename_bound_var : env -> identifier list -> types -> types
-
 (* other signature iterators *)
 val process_rel_context : (rel_declaration -> env -> env) -> env -> env
 val assums_of_rel_context : rel_context -> (name * constr) list
 val lift_rel_context : int -> rel_context -> rel_context
 val substl_rel_context : constr list -> rel_context -> rel_context
-val fold_map_rel_context :
+val smash_rel_context : rel_context -> rel_context (* expand lets in context *)
+val adjust_subst_to_rel_context : rel_context -> constr list -> constr list
+val map_rel_context_in_env :
   (env -> constr -> constr) -> env -> rel_context -> rel_context
-val map_rel_context_with_binders : 
+val map_rel_context_with_binders :
   (int -> constr -> constr) -> rel_context -> rel_context
 val fold_named_context_both_sides :
   ('a -> named_declaration -> named_declaration list -> 'a) ->
     named_context -> init:'a -> 'a
 val mem_named_context : identifier -> named_context -> bool
-val make_all_name_different : env -> env
+
+val clear_named_body : identifier -> env -> env
 
 val global_vars : env -> constr -> identifier list
 val global_vars_set_of_decl : env -> named_declaration -> Idset.t

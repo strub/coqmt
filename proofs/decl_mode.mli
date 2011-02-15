@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: decl_mode.mli 10739 2008-04-01 14:45:20Z herbelin $ *)
+(* $Id: decl_mode.mli 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Names
 open Term
@@ -23,7 +23,7 @@ type command_mode =
   | Mode_none
 
 val mode_of_pftreestate : pftreestate -> command_mode
-    
+
 val get_current_mode : unit -> command_mode
 
 val check_not_proof_mode : string -> unit
@@ -33,7 +33,7 @@ type split_tree=
   | Split_patt of Idset.t * inductive *
 		(bool array * (Idset.t * split_tree) option) array
   | Close_patt of split_tree
-  | End_patt of (identifier * int)
+  | End_patt of (identifier * (int * int))
 
 type elim_kind =
     EK_dep of split_tree
@@ -42,7 +42,7 @@ type elim_kind =
 
 type recpath = int option*Declarations.wf_paths
 
-type per_info = 
+type per_info =
     {per_casee:constr;
      per_ctype:types;
      per_ind:inductive;
@@ -52,7 +52,7 @@ type per_info =
      per_nparams:int;
      per_wf:recpath}
 
-type stack_info = 
+type stack_info =
     Per of Decl_expr.elim_type * per_info * elim_kind * Names.identifier list
   | Suppose_case
   | Claim

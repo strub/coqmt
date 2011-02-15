@@ -1,12 +1,12 @@
-  (************************************************************************)
-  (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-  (* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
-  (*   \VV/  **************************************************************)
-  (*    //   *      This file is distributed under the terms of the       *)
-  (*         *       GNU Lesser General Public License Version 2.1        *)
-  (************************************************************************)
+(************************************************************************)
+(*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(*   \VV/  **************************************************************)
+(*    //   *      This file is distributed under the terms of the       *)
+(*         *       GNU Lesser General Public License Version 2.1        *)
+(************************************************************************)
 
-  (*i $Id: ArithProp.v 9454 2006-12-15 15:30:59Z bgregoir $ i*)
+  (*i $Id: ArithProp.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 Require Import Rbase.
 Require Import Rbasic_fun.
@@ -124,7 +124,7 @@ Proof.
     rewrite <- Ropp_inv_permute; [ idtac | assumption ].
   replace
     (IZR (up (x * / - y)) - x * - / y +
-      (- (x * / y) + - (IZR (up (x * / - y)) - 1))) with 1; 
+      (- (x * / y) + - (IZR (up (x * / - y)) - 1))) with 1;
     [ idtac | ring ].
   elim H0; intros _ H1; unfold Rdiv in H1; exact H1.
   rewrite (Rabs_left _ r); apply Rmult_lt_reg_l with (/ - y).
@@ -153,11 +153,11 @@ Proof.
   rewrite Rmult_0_r; rewrite (Rmult_comm (/ y)); rewrite Rmult_plus_distr_r;
     rewrite Rmult_assoc; rewrite <- Rinv_r_sym;
       [ rewrite Rmult_1_r | assumption ];
-      apply Rplus_le_reg_l with (IZR (up (x / y)) - x / y); 
+      apply Rplus_le_reg_l with (IZR (up (x / y)) - x / y);
 	rewrite Rplus_0_r; unfold Rdiv in |- *;
 	  replace
 	    (IZR (up (x * / y)) - x * / y + (x * / y + (1 - IZR (up (x * / y))))) with
-	    1; [ idtac | ring ]; elim H0; intros _ H2; unfold Rdiv in H2; 
+	    1; [ idtac | ring ]; elim H0; intros _ H2; unfold Rdiv in H2;
 	      exact H2.
   rewrite (Rabs_right _ r); apply Rmult_lt_reg_l with (/ y).
   apply Rinv_0_lt_compat; assumption.
@@ -165,10 +165,10 @@ Proof.
     rewrite Rmult_plus_distr_r; rewrite Rmult_assoc; rewrite <- Rinv_r_sym;
       [ rewrite Rmult_1_r | assumption ];
       apply Rplus_lt_reg_r with (IZR (up (x / y)) - 1);
-	replace (IZR (up (x / y)) - 1 + 1) with (IZR (up (x / y))); 
+	replace (IZR (up (x / y)) - 1 + 1) with (IZR (up (x / y)));
 	  [ idtac | ring ];
 	  replace (IZR (up (x / y)) - 1 + (x * / y + (1 - IZR (up (x / y))))) with
-	    (x * / y); [ idtac | ring ]; elim H0; unfold Rdiv in |- *; 
+	    (x * / y); [ idtac | ring ]; elim H0; unfold Rdiv in |- *;
 	      intros H2 _; exact H2.
   case (total_order_T 0 y); intro.
   elim s; intro.

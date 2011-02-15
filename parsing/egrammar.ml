@@ -1,17 +1,18 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: egrammar.ml 11512 2008-10-27 12:28:36Z herbelin $ *)
+(* $Id: egrammar.ml 13329 2010-07-26 11:05:39Z herbelin $ *)
 
 open Pp
 open Util
 open Pcoq
 open Extend
+open Ppextend
 open Topconstr
 open Genarg
 open Libnames
@@ -21,9 +22,9 @@ open Names
 open Vernacexpr
 
 (**************************************************************************)
-(*  
+(*
  * --- Note on the mapping of grammar productions to camlp4 actions ---
- *  
+ *
  * Translation of environments: a production
  *   [ nt1(x1) ... nti(xi) ] -> act(x1..xi)
  * is written (with camlp4 conventions):
@@ -33,9 +34,9 @@ open Vernacexpr
  * the make_*_action family build the following closure:
  *
  *      ((fun env ->
- *          (fun vi -> 
+ *          (fun vi ->
  *             (fun env -> ...
- *           
+ *
  *                  (fun v1 ->
  *                     (fun env -> gram_action .. env act)
  *                     ((x1,v1)::env))
@@ -47,69 +48,117 @@ open Vernacexpr
 (**********************************************************************)
 (** Declare Notations grammar rules                                   *)
 
-type prod_item =
-  | Term of Token.pattern
-  | NonTerm of constr_production_entry * 
-      (Names.identifier * constr_production_entry) option
+let constr_expr_of_name (loc,na) = match na with
+  | Anonymous -> CHole (loc,None)
+  | Name id -> CRef (Ident (loc,id))
+
+let cases_pattern_expr_of_name (loc,na) = match na with
+  | Anonymous -> CPatAtom (loc,None)
+  | Name id -> CPatAtom (loc,Some (Ident (loc,id)))
+
+type grammar_constr_prod_item =
+  | GramConstrTerminal of Token.pattern
+  | GramConstrNonTerminal of constr_prod_entry_key * identifier option
+  | GramConstrListMark of int * bool
+    (* tells action rule to make a list of the n previous parsed items; 
+       concat with last parsed list if true *)
 
 type 'a action_env = 'a list * 'a list list
 
 let make_constr_action
-  (f : loc -> constr_expr action_env -> constr_expr) pil =
-  let rec make (env,envlist as fullenv : constr_expr action_env) = function
-    | [] ->
-	Gramext.action (fun loc -> f loc fullenv)
-    | None :: tl -> (* parse a non-binding item *)
-        Gramext.action (fun _ -> make fullenv tl)
-    | Some (p, (ETConstr _| ETOther _)) :: tl -> (* constr non-terminal *)
-        Gramext.action (fun (v:constr_expr) -> make (v :: env, envlist) tl)
-    | Some (p, ETReference) :: tl -> (* non-terminal *)
-        Gramext.action (fun (v:reference) -> make (CRef v :: env, envlist) tl)
-    | Some (p, ETIdent) :: tl -> (* non-terminal *)
-        Gramext.action (fun (v:identifier) ->
-	  make (CRef (Ident (dummy_loc,v)) :: env, envlist) tl)
-    | Some (p, ETBigint) :: tl -> (* non-terminal *)
-        Gramext.action (fun (v:Bigint.bigint) ->
-	  make (CPrim (dummy_loc,Numeral v) :: env, envlist) tl)
-    | Some (p, ETConstrList _) :: tl ->
-        Gramext.action (fun (v:constr_expr list) -> make (env, v::envlist) tl)
-    | Some (p, ETPattern) :: tl -> 
-	failwith "Unexpected entry of type cases pattern" in
-  make ([],[]) (List.rev pil)
+  (f : loc -> constr_notation_substitution -> constr_expr) pil =
+  let rec make (constrs,constrlists,binders as fullsubst) = function
+  | [] ->
+      Gramext.action (fun loc -> f loc fullsubst)
+  | (GramConstrTerminal _ | GramConstrNonTerminal (_,None)) :: tl ->
+      (* parse a non-binding item *)
+      Gramext.action (fun _ -> make fullsubst tl)
+  | GramConstrNonTerminal (typ, Some _) :: tl ->
+      (* parse a binding non-terminal *)
+     (match typ with
+     | (ETConstr _| ETOther _) ->
+	Gramext.action (fun (v:constr_expr) ->
+	  make (v :: constrs, constrlists, binders) tl)
+     | ETReference ->
+        Gramext.action (fun (v:reference) ->
+	  make (CRef v :: constrs, constrlists, binders) tl)
+     | ETName ->
+         Gramext.action (fun (na:name located) ->
+	  make (constr_expr_of_name na :: constrs, constrlists, binders) tl)
+     | ETBigint ->
+         Gramext.action (fun (v:Bigint.bigint) ->
+	  make (CPrim(dummy_loc,Numeral v) :: constrs, constrlists, binders) tl)
+     | ETConstrList (_,n) ->
+	Gramext.action (fun (v:constr_expr list) ->
+	  make (constrs, v::constrlists, binders) tl)
+    | ETBinder _ | ETBinderList (true,_) ->
+	Gramext.action (fun (v:local_binder list) ->
+	  make (constrs, constrlists, v::binders) tl)
+    | ETBinderList (false,_) ->
+	Gramext.action (fun (v:local_binder list list) ->
+	  make (constrs, constrlists, List.flatten v::binders) tl)
+    | ETPattern ->
+	failwith "Unexpected entry of type cases pattern")
+  | GramConstrListMark (n,b) :: tl ->
+      (* Rebuild expansions of ConstrList *)
+      let heads,constrs = list_chop n constrs in
+      let constrlists =
+	if b then (heads@List.hd constrlists)::List.tl constrlists
+	else heads::constrlists
+      in make (constrs, constrlists, binders) tl
+  in
+  make ([],[],[]) (List.rev pil)
 
 let make_cases_pattern_action
-  (f : loc -> cases_pattern_expr action_env -> cases_pattern_expr) pil =
-  let rec make (env,envlist as fullenv : cases_pattern_expr action_env) = function
-    | [] ->
-	Gramext.action (fun loc -> f loc fullenv)
-    | None :: tl -> (* parse a non-binding item *)
-        Gramext.action (fun _ -> make fullenv tl)
-    | Some (p, ETConstr _) :: tl -> (* pattern non-terminal *)
+  (f : loc -> cases_pattern_notation_substitution -> cases_pattern_expr) pil =
+  let rec make (env,envlist as fullenv) = function
+  | [] ->
+      Gramext.action (fun loc -> f loc fullenv)
+  | (GramConstrTerminal _ | GramConstrNonTerminal (_,None)) :: tl ->
+      (* parse a non-binding item *)
+      Gramext.action (fun _ -> make fullenv tl)
+  | GramConstrNonTerminal (typ, Some _) :: tl ->
+      (* parse a binding non-terminal *)
+    (match typ with
+    | ETConstr _ -> (* pattern non-terminal *)
         Gramext.action (fun (v:cases_pattern_expr) -> make (v::env,envlist) tl)
-    | Some (p, ETReference) :: tl -> (* non-terminal *)
+    | ETReference ->
         Gramext.action (fun (v:reference) ->
 	  make (CPatAtom (dummy_loc,Some v) :: env, envlist) tl)
-    | Some (p, ETIdent) :: tl -> (* non-terminal *)
-        Gramext.action (fun (v:identifier) ->
-	  make 
-	    (CPatAtom (dummy_loc,Some (Ident (dummy_loc,v)))::env, envlist) tl)
-    | Some (p, ETBigint) :: tl -> (* non-terminal *)
+    | ETName ->
+        Gramext.action (fun (na:name located) ->
+	  make (cases_pattern_expr_of_name na :: env, envlist) tl)
+    | ETBigint ->
         Gramext.action (fun (v:Bigint.bigint) ->
 	  make (CPatPrim (dummy_loc,Numeral v) :: env, envlist) tl)
-    | Some (p, ETConstrList _) :: tl ->
-        Gramext.action (fun (v:cases_pattern_expr list) ->
-	  make (env, v :: envlist) tl)
-    | Some (p, (ETPattern | ETOther _)) :: tl -> 
-	failwith "Unexpected entry of type cases pattern or other" in
+    | ETConstrList (_,_) ->
+        Gramext.action  (fun (vl:cases_pattern_expr list) ->
+	  make (env, vl :: envlist) tl)
+    | (ETPattern | ETBinderList _ | ETBinder _ | ETOther _) ->
+	failwith "Unexpected entry of type cases pattern or other")
+  | GramConstrListMark (n,b) :: tl ->
+      (* Rebuild expansions of ConstrList *)
+      let heads,env = list_chop n env in
+      if b then make (env,(heads@List.hd envlist)::List.tl envlist) tl
+      else make (env,heads::envlist) tl
+  in
   make ([],[]) (List.rev pil)
 
-let make_constr_prod_item univ assoc from forpat = function
-  | Term tok -> (Gramext.Stoken tok, None)
-  | NonTerm (nt, ovar) ->
-      let eobj = symbol_of_production assoc from forpat nt in
-      (eobj, ovar)
+let rec make_constr_prod_item assoc from forpat = function
+  | GramConstrTerminal tok :: l ->
+      Gramext.Stoken tok :: make_constr_prod_item assoc from forpat l
+  | GramConstrNonTerminal (nt, ovar) :: l ->
+      symbol_of_constr_prod_entry_key assoc from forpat nt
+      :: make_constr_prod_item assoc from forpat l
+  | GramConstrListMark _ :: l ->
+      make_constr_prod_item assoc from forpat l
+  | [] ->
+      []
 
-let prepare_empty_levels entry (pos,p4assoc,name,reinit) =
+let prepare_empty_levels forpat (pos,p4assoc,name,reinit) =
+  let entry = 
+    if forpat then weaken_entry Constr.pattern
+    else weaken_entry Constr.operconstr in
   grammar_extend entry pos reinit [(name, p4assoc, [])]
 
 let pure_sublevels level symbs =
@@ -119,26 +168,25 @@ let pure_sublevels level symbs =
   | _ ->
       failwith "") symbs
 
-let extend_constr (entry,level) (n,assoc) mkact forpat pt =
-  let univ = get_univ "constr" in
-  let pil = List.map (make_constr_prod_item univ assoc n forpat) pt in
-  let (symbs,ntl) = List.split pil in
+let extend_constr (entry,level) (n,assoc) mkact forpat rules =
+  List.iter (fun pt ->
+  let symbs = make_constr_prod_item assoc n forpat pt in
   let pure_sublevels = pure_sublevels level symbs in
   let needed_levels = register_empty_levels forpat pure_sublevels in
   let pos,p4assoc,name,reinit = find_position forpat assoc level in
-  List.iter (prepare_empty_levels entry) needed_levels;
-  grammar_extend entry pos reinit [(name, p4assoc, [symbs, mkact ntl])]
+  List.iter (prepare_empty_levels forpat) needed_levels;
+  grammar_extend entry pos reinit [(name, p4assoc, [symbs, mkact pt])]) rules
 
-let extend_constr_notation (n,assoc,ntn,rule) =
+let extend_constr_notation (n,assoc,ntn,rules) =
   (* Add the notation in constr *)
   let mkact loc env = CNotation (loc,ntn,env) in
-  let e = get_constr_entry false (ETConstr (n,())) in
-  extend_constr e (ETConstr(n,()),assoc) (make_constr_action mkact) false rule;
+  let e = interp_constr_entry_key false (ETConstr (n,())) in
+  extend_constr e (ETConstr(n,()),assoc) (make_constr_action mkact) false rules;
   (* Add the notation in cases_pattern *)
   let mkact loc env = CPatNotation (loc,ntn,env) in
-  let e = get_constr_entry true (ETConstr (n,())) in
+  let e = interp_constr_entry_key true (ETConstr (n,())) in
   extend_constr e (ETConstr (n,()),assoc) (make_cases_pattern_action mkact)
-    true rule
+    true rules
 
 (**********************************************************************)
 (** Making generic actions in type generic_argument                   *)
@@ -146,7 +194,7 @@ let extend_constr_notation (n,assoc,ntn,rule) =
 let make_generic_action
   (f:loc -> ('b * raw_generic_argument) list -> 'a) pil =
   let rec make env = function
-    | [] -> 
+    | [] ->
 	Gramext.action (fun loc -> f loc env)
     | None :: tl -> (* parse a non-binding item *)
         Gramext.action (fun _ -> make env tl)
@@ -160,24 +208,21 @@ let make_rule univ f g pt =
   (symbs, act)
 
 (**********************************************************************)
-(** Grammar extensions declared at ML level                           *) 
+(** Grammar extensions declared at ML level                           *)
 
-type grammar_tactic_production =
-  | TacTerm of string
-  | TacNonTerm of
-      loc * (Gram.te Gramext.g_symbol * argument_type) * string option
+type grammar_prod_item =
+  | GramTerminal of string
+  | GramNonTerminal of
+      loc * argument_type * Gram.te prod_entry_key * identifier option
 
 let make_prod_item = function
-  | TacTerm s -> (Gramext.Stoken (Lexer.terminal s), None)
-  | TacNonTerm (_,(nont,t), po) -> (nont, Option.map (fun p -> (p,t)) po)
+  | GramTerminal s -> (Gramext.Stoken (Lexer.terminal s), None)
+  | GramNonTerminal (_,t,e,po) ->
+      (symbol_of_prod_entry_key e, Option.map (fun p -> (p,t)) po)
 
 (* Tactic grammar extensions *)
 
-let tac_exts = ref []
-let get_extend_tactic_grammars () = !tac_exts
-
 let extend_tactic_grammar s gl =
-  tac_exts := (s,gl) :: !tac_exts;
   let univ = get_univ "tactic" in
   let mkact loc l = Tacexpr.TacExtend (loc,s,List.map snd l) in
   let rules = List.map (make_rule univ mkact make_prod_item) gl in
@@ -196,53 +241,7 @@ let extend_vernac_command_grammar s gl =
   Gram.extend Vernac_.command None [(None, None, List.rev rules)]
 
 (**********************************************************************)
-(** Grammar declaration for Tactic Notation (Coq level)               *) 
-
-(* Interpretation of the grammar entry names *)
-
-let find_index s t =
-  let t,n = repr_ident (id_of_string t) in
-  if s <> t or n = None then raise Not_found;
-  Option.get n
-
-let rec interp_entry_name up_level s =
-  let l = String.length s in
-  if l > 8 & String.sub s 0 3 = "ne_" & String.sub s (l-5) 5 = "_list" then
-    let t, g = interp_entry_name up_level (String.sub s 3 (l-8)) in
-    List1ArgType t, Gramext.Slist1 g
-  else if l > 5 & String.sub s (l-5) 5 = "_list" then
-    let t, g = interp_entry_name up_level (String.sub s 0 (l-5)) in
-    List0ArgType t, Gramext.Slist0 g
-  else if l > 4 & String.sub s (l-4) 4 = "_opt" then
-    let t, g = interp_entry_name up_level (String.sub s 0 (l-4)) in
-    OptArgType t, Gramext.Sopt g
-  else
-    let s = if s = "hyp" then "var" else s in
-    try 
-      let i = find_index "tactic" s in
-      ExtraArgType s, 
-      if up_level<>5 && i=up_level then Gramext.Sself else
-      if up_level<>5 && i=up_level-1 then Gramext.Snext else
-      Gramext.Snterml(Pcoq.Gram.Entry.obj Tactic.tactic_expr,string_of_int i)
-    with Not_found ->
-    let e = 
-      (* Qualified entries are no longer in use *)
-      try get_entry (get_univ "tactic") s
-      with _ -> 
-      try get_entry (get_univ "prim") s
-      with _ ->
-      try get_entry (get_univ "constr") s
-      with _ -> error ("Unknown entry "^s^".")
-    in
-    let o = object_of_typed_entry e in
-    let t = type_of_typed_entry e in
-    t,Gramext.Snterm (Pcoq.Gram.Entry.obj o)
-
-let make_vprod_item n = function
-  | VTerm s -> (Gramext.Stoken (Lexer.terminal s), None)
-  | VNonTerm (loc, nt, po) ->
-      let (etyp, e) = interp_entry_name n nt in
-      e, Option.map (fun p -> (p,etyp)) po
+(** Grammar declaration for Tactic Notation (Coq level)               *)
 
 let get_tactic_entry n =
   if n = 0 then
@@ -251,64 +250,60 @@ let get_tactic_entry n =
     weaken_entry Tactic.binder_tactic, None
   else if 1<=n && n<5 then
     weaken_entry Tactic.tactic_expr, Some (Gramext.Level (string_of_int n))
-  else 
+  else
     error ("Invalid Tactic Notation level: "^(string_of_int n)^".")
 
 (* Declaration of the tactic grammar rule *)
 
-let head_is_ident = function VTerm _::_ -> true | _ -> false
+let head_is_ident = function GramTerminal _::_ -> true | _ -> false
 
 let add_tactic_entry (key,lev,prods,tac) =
   let univ = get_univ "tactic" in
   let entry, pos = get_tactic_entry lev in
-  let mkprod = make_vprod_item lev in
-  let rules = 
+  let rules =
     if lev = 0 then begin
       if not (head_is_ident prods) then
 	error "Notation for simple tactic must start with an identifier.";
       let mkact s tac loc l =
 	(TacAlias(loc,s,l,tac):raw_atomic_tactic_expr) in
-      make_rule univ (mkact key tac) mkprod prods
+      make_rule univ (mkact key tac) make_prod_item prods
     end
     else
-      let mkact s tac loc l = 
+      let mkact s tac loc l =
 	(TacAtom(loc,TacAlias(loc,s,l,tac)):raw_tactic_expr) in
-      make_rule univ (mkact key tac) mkprod prods in
+      make_rule univ (mkact key tac) make_prod_item prods in
   synchronize_level_positions ();
   grammar_extend entry pos None [(None, None, List.rev [rules])]
 
 (**********************************************************************)
 (** State of the grammar extensions                                   *)
 
-type notation_grammar = 
-    int * Gramext.g_assoc option * notation * prod_item list
+type notation_grammar =
+    int * Gramext.g_assoc option * notation * grammar_constr_prod_item list list
 
 type all_grammar_command =
-  | Notation of Notation.level * notation_grammar
+  | Notation of
+	 (precedence * tolerability list) *
+	  notation_var_internalization_type list *
+	  notation_grammar
   | TacticGrammar of
-      (string * int * grammar_production list * 
-        (Names.dir_path * Tacexpr.glob_tactic_expr))
+      (string * int * grammar_prod_item list *
+         (dir_path * Tacexpr.glob_tactic_expr))
 
 let (grammar_state : all_grammar_command list ref) = ref []
 
 let extend_grammar gram =
   (match gram with
-  | Notation (_,a) -> extend_constr_notation a
+  | Notation (_,_,a) -> extend_constr_notation a
   | TacticGrammar g -> add_tactic_entry g);
   grammar_state := gram :: !grammar_state
 
-let reset_extend_grammars_v8 () =
-  let te = List.rev !tac_exts in
-  let tv = List.rev !vernac_exts in
-  tac_exts := [];
-  vernac_exts := [];
-  List.iter (fun (s,gl) -> print_string ("Resinstalling "^s); flush stdout; extend_tactic_grammar s gl) te;
-  List.iter (fun (s,gl) -> extend_vernac_command_grammar s gl) tv
-
 let recover_notation_grammar ntn prec =
   let l = map_succeed (function
-    | Notation (prec',(_,_,ntn',_ as x)) when prec = prec' & ntn = ntn' -> x
-    | _ -> failwith "") !grammar_state in
+    | Notation (prec',vars,(_,_,ntn',_ as x)) when prec = prec' & ntn = ntn' ->
+	 vars, x
+    | _ ->
+	 failwith "") !grammar_state in
   assert (List.length l = 1);
   List.hd l
 
@@ -319,7 +314,7 @@ type frozen_t = all_grammar_command list * Lexer.frozen_t
 
 let freeze () = (!grammar_state, Lexer.freeze ())
 
-(* We compare the current state of the grammar and the state to unfreeze, 
+(* We compare the current state of the grammar and the state to unfreeze,
    by computing the longest common suffixes *)
 let factorize_grams l1 l2 =
   if l1 == l2 then ([], [], l1) else list_share_tails l1 l2
@@ -339,7 +334,7 @@ let unfreeze (grams, lex) =
   grammar_state := common;
   Lexer.unfreeze lex;
   List.iter extend_grammar (List.rev redo)
- 
+
 let init_grammar () =
   remove_grammars (number_of_entries !grammar_state);
   grammar_state := []
@@ -349,10 +344,8 @@ let init () =
 
 open Summary
 
-let _ = 
+let _ =
   declare_summary "GRAMMAR_LEXER"
     { freeze_function = freeze;
       unfreeze_function = unfreeze;
-      init_function = init;
-      survive_module = false;
-      survive_section = false }
+      init_function = init }

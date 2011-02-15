@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,7 +8,7 @@
 
 (*i camlp4use: "pa_extend.cmo" i*)
 
-(*i $Id: g_prim.ml4 11525 2008-10-30 22:18:54Z amahboub $ i*)
+(*i $Id: g_prim.ml4 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 open Pcoq
 open Names
@@ -34,10 +34,10 @@ let my_int_of_string loc s =
     Util.user_err_loc (loc,"",Pp.str "Cannot support a so large number.")
 
 GEXTEND Gram
-  GLOBAL: 
+  GLOBAL:
     bigint natural integer identref name ident var preident
-    fullyqualid qualid reference dirpath
-    ne_string string pattern_ident pattern_identref;
+    fullyqualid qualid reference dirpath ne_lstring
+    ne_string string pattern_ident pattern_identref by_notation smart_global;
   preident:
     [ [ s = IDENT -> s ] ]
   ;
@@ -45,7 +45,7 @@ GEXTEND Gram
     [ [ s = IDENT -> id_of_string s ] ]
   ;
   pattern_ident:
-    [ [ LEFTQMARK; id = ident -> id ] ]
+    [ [ s = LEFTQMARK; id = ident -> id ] ]
   ;
   pattern_identref:
     [ [ id = pattern_ident -> (loc, id) ] ]
@@ -71,7 +71,7 @@ GEXTEND Gram
   ;
   basequalid:
     [ [ id = ident; (l,id')=fields -> local_make_qualid (l@[id]) id'
-      | id = ident -> make_short_qualid id
+      | id = ident -> qualid_of_ident id
       ] ]
   ;
   name:
@@ -84,13 +84,23 @@ GEXTEND Gram
       | id = ident -> Ident (loc,id)
       ] ]
   ;
+  by_notation:
+    [ [ s = ne_string; sc = OPT ["%"; key = IDENT -> key ] -> (loc,s,sc) ] ]
+  ;
+  smart_global:
+    [ [ c = reference -> Genarg.AN c
+      | ntn = by_notation -> Genarg.ByNotation ntn ] ]
+  ;
   qualid:
     [ [ qid = basequalid -> loc, qid ] ]
   ;
   ne_string:
-    [ [ s = STRING -> 
+    [ [ s = STRING ->
         if s="" then Util.user_err_loc(loc,"",Pp.str"Empty string."); s
     ] ]
+  ;
+  ne_lstring:
+    [ [ s = ne_string -> (loc,s) ] ]
   ;
   dirpath:
     [ [ id = ident; l = LIST0 field ->

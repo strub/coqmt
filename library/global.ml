@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: global.ml 10664 2008-03-14 11:27:37Z soubiran $ *)
+(* $Id: global.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Names
@@ -27,13 +27,11 @@ let env () = env_of_safe_env !global_env
 
 let env_is_empty () = is_empty !global_env
 
-let _ = 
+let _ =
   declare_summary "Global environment"
     { freeze_function = (fun () -> !global_env);
       unfreeze_function = (fun fr -> global_env := fr);
-      init_function = (fun () -> global_env := empty_environment);
-      survive_module = true;
-      survive_section = false }
+      init_function = (fun () -> global_env := empty_environment) }
 
 (* Then we export the functions of [Typing] on that environment. *)
 
@@ -50,31 +48,32 @@ let push_named_def d =
   global_env := env;
   cst
 
-(*let add_thing add kn thing =
-  let _,dir,l = repr_kn kn in
-  let kn',newenv = add dir l thing !global_env in
-    if kn = kn' then
-      global_env := newenv
-    else
-      anomaly "Kernel names do not match."
-*)
 
-let add_thing add dir id thing = 
+let add_thing add dir id thing =
   let kn, newenv = add dir (label_of_id id) thing !global_env in
     global_env := newenv;
     kn
 
-let add_constant = add_thing add_constant 
+let add_constant = add_thing add_constant
 let add_mind = add_thing add_mind
-let add_modtype = add_thing (fun _ -> add_modtype) ()
-let add_module = add_thing (fun _ -> add_module) ()
-let add_alias = add_thing (fun _ -> add_alias) ()
+let add_modtype x y inl = add_thing (fun _ x y -> add_modtype x y inl) () x y
+
+
+let add_module id me inl =
+  let l = label_of_id id in
+  let mp,resolve,new_env = add_module l me inl !global_env in
+    global_env := new_env;
+    mp,resolve
+    
 
 let add_constraints c = global_env := add_constraints c !global_env
 
 let set_engagement c = global_env := set_engagement c !global_env
 
-let add_include me = global_env := add_include me !global_env
+let add_include me is_module inl =
+  let resolve,newenv = add_include me is_module inl !global_env in
+    global_env := newenv;
+    resolve
 
 let start_module id =
   let l = label_of_id id in
@@ -82,16 +81,18 @@ let start_module id =
     global_env := newenv;
     mp
 
-let end_module id mtyo =
+let end_module fs id mtyo =
   let l = label_of_id id in
-  let mp,newenv = end_module l mtyo !global_env in
+  let mp,resolve,newenv = end_module l mtyo !global_env in
+    Summary.unfreeze_summaries fs;
     global_env := newenv;
-    mp
+    mp,resolve
 
 
-let add_module_parameter mbid mte =
-  let newenv = add_module_parameter mbid mte !global_env in
-    global_env := newenv
+let add_module_parameter mbid mte inl =
+  let resolve,newenv = add_module_parameter mbid mte inl !global_env in
+    global_env := newenv;
+    resolve
 
 
 let start_modtype id =
@@ -100,12 +101,15 @@ let start_modtype id =
     global_env := newenv;
     mp
 
-let end_modtype id =
+let end_modtype fs id =
   let l = label_of_id id in
   let kn,newenv = end_modtype l !global_env in
+    Summary.unfreeze_summaries fs;
     global_env := newenv;
     kn
 
+let pack_module () = 
+  pack_module !global_env
 
 
 
@@ -117,19 +121,26 @@ let lookup_mind kn = lookup_mind kn (env())
 let lookup_module mp = lookup_module mp (env())
 let lookup_modtype kn = lookup_modtype kn (env())
 
+let constant_of_delta con = 
+  let resolver,resolver_param = (delta_of_senv !global_env) in
+    Mod_subst.constant_of_delta resolver_param
+      (Mod_subst.constant_of_delta resolver con)
 
-
-
-let start_library dir = 
+let mind_of_delta mind = 
+  let resolver,resolver_param = (delta_of_senv !global_env) in
+    Mod_subst.mind_of_delta resolver_param
+      (Mod_subst.mind_of_delta resolver mind)
+	
+let start_library dir =
   let mp,newenv = start_library dir !global_env in
-    global_env := newenv; 
+    global_env := newenv;
     mp
 
-let export s = snd (export !global_env s)
+let export s = export !global_env s
 
-let import cenv digest = 
-  let mp,newenv = import cenv digest !global_env in 
-    global_env := newenv; 
+let import cenv digest =
+  let mp,newenv = import cenv digest !global_env in
+    global_env := newenv;
     mp
 
 
@@ -137,13 +148,13 @@ let import cenv digest =
 (*s Function to get an environment from the constants part of the global
     environment and a given context. *)
 
-let env_of_context hyps = 
+let env_of_context hyps =
   reset_with_named_context hyps (env())
 
 open Libnames
 
 let type_of_reference env = function
-  | VarRef id -> Environ.named_type id env 
+  | VarRef id -> Environ.named_type id env
   | ConstRef c -> Typeops.type_of_constant env c
   | IndRef ind ->
      let specif = Inductive.lookup_mind_specif env ind in
@@ -182,3 +193,5 @@ struct
   let find_theory = fun name ->
     Safe_typing.DP.find_theory !global_env name
 end
+
+

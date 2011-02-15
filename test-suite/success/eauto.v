@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -56,5 +56,5 @@ Lemma simpl_plus_l_rr1 :
  (forall m p : Nat, plus' n m = plus' n p -> m = p) ->
  forall m p : Nat, S' (plus' n m) = S' (plus' n p) -> m = p.
 intros.
- eauto. (* does EApply H *) 
+ eauto. (* does EApply H *)
 Qed.

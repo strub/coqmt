@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: notation.ml 11897 2009-02-09 19:28:02Z barras $ *)
+(* $Id: notation.ml 13329 2010-07-26 11:05:39Z herbelin $ *)
 
 (*i*)
 open Util
@@ -30,7 +30,7 @@ open Ppextend
     no interpretation for negative numbers in [nat]); interpreters both for
     terms and patterns can be set; these interpreters are in permanent table
     [numeral_interpreter_tab]
-  - a set of ML printers for expressions denoting numbers parsable in 
+  - a set of ML printers for expressions denoting numbers parsable in
     this scope
   - a set of interpretations for infix (more generally distfix) notations
   - an optional pair of delimiters which, when occurring in a syntactic
@@ -42,7 +42,7 @@ open Ppextend
 
 type level = precedence * tolerability list
 type delimiters = string
-type notation_location = dir_path * string
+type notation_location = (dir_path * dir_path) * string
 
 type scope = {
   notations: (string, interpretation * notation_location) Gmap.t;
@@ -92,6 +92,11 @@ let scope_stack = ref []
 
 let current_scopes () = !scope_stack
 
+let scope_is_open_in_scopes sc l =
+  List.mem (Scope sc) l
+
+let scope_is_open sc = scope_is_open_in_scopes sc (!scope_stack)
+
 (* TODO: push nat_scope, z_scope, ... in scopes summary *)
 
 (* Exportation of scopes *)
@@ -104,22 +109,23 @@ let open_scope i (_,(local,op,sc)) =
 let cache_scope o =
   open_scope 1 o
 
-let subst_scope (_,subst,sc) = sc
+let subst_scope (subst,sc) = sc
 
 open Libobject
 
-let classify_scope (_,(local,_,_ as o)) =
+let discharge_scope (_,(local,_,_ as o)) =
+  if local then None else Some o
+
+let classify_scope (local,_,_ as o) =
   if local then Dispose else Substitute o
 
-let export_scope (local,_,_ as x) = if local then None else Some x
-
-let (inScope,outScope) = 
+let (inScope,outScope) =
   declare_object {(default_object "SCOPE") with
       cache_function = cache_scope;
       open_function = open_scope;
       subst_function = subst_scope;
-      classify_function = classify_scope;
-      export_function = export_scope }
+      discharge_function = discharge_scope;
+      classify_function = classify_scope }
 
 let open_close_scope (local,opening,sc) =
   Lib.add_anonymous_leaf (inScope (local,opening,Scope sc))
@@ -142,23 +148,28 @@ let delimiters_map = ref Gmap.empty
 
 let declare_delimiters scope key =
   let sc = find_scope scope in
-  if sc.delimiters <> None && Flags.is_verbose () then begin
-    let old = Option.get sc.delimiters in
-    Flags.if_verbose 
-      warning ("Overwritting previous delimiting key "^old^" in scope "^scope)
+  let newsc = { sc with delimiters = Some key } in
+  begin match sc.delimiters with
+    | None -> scope_map := Gmap.add scope newsc !scope_map
+    | Some oldkey when oldkey = key -> ()
+    | Some oldkey ->
+	Flags.if_verbose warning
+	  ("overwriting previous delimiting key "^oldkey^" in scope "^scope);
+	scope_map := Gmap.add scope newsc !scope_map
   end;
-  let sc = { sc with delimiters = Some key } in
-  scope_map := Gmap.add scope sc !scope_map;
-  if Gmap.mem key !delimiters_map then begin
-    let oldsc = Gmap.find key !delimiters_map in
-    Flags.if_verbose warning ("Hiding binding of key "^key^" to "^oldsc)
-  end;
-  delimiters_map := Gmap.add key scope !delimiters_map
+  try
+    let oldscope = Gmap.find key !delimiters_map in
+    if oldscope = scope then ()
+    else begin
+      Flags.if_verbose warning ("Hiding binding of key "^key^" to "^oldscope);
+      delimiters_map := Gmap.add key scope !delimiters_map
+    end
+  with Not_found -> delimiters_map := Gmap.add key scope !delimiters_map
 
-let find_delimiters_scope loc key = 
+let find_delimiters_scope loc key =
   try Gmap.find key !delimiters_map
-  with Not_found -> 
-    user_err_loc 
+  with Not_found ->
+    user_err_loc
     (loc, "find_delimiters", str ("Unknown scope delimiting key "^key^"."))
 
 (* Uninterpretation tables *)
@@ -178,25 +189,36 @@ type key =
 let notations_key_table = ref Gmapl.empty
 let prim_token_key_table = Hashtbl.create 7
 
+
+let make_gr = function
+  | ConstRef con ->
+      ConstRef(constant_of_kn(canonical_con con))
+  | IndRef (kn,i) ->
+      IndRef(mind_of_kn(canonical_mind kn),i)
+  | ConstructRef ((kn,i),j )->
+      ConstructRef((mind_of_kn(canonical_mind kn),i),j)
+  | VarRef id ->  VarRef id
+
 let rawconstr_key = function
-  | RApp (_,RRef (_,ref),_) -> RefKey ref
-  | RRef (_,ref) -> RefKey ref
+  | RApp (_,RRef (_,ref),_) -> RefKey (make_gr ref)
+  | RRef (_,ref) -> RefKey (make_gr ref)
   | _ -> Oth
 
 let cases_pattern_key = function
-  | PatCstr (_,ref,_,_) -> RefKey (ConstructRef ref)
+  | PatCstr (_,ref,_,_) -> RefKey (make_gr (ConstructRef ref))
   | _ -> Oth
 
 let aconstr_key = function (* Rem: AApp(ARef ref,[]) stands for @ref *)
-  | AApp (ARef ref,args) -> RefKey ref, Some (List.length args)
-  | AList (_,_,AApp (ARef ref,args),_,_) -> RefKey ref, Some (List.length args)
-  | ARef ref -> RefKey ref, None
+  | AApp (ARef ref,args) -> RefKey(make_gr ref), Some (List.length args)
+  | AList (_,_,AApp (ARef ref,args),_,_)
+  | ABinderList (_,_,AApp (ARef ref,args),_) -> RefKey (make_gr ref), Some (List.length args)
+  | ARef ref -> RefKey(make_gr ref), None
   | _ -> Oth, None
 
 (**********************************************************************)
 (* Interpreting numbers (not in summary because functional objects)   *)
 
-type required_module = section_path * string list 
+type required_module = full_path * string list
 
 type 'a prim_token_interpreter =
     loc -> 'a -> rawconstr
@@ -213,7 +235,7 @@ let prim_token_interpreter_tab =
   (Hashtbl.create 7 : (scope_name, internal_prim_token_interpreter) Hashtbl.t)
 
 let add_prim_token_interpreter sc interp =
-  try 
+  try
     let cont = Hashtbl.find prim_token_interpreter_tab sc in
     Hashtbl.replace prim_token_interpreter_tab sc (interp cont)
   with Not_found ->
@@ -223,7 +245,7 @@ let add_prim_token_interpreter sc interp =
 let declare_prim_token_interpreter sc interp (patl,uninterp,b) =
   declare_scope sc;
   add_prim_token_interpreter sc interp;
-  List.iter (fun pat -> 
+  List.iter (fun pat ->
       Hashtbl.add prim_token_key_table (rawconstr_key pat) (sc,uninterp,b))
     patl
 
@@ -243,7 +265,7 @@ let declare_string_interpreter sc dir interp (patl,uninterp,inpat) =
     (patl, (fun r -> Option.map mkString (uninterp r)), inpat)
 
 let check_required_module loc sc (sp,d) =
-  try let _ = Nametab.absolute_reference sp in ()
+  try let _ = Nametab.global_of_path sp in ()
   with Not_found ->
     user_err_loc (loc,"prim_token_interpreter",
     str ("Cannot interpret in "^sc^" without requiring first module "
@@ -260,7 +282,7 @@ let find_with_delimiters = function
 	| None -> None
 
 let rec find_without_delimiters find (ntn_scope,ntn) = function
-  | Scope scope :: scopes -> 
+  | Scope scope :: scopes ->
       (* Is the expected ntn/numpr attached to the most recently open scope? *)
       if Some scope = ntn_scope then
 	Some (None,None)
@@ -272,7 +294,7 @@ let rec find_without_delimiters find (ntn_scope,ntn) = function
 	else
 	  find_without_delimiters find (ntn_scope,ntn) scopes
   | SingleNotation ntn' :: scopes ->
-      if ntn_scope = None & ntn = Some ntn' then 
+      if ntn_scope = None & ntn = Some ntn' then
 	Some (None,None)
       else
 	find_without_delimiters find (ntn_scope,ntn) scopes
@@ -335,7 +357,7 @@ let find_prim_token g loc p sc =
   (* Try for a primitive numerical notation *)
   let (spdir,interp) = Hashtbl.find prim_token_interpreter_tab sc loc p in
   check_required_module loc sc spdir;
-  g (interp ()), (dirpath (fst spdir),"")
+  g (interp ()), ((dirpath (fst spdir),empty_dirpath),"")
 
 let interp_prim_token_gen g loc p local_scopes =
   let scopes = make_current_scopes local_scopes in
@@ -371,7 +393,7 @@ let availability_of_notation (ntn_scope,ntn) scopes =
   find_without_delimiters f (ntn_scope,Some ntn) (make_current_scopes scopes)
 
 let uninterp_prim_token c =
-  try 
+  try
     let (sc,numpr,_) = Hashtbl.find prim_token_key_table (rawconstr_key c) in
     match numpr c with
       | None -> raise No_match
@@ -379,7 +401,7 @@ let uninterp_prim_token c =
   with Not_found -> raise No_match
 
 let uninterp_prim_token_cases_pattern c =
-  try 
+  try
     let k = cases_pattern_key c in
     let (sc,numpr,b) = Hashtbl.find prim_token_key_table k in
     if not b then raise No_match;
@@ -389,8 +411,10 @@ let uninterp_prim_token_cases_pattern c =
       | Some n -> (na,sc,n)
   with Not_found -> raise No_match
 
-let availability_of_prim_token printer_scope local_scopes =
-  let f scope = Hashtbl.mem prim_token_interpreter_tab scope in
+let availability_of_prim_token n printer_scope local_scopes =
+  let f scope =
+    try ignore (Hashtbl.find prim_token_interpreter_tab scope dummy_loc n); true
+    with Not_found -> false in
   let scopes = make_current_scopes local_scopes in
   Option.map snd (find_without_delimiters f (Some printer_scope,None) scopes)
 
@@ -456,12 +480,15 @@ let load_arguments_scope _ (_,(_,r,scl)) =
 let cache_arguments_scope o =
   load_arguments_scope 1 o
 
-let subst_arguments_scope (_,subst,(req,r,scl)) =
+let subst_arguments_scope (subst,(req,r,scl)) =
   (ArgsScopeNoDischarge,fst (subst_global subst r),scl)
 
 let discharge_arguments_scope (_,(req,r,l)) =
   if req = ArgsScopeNoDischarge or (isVarRef r & Lib.is_in_section r) then None
   else Some (req,Lib.discharge_global r,l)
+
+let classify_arguments_scope (req,_,_ as obj) =
+  if req = ArgsScopeNoDischarge then Dispose else Substitute obj
 
 let rebuild_arguments_scope (req,r,l) =
   match req with
@@ -475,21 +502,23 @@ let rebuild_arguments_scope (req,r,l) =
 	let l1,_ = list_chop (List.length l' - List.length l) l' in
 	(req,r,l1@l)
 
-let (inArgumentsScope,outArgumentsScope) = 
+let (inArgumentsScope,outArgumentsScope) =
   declare_object {(default_object "ARGUMENTS-SCOPE") with
       cache_function = cache_arguments_scope;
       load_function = load_arguments_scope;
       subst_function = subst_arguments_scope;
-      classify_function = (fun (_,o) -> Substitute o);
+      classify_function = classify_arguments_scope;
       discharge_function = discharge_arguments_scope;
-      rebuild_function = rebuild_arguments_scope;
-      export_function = (fun x -> Some x) }
+      rebuild_function = rebuild_arguments_scope }
+
+let is_local local ref = local || isVarRef ref && Lib.is_in_section ref
 
 let declare_arguments_scope_gen req r scl =
   Lib.add_anonymous_leaf (inArgumentsScope (req,r,scl))
 
 let declare_arguments_scope local ref scl =
-  let req = if local then ArgsScopeNoDischarge else ArgsScopeManual in
+  let req =
+    if is_local local ref then ArgsScopeNoDischarge else ArgsScopeManual in
   declare_arguments_scope_gen req ref scl
 
 let find_arguments_scope r =
@@ -511,8 +540,9 @@ type symbol =
 
 let rec string_of_symbol = function
   | NonTerminal _ -> ["_"]
+  | Terminal "_" -> ["'_'"]
   | Terminal s -> [s]
-  | SProdList (_,l) -> 
+  | SProdList (_,l) ->
      let l = List.flatten (List.map string_of_symbol l) in "_"::l@".."::l@["_"]
   | Break _ -> []
 
@@ -525,14 +555,14 @@ let decompose_notation_key s =
     if n>=len then List.rev dirs else
     let pos =
       try
-	String.index_from s n ' ' 
+	String.index_from s n ' '
       with Not_found -> len
     in
     let tok =
       match String.sub s n (pos-n) with
       | "_" -> NonTerminal (id_of_string "_")
-      | s -> Terminal s in
-    decomp_ntn (tok::dirs) (pos+1)	  
+      | s -> Terminal (drop_simple_quotes s) in
+    decomp_ntn (tok::dirs) (pos+1)
   in
     decomp_ntn [] 0
 
@@ -549,12 +579,12 @@ let classes_of_scope sc =
 let pr_scope_classes sc =
   let l = classes_of_scope sc in
   if l = [] then mt()
-  else 
+  else
     hov 0 (str ("Bound to class"^(if List.tl l=[] then "" else "es")) ++
       spc() ++ prlist_with_sep spc pr_class l) ++ fnl()
 
 let pr_notation_info prraw ntn c =
-  str "\"" ++ str ntn ++ str "\" := " ++ 
+  str "\"" ++ str ntn ++ str "\" := " ++
   prraw (rawconstr_of_aconstr dummy_loc c)
 
 let pr_named_scope prraw scope sc =
@@ -562,7 +592,7 @@ let pr_named_scope prraw scope sc =
    match Gmap.fold (fun _ _ x -> x+1) sc.notations 0 with
      | 0 -> str "No lonely notation"
      | n -> str "Lonely notation" ++ (if n=1 then mt() else str"s")
-  else 
+  else
     str "Scope " ++ str scope ++ fnl () ++ pr_delimiters_info sc.delimiters)
   ++ fnl ()
   ++ pr_scope_classes scope
@@ -574,7 +604,7 @@ let pr_named_scope prraw scope sc =
 let pr_scope prraw scope = pr_named_scope prraw scope (find_scope scope)
 
 let pr_scopes prraw =
- Gmap.fold 
+ Gmap.fold
    (fun scope sc strm -> pr_named_scope prraw scope sc ++ fnl () ++ strm)
    !scope_map (mt ())
 
@@ -606,7 +636,7 @@ let browse_notation strict ntn map =
       let trms = List.filter (function Terminal _ -> true | _ -> false) toks in
       if strict then [Terminal ntn] = trms else List.mem (Terminal ntn) trms in
   let l =
-    Gmap.fold 
+    Gmap.fold
       (fun scope_name sc ->
 	Gmap.fold (fun ntn ((_,r),df) l ->
 	  if find ntn then (ntn,(scope_name,r,df))::l else l) sc.notations)
@@ -616,7 +646,7 @@ let browse_notation strict ntn map =
 let global_reference_of_notation test (ntn,(sc,c,_)) =
   match c with
   | ARef ref when test ref -> Some (ntn,sc,ref)
-  | AApp (ARef ref, l) when List.for_all isAVar_or_AHole l & test ref -> 
+  | AApp (ARef ref, l) when List.for_all isAVar_or_AHole l & test ref ->
       Some (ntn,sc,ref)
   | _ -> None
 
@@ -638,27 +668,28 @@ let interp_notation_as_global_reference loc test ntn sc =
   match Option.List.flatten refs with
   | [_,_,ref] -> ref
   | [] -> error_notation_not_reference loc ntn
-  | refs -> 
+  | refs ->
       let f (ntn,sc,ref) = find_default ntn !scope_stack = Some sc in
       match List.filter f refs with
       | [_,_,ref] -> ref
       | [] -> error_notation_not_reference loc ntn
       | _ -> error_ambiguous_notation loc ntn
 
-let locate_notation prraw ntn =
+let locate_notation prraw ntn scope =
   let ntns = factorize_entries (browse_notation false ntn !scope_map) in
+  let scopes = Option.fold_right push_scope scope !scope_stack in
   if ntns = [] then
     str "Unknown notation"
   else
     t (str "Notation            " ++
-    tab () ++ str "Scope     " ++ tab () ++ fnl () ++ 
+    tab () ++ str "Scope     " ++ tab () ++ fnl () ++
     prlist (fun (ntn,l) ->
-      let scope = find_default ntn !scope_stack in
-      prlist 
+      let scope = find_default ntn scopes in
+      prlist
 	(fun (sc,r,(_,df)) ->
 	  hov 0 (
 	    pr_notation_info prraw df r ++ tbrk (1,2) ++
-	    (if sc = default_scope then mt () else (str ": " ++ str sc)) ++ 
+	    (if sc = default_scope then mt () else (str ": " ++ str sc)) ++
 	    tbrk (1,2) ++
 	    (if Some sc = scope then str "(default interpretation)" else mt ())
 	    ++ fnl ()))
@@ -688,7 +719,7 @@ let collect_notations stack =
 	    let all' = match all with
 	      | (s,lonelyntn)::rest when s = default_scope ->
 		  (s,(df,r)::lonelyntn)::rest
-	      | _ -> 
+	      | _ ->
 		  (default_scope,[df,r])::all in
 	    (all',ntn::knownntn))
     ([],[]) stack)
@@ -700,11 +731,11 @@ let pr_visible_in_scope prraw (scope,ntns) =
       ntns (mt ()) in
   (if scope = default_scope then
      str "Lonely notation" ++ (if List.length ntns <> 1 then str "s" else mt())
-   else 
+   else
      str "Visible in scope " ++ str scope)
   ++ fnl () ++ strm
 
-let pr_scope_stack prraw stack = 
+let pr_scope_stack prraw stack =
   List.fold_left
     (fun strm scntns -> strm ++ pr_visible_in_scope prraw scntns ++ fnl ())
     (mt ()) (collect_notations stack)
@@ -719,7 +750,7 @@ let pr_visibility prraw = function
 type unparsing_rule = unparsing list * precedence
 
 (* Concrete syntax for symbolic-extension table *)
-let printing_rules = 
+let printing_rules =
   ref (Gmap.empty : (string,unparsing_rule) Gmap.t)
 
 let declare_notation_printing_rule ntn unpl =
@@ -759,10 +790,8 @@ let init () =
   printing_rules := Gmap.empty;
   class_scope_map := Gmap.add CL_SORT "type_scope" Gmap.empty
 
-let _ = 
+let _ =
   declare_summary "symbols"
     { freeze_function = freeze;
       unfreeze_function = unfreeze;
-      init_function = init;
-      survive_module = false;
-      survive_section = false }
+      init_function = init }

@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: retyping.ml 11897 2009-02-09 19:28:02Z barras $ *)
+(* $Id: retyping.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Util
 open Term
@@ -44,11 +44,11 @@ let type_of_var env id =
   with Not_found ->
     anomaly ("type_of: variable "^(string_of_id id)^" unbound")
 
-let retype sigma metamap =
+let retype sigma =
   let rec type_of env cstr=
     match kind_of_term cstr with
     | Meta n ->
-          (try strip_outer_cast (List.assoc n metamap)
+          (try strip_outer_cast (Evd.meta_ftype sigma n).Evd.rebus
            with Not_found -> anomaly ("type_of: unknown meta " ^ string_of_int n))
     | Rel n ->
         let (_,_,ty) = lookup_rel n env in
@@ -81,7 +81,7 @@ let retype sigma metamap =
     | Cast (c,_, t) -> t
     | Sort _ | Prod _ -> mkSort (sort_of env cstr)
 
-  and sort_of env t = 
+  and sort_of env t =
     match kind_of_term t with
     | Cast (c,_, s) when isSort s -> destSort s
     | Sort (Prop c) -> type1_sort
@@ -111,14 +111,14 @@ let retype sigma metamap =
     | Cast (c,_, s) when isSort s -> family_of_sort (destSort s)
     | Sort (Prop c) -> InType
     | Sort (Type u) -> InType
-    | Prod (name,t,c2) -> 
+    | Prod (name,t,c2) ->
 	let s2 = sort_family_of (push_rel (name,None,t) env) c2 in
 	if Environ.engagement env <> Some ImpredicativeSet &&
 	   s2 = InSet & sort_family_of env t = InType then InType else s2
     | App(f,args) when isGlobalRef f ->
 	let t = type_of_global_reference_knowing_parameters env f args in
         family_of_sort (sort_of_atomic_type env sigma t args)
-    | App(f,args) -> 
+    | App(f,args) ->
 	family_of_sort (sort_of_atomic_type env sigma (type_of env f) args)
     | Lambda _ | Fix _ | Construct _ ->
         anomaly "sort_of: Not a type (1)"
@@ -140,10 +140,10 @@ let retype sigma metamap =
   in type_of, sort_of, sort_family_of,
      type_of_global_reference_knowing_parameters
 
-let get_sort_of env sigma t = let _,f,_,_ = retype sigma [] in f env t
-let get_sort_family_of env sigma c = let _,_,f,_ = retype sigma [] in f env c
+let get_sort_of env sigma t = let _,f,_,_ = retype sigma in f env t
+let get_sort_family_of env sigma c = let _,_,f,_ = retype sigma in f env c
 let type_of_global_reference_knowing_parameters env sigma c args =
-  let _,_,_,f = retype sigma [] in f env c args
+  let _,_,_,f = retype sigma in f env c args
 
 let type_of_global_reference_knowing_conclusion env sigma c conclty =
   let conclty = nf_evar sigma conclty in
@@ -161,11 +161,10 @@ let type_of_global_reference_knowing_conclusion env sigma c conclty =
 
 (* We are outside the kernel: we take fresh universes *)
 (* to avoid tactics and co to refresh universes themselves *)
-let get_type_of env sigma c =
-  let f,_,_,_ = retype sigma [] in refresh_universes (f env c)
-
-let get_type_of_with_meta env sigma metamap c =
-  let f,_,_,_ = retype sigma metamap in refresh_universes (f env c)
+let get_type_of ?(refresh=true) env sigma c =
+  let f,_,_,_ = retype sigma in
+  let t = f env c in
+    if refresh then refresh_universes t else t
 
 (* Makes an assumption from a constr *)
 let get_assumption_of env evc c = c

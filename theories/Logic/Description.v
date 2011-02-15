@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Description.v 10170 2007-10-03 14:41:25Z herbelin $ i*)
+(*i $Id: Description.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** This file provides a constructive form of definite description; it
     allows to build functions from the proof of their existence in any
@@ -17,5 +17,5 @@ Require Import ChoiceFacts.
 Set Implicit Arguments.
 
 Axiom constructive_definite_description :
-  forall (A : Type) (P : A->Prop), 
+  forall (A : Type) (P : A->Prop),
     (exists! x, P x) -> { x : A | P x }.

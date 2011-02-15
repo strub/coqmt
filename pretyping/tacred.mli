@@ -1,12 +1,12 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: tacred.mli 11094 2008-06-10 19:35:23Z herbelin $ i*)
+(*i $Id: tacred.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Names
@@ -17,16 +17,27 @@ open Reductionops
 open Closure
 open Rawterm
 open Termops
+open Pattern
 (*i*)
 
-type reduction_tactic_error = 
+type reduction_tactic_error =
     InvalidAbstraction of env * constr * (env * Type_errors.type_error)
 
 exception ReductionTacticError of reduction_tactic_error
 
 (*s Reduction functions associated to tactics. \label{tacred} *)
 
-val is_evaluable : env -> evaluable_global_reference -> bool
+(* Evaluable global reference *)
+
+val is_evaluable : Environ.env -> evaluable_global_reference -> bool
+
+val error_not_evaluable : Libnames.global_reference -> 'a
+
+val evaluable_of_global_reference :
+  Environ.env -> Libnames.global_reference -> evaluable_global_reference
+
+val global_of_evaluable_reference :
+  evaluable_global_reference -> Libnames.global_reference
 
 exception Redelimination
 
@@ -37,7 +48,7 @@ val red_product : reduction_function
 val try_red_product : reduction_function
 
 (* Simpl *)
-val simpl : reduction_function 
+val simpl : reduction_function
 
 (* Simpl only at the head *)
 val whd_simpl : reduction_function
@@ -47,7 +58,7 @@ val whd_simpl : reduction_function
 val hnf_constr : reduction_function
 
 (* Unfold *)
-val unfoldn : 
+val unfoldn :
   (occurrences * evaluable_global_reference) list ->  reduction_function
 
 (* Fold *)
@@ -75,17 +86,12 @@ val reduce_to_atomic_ind : env ->  evar_map -> types -> inductive * types
 val reduce_to_quantified_ind : env ->  evar_map -> types -> inductive * types
 
 (* [reduce_to_quantified_ref env sigma ref t] try to put [t] in the form
-   [t'=(x1:A1)..(xn:An)(ref args)] and raise [Not_found] if not possible *)
+   [t'=(x1:A1)..(xn:An)(ref args)] and fails with user error if not possible *)
 val reduce_to_quantified_ref :
   env ->  evar_map -> Libnames.global_reference -> types -> types
 
 val reduce_to_atomic_ref :
   env ->  evar_map -> Libnames.global_reference -> types -> types
 
-val contextually : bool -> occurrences * constr -> reduction_function
-  -> reduction_function
-
-(* Compatibility *)
-(* use [simpl] instead of [nf] *)
-val nf :  reduction_function
-
+val contextually : bool -> occurrences * constr_pattern ->
+  (patvar_map -> reduction_function) -> reduction_function

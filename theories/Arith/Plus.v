@@ -1,16 +1,16 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: Plus.v 9750 2007-04-06 00:58:14Z letouzey $ i*)
+(*i $Id: Plus.v 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (** Properties of addition. [add] is defined in [Init/Peano.v] as:
 <<
-Fixpoint plus (n m:nat) {struct n} : nat :=
+Fixpoint plus (n m:nat) : nat :=
   match n with
   | O => m
   | S p => S (p + m)
@@ -65,7 +65,7 @@ Qed.
 Hint Resolve plus_assoc: arith v62.
 
 Lemma plus_permute : forall n m p, n + (m + p) = m + (n + p).
-Proof. 
+Proof.
   intros; rewrite (plus_assoc m n p); rewrite (plus_comm m n); auto with arith.
 Qed.
 
@@ -179,7 +179,7 @@ Definition plus_is_one :
 Proof.
   intro m; destruct m as [| n]; auto.
   destruct n; auto.
-  intros. 
+  intros.
   simpl in H. discriminate H.
 Defined.
 
@@ -187,18 +187,18 @@ Defined.
 
 Lemma plus_permute_2_in_4 : forall n m p q, n + m + (p + q) = n + p + (m + q).
 Proof.
-  intros m n p q. 
+  intros m n p q.
   rewrite <- (plus_assoc m n (p + q)). rewrite (plus_assoc n p q).
   rewrite (plus_comm n p). rewrite <- (plus_assoc p n q). apply plus_assoc.
 Qed.
 
 (** * Tail-recursive plus *)
 
-(** [tail_plus] is an alternative definition for [plus] which is 
+(** [tail_plus] is an alternative definition for [plus] which is
     tail-recursive, whereas [plus] is not. This can be useful
     when extracting programs. *)
 
-Fixpoint tail_plus n m {struct n} : nat :=
+Fixpoint tail_plus n m : nat :=
   match n with
     | O => m
     | S n => tail_plus n (S m)
@@ -215,7 +215,7 @@ Lemma succ_plus_discr : forall n m, n <> S (plus m n).
 Proof.
   intros n m; induction n as [|n IHn].
   discriminate.
-  intro H; apply IHn; apply eq_add_S; rewrite H; rewrite <- plus_n_Sm; 
+  intro H; apply IHn; apply eq_add_S; rewrite H; rewrite <- plus_n_Sm;
     reflexivity.
 Qed.
 

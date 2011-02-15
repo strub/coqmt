@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -8,11 +8,12 @@
 
 (*i camlp4use: "pa_extend.cmo q_MLast.cmo" i*)
 
-(* $Id: argextend.ml4 11622 2008-11-23 08:45:56Z herbelin $ *)
+(* $Id: argextend.ml4 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Genarg
 open Q_util
 open Q_coqast
+open Egrammar
 
 let join_loc = Util.join_loc
 let loc = Util.dummy_loc
@@ -39,7 +40,7 @@ let rec make_rawwit loc = function
   | List0ArgType t -> <:expr< Genarg.wit_list0 $make_rawwit loc t$ >>
   | List1ArgType t -> <:expr< Genarg.wit_list1 $make_rawwit loc t$ >>
   | OptArgType t -> <:expr< Genarg.wit_opt $make_rawwit loc t$ >>
-  | PairArgType (t1,t2) -> 
+  | PairArgType (t1,t2) ->
       <:expr< Genarg.wit_pair $make_rawwit loc t1$ $make_rawwit loc t2$ >>
   | ExtraArgType s -> <:expr< $lid:"rawwit_"^s$ >>
 
@@ -64,7 +65,7 @@ let rec make_globwit loc = function
   | List0ArgType t -> <:expr< Genarg.wit_list0 $make_globwit loc t$ >>
   | List1ArgType t -> <:expr< Genarg.wit_list1 $make_globwit loc t$ >>
   | OptArgType t -> <:expr< Genarg.wit_opt $make_globwit loc t$ >>
-  | PairArgType (t1,t2) -> 
+  | PairArgType (t1,t2) ->
       <:expr< Genarg.wit_pair $make_globwit loc t1$ $make_globwit loc t2$ >>
   | ExtraArgType s -> <:expr< $lid:"globwit_"^s$ >>
 
@@ -89,25 +90,31 @@ let rec make_wit loc = function
   | List0ArgType t -> <:expr< Genarg.wit_list0 $make_wit loc t$ >>
   | List1ArgType t -> <:expr< Genarg.wit_list1 $make_wit loc t$ >>
   | OptArgType t -> <:expr< Genarg.wit_opt $make_wit loc t$ >>
-  | PairArgType (t1,t2) -> 
+  | PairArgType (t1,t2) ->
       <:expr< Genarg.wit_pair $make_wit loc t1$ $make_wit loc t2$ >>
   | ExtraArgType s -> <:expr< $lid:"wit_"^s$ >>
 
 let make_act loc act pil =
   let rec make = function
     | [] -> <:expr< Gramext.action (fun loc -> ($act$ : 'a)) >>
-    | None :: tl -> <:expr< Gramext.action (fun _ -> $make tl$) >>
-    | Some (p, t) :: tl ->
+    | GramNonTerminal (_,t,_,Some p) :: tl ->
+	let p = Names.string_of_id p in
 	<:expr<
-          Gramext.action 
+          Gramext.action
             (fun $lid:p$ ->
                let _ = Genarg.in_gen $make_rawwit loc t$ $lid:p$ in $make tl$)
-        >> in
+        >>
+    | (GramTerminal _ | GramNonTerminal (_,_,_,None)) :: tl ->
+	<:expr< Gramext.action (fun _ -> $make tl$) >> in
   make (List.rev pil)
 
+let make_prod_item = function
+  | GramTerminal s -> <:expr< (Gramext.Stoken (Lexer.terminal $str:s$)) >>
+  | GramNonTerminal (_,_,g,_) ->
+      <:expr< Pcoq.symbol_of_prod_entry_key $mlexpr_of_prod_entry_key g$ >>
+
 let make_rule loc (prods,act) =
-  let (symbs,pil) = List.split prods in
-  <:expr< ($mlexpr_of_list (fun x -> x) symbs$,$make_act loc act pil$) >>
+  <:expr< ($mlexpr_of_list make_prod_item prods$,$make_act loc act prods$) >>
 
 let declare_tactic_argument loc s typ pr f g h rawtyppr globtyppr cl =
   let rawtyp, rawpr = match rawtyppr with
@@ -124,14 +131,14 @@ let declare_tactic_argument loc s typ pr f g h rawtyppr globtyppr cl =
                (Genarg.in_gen $make_rawwit loc rawtyp$ x)) >>
     | Some f -> <:expr< $lid:f$>> in
   let interp = match f with
-    | None -> 
+    | None ->
 	<:expr< fun ist gl x ->
           out_gen $make_wit loc typ$
             (Tacinterp.interp_genarg ist gl
                (Genarg.in_gen $make_globwit loc globtyp$ x)) >>
     | Some f -> <:expr< $lid:f$>> in
   let substitute = match h with
-    | None -> 
+    | None ->
 	<:expr< fun s x ->
           out_gen $make_globwit loc globtyp$
 	    (Tacinterp.subst_genarg s
@@ -144,6 +151,8 @@ let declare_tactic_argument loc s typ pr f g h rawtyppr globtyppr cl =
   let rules = mlexpr_of_list (make_rule loc) (List.rev cl) in
   <:str_item<
     declare
+      open Pcoq;
+      open Extrawit;
       value ($lid:"wit_"^s$, $lid:"globwit_"^s$, $lid:"rawwit_"^s$) =
         Genarg.create_arg $se$;
       value $lid:s$ = Pcoq.create_generic_entry $se$ $rawwit$;
@@ -154,7 +163,7 @@ let declare_tactic_argument loc s typ pr f g h rawtyppr globtyppr cl =
           (Genarg.in_gen $wit$ ($interp$ ist gl (out_gen $globwit$ x)))),
         (fun subst x ->
           (Genarg.in_gen $globwit$ ($substitute$ subst (out_gen $globwit$ x)))));
-      Pcoq.Gram.extend ($lid:s$ : Pcoq.Gram.Entry.e 'a) None 
+      Pcoq.Gram.extend ($lid:s$ : Pcoq.Gram.Entry.e 'a) None
         [(None, None, $rules$)];
       Pptactic.declare_extra_genarg_pprule
         ($rawwit$, $lid:rawpr$)
@@ -174,11 +183,13 @@ let declare_vernac_argument loc s pr cl =
     | Some pr -> <:expr< fun _ _ _ -> $lid:pr$ >> in
   <:str_item<
     declare
+      open Pcoq;
+      open Extrawit;
       value (($lid:"wit_"^s$:Genarg.abstract_argument_type unit Genarg.tlevel),
              ($lid:"globwit_"^s$:Genarg.abstract_argument_type unit Genarg.glevel),
               $lid:"rawwit_"^s$) = Genarg.create_arg $se$;
       value $lid:s$ = Pcoq.create_generic_entry $se$ $rawwit$;
-      Pcoq.Gram.extend ($lid:s$ : Pcoq.Gram.Entry.e 'a) None 
+      Pcoq.Gram.extend ($lid:s$ : Pcoq.Gram.Entry.e 'a) None
         [(None, None, $rules$)];
       Pptactic.declare_extra_genarg_pprule
         ($rawwit$, $pr_rules$)
@@ -202,10 +213,10 @@ EXTEND
         h = OPT [ "SUBSTITUTED"; "BY"; f = LIDENT -> f ];
         rawtyppr =
         (* Necessary if the globalized type is different from the final type *)
-          OPT [ "RAW_TYPED"; "AS"; t = argtype; 
+          OPT [ "RAW_TYPED"; "AS"; t = argtype;
                 "RAW_PRINTED"; "BY"; pr = LIDENT -> (t,pr) ];
         globtyppr =
-          OPT [ "GLOB_TYPED"; "AS"; t = argtype; 
+          OPT [ "GLOB_TYPED"; "AS"; t = argtype;
                 "GLOB_PRINTED"; "BY"; pr = LIDENT -> (t,pr) ];
         OPT "|"; l = LIST1 argrule SEP "|";
         "END" ->
@@ -221,13 +232,13 @@ EXTEND
          declare_vernac_argument loc s pr l ] ]
   ;
   argtype:
-    [ "2" 
+    [ "2"
       [ e1 = argtype; "*"; e2 = argtype -> PairArgType (e1, e2) ]
     | "1"
       [ e = argtype; LIDENT "list" -> List0ArgType e
       | e = argtype; LIDENT "option" -> OptArgType e ]
     | "0"
-      [ e = LIDENT -> fst (interp_entry_name loc e "")
+      [ e = LIDENT -> fst (interp_entry_name false None e "")
       | "("; e = argtype; ")" -> e ] ]
   ;
   argrule:
@@ -235,13 +246,15 @@ EXTEND
   ;
   genarg:
     [ [ e = LIDENT; "("; s = LIDENT; ")" ->
-        let t, g = interp_entry_name loc e "" in (g, Some (s,t))
+        let t, g = interp_entry_name false None e "" in
+	GramNonTerminal (loc, t, g, Some (Names.id_of_string s))
       | e = LIDENT; "("; s = LIDENT; ","; sep = STRING; ")" ->
-        let t, g = interp_entry_name loc e sep in (g, Some (s,t))
+        let t, g = interp_entry_name false None e sep in
+	GramNonTerminal (loc, t, g, Some (Names.id_of_string s))
       | s = STRING ->
 	  if String.length s > 0 && Util.is_letter s.[0] then
-	    Compat.using Pcoq.lexer ("", s);
-        (<:expr< (Gramext.Stoken (Lexer.terminal $str:s$)) >>, None)
+	    Lexer.add_token ("", s);
+          GramTerminal s
     ] ]
   ;
   END
