@@ -145,6 +145,11 @@ module Gram =
       G.delete_rule e pil
   end
 
+IFDEF CAMLP5_6_02_1 THEN
+let entry_print x = Gram.Entry.print !Pp_control.std_ft x
+ELSE
+let entry_print = Gram.Entry.print
+END
 
 let camlp4_verbosity silent f x =
   let a = !Gramext.warning_verbose in
@@ -631,16 +636,16 @@ let rec symbol_of_constr_prod_entry_key assoc from forpat typ =
     | ETConstrList (typ',[]) ->
         Gramext.Slist1 (symbol_of_constr_prod_entry_key assoc from forpat (ETConstr typ'))
     | ETConstrList (typ',tkl) ->
-        Gramext.Slist1sep
-          (symbol_of_constr_prod_entry_key assoc from forpat (ETConstr typ'),
-	   make_sep_rules tkl)
+        Compat.slist1sep
+          (symbol_of_constr_prod_entry_key assoc from forpat (ETConstr typ'))
+          (make_sep_rules tkl)
     | ETBinderList (false,[]) ->
         Gramext.Slist1
 	  (symbol_of_constr_prod_entry_key assoc from forpat (ETBinder false))
     | ETBinderList (false,tkl) ->
-        Gramext.Slist1sep
-	  (symbol_of_constr_prod_entry_key assoc from forpat (ETBinder false),
-	   make_sep_rules tkl)
+        Compat.slist1sep
+          (symbol_of_constr_prod_entry_key assoc from forpat (ETBinder false))
+          (make_sep_rules tkl)
     | _ ->
     match interp_constr_prod_entry_key assoc from forpat typ with
       | (eobj,None,_) -> Gramext.Snterm (Gram.Entry.obj eobj)
@@ -654,16 +659,16 @@ let rec symbol_of_constr_prod_entry_key assoc from forpat typ =
 let rec symbol_of_prod_entry_key = function
   | Alist1 s -> Gramext.Slist1 (symbol_of_prod_entry_key s)
   | Alist1sep (s,sep) ->
-      Gramext.Slist1sep (symbol_of_prod_entry_key s, Gramext.Stoken ("",sep))
+      Compat.slist1sep (symbol_of_prod_entry_key s) (Gramext.Stoken ("", sep))
   | Alist0 s -> Gramext.Slist0 (symbol_of_prod_entry_key s)
   | Alist0sep (s,sep) ->
-      Gramext.Slist0sep (symbol_of_prod_entry_key s, Gramext.Stoken ("",sep))
+      Compat.slist0sep (symbol_of_prod_entry_key s) (Gramext.Stoken ("", sep))
   | Aopt s -> Gramext.Sopt (symbol_of_prod_entry_key s)
   | Amodifiers s ->
        Gramext.srules
         [([], Gramext.action(fun _loc -> []));
          ([Gramext.Stoken ("", "(");
-           Gramext.Slist1sep ((symbol_of_prod_entry_key s), Gramext.Stoken ("", ","));
+           Compat.slist1sep (symbol_of_prod_entry_key s) (Gramext.Stoken ("", ","));
            Gramext.Stoken ("", ")")],
 	   Gramext.action (fun _ l _ _loc -> l))]
   | Aself -> Gramext.Sself

@@ -272,7 +272,9 @@ let firstchar =
   (* superscript 1 *)
   '\194' '\185' |
   (* utf-8 latin 1 supplement *)
-  '\195' ['\128'-'\191'] |
+  '\195' ['\128'-'\150'] |
+  '\195' ['\152'-'\182'] |
+  '\195' ['\184'-'\191'] |
   (* utf-8 letterlike symbols *)
   (* '\206' ([ '\145' - '\183'] | '\187') | *)
   (* '\xCF' [ '\x00' - '\xCE' ] |  *)
@@ -315,7 +317,6 @@ let def_token =
   | "Class"
   | "SubClass"
   | "Example"
-  | "Local"
   | "Fixpoint"
   | "Boxed"
   | "CoFixpoint"
@@ -450,6 +451,12 @@ rule coq_bol = parse
       { begin_show (); coq_bol lexbuf }
   | space* end_show
       { end_show (); coq_bol lexbuf }
+  | space* ("Local"|"Global")
+      {
+	in_proof := None;
+	let s = lexeme lexbuf in
+	output_indented_keyword s lexbuf;
+	coq_bol lexbuf }
   | space* gallina_kw_to_hide
       { let s = lexeme lexbuf in
 	  if !Cdglobals.light && section_or_end s then
