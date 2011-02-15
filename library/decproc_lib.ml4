@@ -162,10 +162,23 @@ end = struct
 
   let peq = fun p1 p2 -> (pcompare p1 p2) = 0
 
-  let oflist = fun p ->
-    let p = List.filter (fun x -> not (snd x =/ zero)) p in
-    let p = List.sort (fun m1 m2 -> compare (fst m1) (fst m2)) p in
-      p
+  let oflist =
+    let zip =
+      let rec zip = fun acc -> function
+        | []  -> List.rev acc
+        | [m] -> List.rev (m :: acc)
+        | ((m1, c1) as p1) :: ((m2, c2) as p2) :: p ->
+          if   m1 = m2
+          then zip        acc  ((m1, c1 +/ c2) :: p)
+          else zip (p1 :: acc) (p2 :: p)
+      in
+        fun p -> zip [] p
+    in
+      fun p ->
+        let p = List.sort (fun m1 m2 -> compare (fst m1) (fst m2)) p in
+        let p = zip p in
+        let p = List.filter (fun x -> not (snd x =/ zero)) p in
+          p
 
   let tolist = fun (p : 'a polynom) -> (p : 'a rpolynom)
 
@@ -204,10 +217,23 @@ end = struct
   let sub = fun p1 p2 -> addsub Num.sub_num p1 p2
 
   let mul =
-    let rec mul = fun p1 p2 acc ->
+    let mul1 = fun m c ->
+      let rec mul1 = fun acc -> function
+        | [] -> List.rev acc
+        | (((m', c') as mc') :: p') as mcp' ->
+          let cmp = compare m m' in
+            if   cmp < 0
+            then mul1 (mc' :: acc) p'
+            else if   cmp > 0
+                 then List.rev_append acc ((m, c) :: mcp')
+                 else List.rev_append acc ((m, c */ c') :: p')
+      in
+        mul1 []
+
+    in let rec mul = fun p1 p2 acc ->
       match p1 with
-      | []       -> acc
-      | m1 :: p1 -> mul p1 p2 (add [m1] acc)
+      | []             -> acc
+      | (m1, c1) :: p1 -> mul p1 p2 (add (mul1 m1 c1 p2) acc)
     in
       fun p1 p2 -> mul p1 p2 []
 end
@@ -243,7 +269,7 @@ struct
           Polynom.add (Polynom.pone ()) (augment t)
         | FSymb ({ s_name = CName "plus" }, [t1; t2]) ->
           Polynom.add (augment t1) (augment t2)
-        | FSymb ({ s_name = CName "mult" }, [t1; t2]) ->
+        | FSymb ({ s_name = CName "time" }, [t1; t2]) ->
           Polynom.mul (augment t1) (augment t2)
         | FSymb ({ s_name = CName x }, [t1; t2])
             when x = "min" || x = "max"
@@ -267,7 +293,13 @@ struct
               Polynom.pmonom (`In (newvar x [p1; p2]))
           in
             Polynom.add p (Polynom.pconstant c)
-        | _ -> assert false
+        | FSymb ({ s_name = CName name }, args) ->
+          let msg =
+            Printf.sprintf
+              "unkown or wrongly applied DP symbol (%s / %d)"
+              name (List.length args)
+          in
+            failwith msg
        in
          Polynom.peq (augment t1) (augment t2)
 end
