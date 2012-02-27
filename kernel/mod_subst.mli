@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -135,3 +135,8 @@ val subst_mps : substitution -> constr -> constr
 
 val occur_mbid : mod_bound_id -> substitution -> bool
 
+(** [repr_substituted r] dumps the representation of a substituted:
+    - [None, a] when r is a value
+    - [Some s, a] when r is a delayed substitution [s] applied to [a] *)
+
+val repr_substituted : 'a substituted -> substitution list option * 'a

@@ -1,7 +1,7 @@
 (* -*- compile-command: "make -C ../.. bin/coqdoc" -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -279,7 +279,7 @@ let firstchar =
   (* '\206' ([ '\145' - '\183'] | '\187') | *)
   (* '\xCF' [ '\x00' - '\xCE' ] |  *)
   (* utf-8 letterlike symbols *)
-  '\206' ('\160' | [ '\177'-'\183'] | '\187') |
+  '\206' (['\145'-'\161'] | ['\163'-'\187']) |
   '\226' ('\130' [ '\128'-'\137' ] (* subscripts *)
     | '\129' [ '\176'-'\187' ] (* superscripts *)
     | '\132' ['\128'-'\191'] | '\133' ['\128'-'\143'])
@@ -902,7 +902,9 @@ and escaped_coq = parse
   | eof
       { Tokens.flush_sublexer () }
   | (identifier '.')* identifier
-      { Output.ident (lexeme lexbuf) (lexeme_start lexbuf); escaped_coq lexbuf }
+      { Tokens.flush_sublexer();
+        Output.ident (lexeme lexbuf) (lexeme_start lexbuf);
+        escaped_coq lexbuf }
   | space
       { Tokens.flush_sublexer(); Output.char (lexeme_char lexbuf 0);
         escaped_coq lexbuf }

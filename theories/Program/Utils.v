@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -28,7 +28,7 @@ Delimit Scope program_scope with prg.
 
 (** Abbreviation for first projection and hiding of proofs of subset objects. *)
 
-Notation " ` t " := (proj1_sig t) (at level 10, t at next level) : program_scope.
+Notation " `  t " := (proj1_sig t) (at level 10, t at next level) : program_scope.
 
 (** Coerces objects to their support before comparing them. *)
 

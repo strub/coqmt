@@ -23,6 +23,10 @@ let tactics_module = subtac_dir @ ["Tactics"]
 let init_constant dir s () = gen_constant contrib_name dir s
 let init_reference dir s () = gen_reference contrib_name dir s
 
+let safe_init_constant md name () =
+  check_required_library ("Coq"::md);
+  init_constant md name ()
+
 let fixsub = init_constant fixsub_module "Fix_sub"
 let ex_pi1 = init_constant utils_module "ex_pi1"
 let ex_pi2 = init_constant utils_module "ex_pi2"
@@ -74,7 +78,7 @@ let eqdep_ind_ref = init_reference [ "Logic";"Eqdep"] "eq_dep"
 let eqdep_intro_ref = init_reference [ "Logic";"Eqdep"] "eq_dep_intro"
 
 let jmeq_ind =
-  init_constant ["Logic";"JMeq"] "JMeq"
+  safe_init_constant ["Logic";"JMeq"] "JMeq"
 
 let jmeq_rec =
   init_constant ["Logic";"JMeq"] "JMeq_rec"

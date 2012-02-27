@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -370,9 +370,6 @@ let vernac_exact_proof c =
 	(strbrk "Command 'Proof ...' can only be used at the beginning of the proof.")
 
 let vernac_assumption kind l nl=
-  if Pfedit.refining () then
-    errorlabstrm ""
-      (str "Cannot declare an assumption while in proof editing mode.");
   let global = fst kind = Global in
     List.iter (fun (is_coe,(idl,c)) ->
       if Dumpglob.dump () then
@@ -1113,12 +1110,12 @@ let vernac_print = function
       pp (Notation.pr_visibility (Constrextern.without_symbols pr_lrawconstr) s)
   | PrintAbout qid -> msg (print_about qid)
   | PrintImplicit qid -> msg (print_impargs qid)
-(*spiwack: prints all the axioms and section variables used by a term *)
   | PrintAssumptions (o,r) ->
+      (* Prints all the axioms and section variables used by a term *)
       let cstr = constr_of_global (smart_global r) in
-      let nassumptions = Environ.assumptions (Conv_oracle.get_transp_state ())
-	~add_opaque:o cstr (Global.env ()) in
-      msg (Printer.pr_assumptionset (Global.env ()) nassumptions)
+      let st = Conv_oracle.get_transp_state () in
+      let nassums = Assumptions.assumptions st ~add_opaque:o cstr in
+      msg (Printer.pr_assumptionset (Global.env ()) nassums)
   | PrintDPTheories ->
       msg (Printer.pr_theories (Global.env ()))
   | PrintDPBindings oname ->

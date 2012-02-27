@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -323,7 +323,8 @@ let check_conv_leq_goal env sigma arg ty conclty =
     raise (RefinerError (BadType (arg,ty,conclty)))
 
 let goal_type_of env sigma c =
-  (if !check then type_of else Retyping.get_type_of ~refresh:true) env sigma c
+  if !check then type_of env sigma c
+  else Retyping.get_type_of ~refresh:true env sigma c
 
 let rec mk_refgoals sigma goal goalacc conclty trm =
   let env = evar_env goal in

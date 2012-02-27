@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -396,7 +396,9 @@ let subst_con sub con =
 		  let con = constant_of_delta2 resolve con' in
 		con,mkConst con
 	    end
-	  | Some t -> con',t
+	  | Some t ->
+	    (* In case of inlining, discard the canonical part (cf #2608) *)
+	    constant_of_kn (user_con con'), t
     with No_subst -> con , mkConst con 
  
 
@@ -730,3 +732,8 @@ let subst_substituted s r =
     | LSlazy(s',a) ->
 	  ref (LSlazy(s::s',a))
 
+(* debug *)
+let repr_substituted r =
+  match !r with
+    | LSval a -> None, a
+    | LSlazy(s,a) -> Some s, a

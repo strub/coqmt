@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -254,7 +254,7 @@ let pr_binder_among_many pr_c = function
       let c,topt = match c with
         | CCast(_,c, CastConv (_,t)) -> c, t
         | _ -> c, CHole (dummy_loc, None) in
-      hov 1 (pr_lname na ++ pr_opt_type pr_c topt ++
+      surround (pr_lname na ++ pr_opt_type pr_c topt ++
          str":=" ++ cut() ++ pr_c c)
 
 let pr_undelimited_binders sep pr_c =

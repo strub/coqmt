@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -409,15 +409,14 @@ let adjust_tomatch_to_pattern pb ((current,typ),deps,dep) =
      the first pattern type and forget about the others *)
   let typ,names =
     match typ with IsInd(t,_,names) -> t,Some names | NotInd(_,t) -> t,None in
-  let typ =
+  let tmtyp =
     try try_find_ind pb.env !(pb.evdref) typ names
     with Not_found -> NotInd (None,typ) in
-  let tomatch = ((current,typ),deps,dep) in
-  match typ with
+  match tmtyp with
   | NotInd (None,typ) ->
       let tm1 = List.map (fun eqn -> List.hd eqn.patterns) pb.mat in
       (match find_row_ind tm1 with
-	| None -> tomatch
+	| None -> (current,tmtyp)
 	| Some (_,(ind,_)) ->
 	    let indt = inductive_template pb.evdref pb.env None ind in
 	    let current =
@@ -429,9 +428,8 @@ let adjust_tomatch_to_pattern pb ((current,typ),deps,dep) =
 		(evd_comb2 (Coercion.inh_conv_coerce_to dummy_loc pb.env)
 		  pb.evdref (make_judge current typ) (mk_tycon_type indt)).uj_val in
 	    let sigma =  !(pb.evdref) in
-	    let typ = try_find_ind pb.env sigma indt names in
-	    ((current,typ),deps,dep))
-  | _ -> tomatch
+	    (current,try_find_ind pb.env sigma indt names))
+  | _ -> (current,tmtyp)
 
 let type_of_tomatch = function
   | IsInd (t,_,_) -> t
@@ -875,22 +873,24 @@ let generalize_predicate (names,(nadep,_)) ny d tms ccl =
   let ccl = lift_predicate 1 ccl tms in
   regeneralize_index_predicate (ny+p+1) ccl tms
 
-let rec extract_predicate l ccl = function
-  | Alias (deppat,nondeppat,_,_)::tms ->
-      let tms' = match kind_of_term nondeppat with
-        | Rel i -> replace_tomatch i deppat tms
-        | _ -> (* initial terms are not dependent *) tms in
-      extract_predicate l ccl tms'
-  | Abstract d'::tms ->
-      let d' = map_rel_declaration (lift (List.length l)) d' in
-      substl l (mkProd_or_LetIn d' (extract_predicate [] ccl tms))
+let rec extract_predicate ccl = function
+   | Alias (deppat,nondeppat,_,_)::tms ->
+       (* substitution already done in build_branch *)
+      extract_predicate ccl tms
+  | Abstract d::tms ->
+      mkProd_or_LetIn d (extract_predicate ccl tms)
   | Pushed ((cur,NotInd _),_,(dep,_))::tms ->
-      extract_predicate (if dep<>Anonymous then cur::l else l) ccl tms
+      let tms = if dep<>Anonymous then lift_tomatch_stack 1 tms else tms in
+      let pred = extract_predicate ccl tms in
+      if dep<>Anonymous then subst1 cur pred else pred
   | Pushed ((cur,IsInd (_,IndType(_,realargs),_)),_,(dep,_))::tms ->
-      let l = List.rev realargs@l in
-      extract_predicate (if dep<>Anonymous then cur::l else l) ccl tms
+      let realargs = List.rev realargs in
+      let k = if dep<>Anonymous then 1 else 0 in
+      let tms = lift_tomatch_stack (List.length realargs + k) tms in
+      let pred = extract_predicate ccl tms in
+      substl (if dep<>Anonymous then cur::realargs else realargs) pred
   | [] ->
-      substl l ccl
+      ccl
 
 let abstract_predicate env sigma indf cur (names,(nadep,_)) tms ccl =
   let sign = make_arity_signature env true indf in
@@ -903,7 +903,7 @@ let abstract_predicate env sigma indf cur (names,(nadep,_)) tms ccl =
       | _ -> (* Initial case *) tms in
   let sign = List.map2 (fun na (_,c,t) -> (na,c,t)) (nadep::names) sign in
   let ccl = if nadep <> Anonymous then ccl else lift_predicate 1 ccl tms in
-  let pred = extract_predicate [] ccl tms in
+  let pred = extract_predicate ccl tms in
   it_mkLambda_or_LetIn_name env pred sign
 
 let known_dependent (_,dep) = (dep = KnownDep)
@@ -982,14 +982,18 @@ let find_predicate loc env evdref p current (IndType (indf,realargs)) dep tms =
   (pred, whd_betaiota !evdref
            (applist (pred, realargs@[current])), new_Type ())
 
-let adjust_predicate_from_tomatch ((_,oldtyp),_,(nadep,_)) typ pb =
+(* Take into account that a type has been discovered to be inductive, leading
+   to more dependencies in the predicate if the type has indices *)
+let adjust_predicate_from_tomatch tomatch (current,typ as ct) pb =
+  let ((_,oldtyp),deps,((nadep,_) as dep)) = tomatch in
   match typ, oldtyp with
   | IsInd (_,_,names), NotInd _ ->
       let k = if nadep <> Anonymous then 2 else 1 in
       let n = List.length names in
-      { pb with	pred = liftn_predicate n k pb.pred pb.tomatch }
+      { pb with pred = liftn_predicate n k pb.pred pb.tomatch },
+      (ct,List.map (fun i -> if i >= k then i+n else i) deps,dep)
   | _ ->
-      pb
+      pb, (ct,deps,dep)
 
 (************************************************************************)
 (* Sorting equations by constructor *)
@@ -1105,6 +1109,10 @@ let build_branch current deps (realnames,dep) pb arsign eqns const_info =
   (* into  "Gamma; typs; curalias |- tms" *)
   let tomatch = lift_tomatch_stack const_info.cs_nargs pb.tomatch in
 
+  let tomatch = match kind_of_term current with
+    | Rel i -> replace_tomatch (i+const_info.cs_nargs) ci tomatch
+    | _ -> (* non-rel initial term *) tomatch in
+
   let pred_is_not_dep =
     noccur_predicate_between 1 (List.length realnames + 1) pb.pred tomatch in
 
@@ -1171,20 +1179,22 @@ let rec compile pb =
     | (Abstract d)::rest -> compile_generalization pb d rest
     | [] -> build_leaf pb
 
+(* Case splitting *)
 and match_current pb tomatch =
-  let ((current,typ),deps,dep as ct) = adjust_tomatch_to_pattern pb tomatch in
-  let pb = adjust_predicate_from_tomatch tomatch typ pb in
+  let tm = adjust_tomatch_to_pattern pb tomatch in
+  let pb,tomatch = adjust_predicate_from_tomatch tomatch tm pb in
+  let ((current,typ),deps,dep) = tomatch in
   match typ with
     | NotInd (_,typ) ->
 	check_all_variables typ pb.mat;
-	compile (shift_problem ct pb)
+	compile (shift_problem tomatch pb)
     | IsInd (_,(IndType(indf,realargs) as indt),names) ->
 	let mind,_ = dest_ind_family indf in
 	let cstrs = get_constructors pb.env indf in
 	let arsign, _ = get_arity pb.env indf in
 	let eqns,onlydflt = group_equations pb mind current cstrs pb.mat in
 	if (Array.length cstrs <> 0 or pb.mat <> []) & onlydflt  then
-	  compile (shift_problem ct pb)
+	  compile (shift_problem tomatch pb)
 	else
           let _constraints = Array.map (solve_constraints indt) cstrs in
 
@@ -1220,21 +1230,11 @@ and compile_generalization pb d rest =
   { uj_val = mkLambda_or_LetIn d j.uj_val;
     uj_type = mkProd_or_LetIn d j.uj_type }
 
-and compile_alias pb (deppat,nondeppat,d,t) rest =
+and compile_alias pb aliases rest =
   let history = simplify_history pb.history in
-  let sign, newenv, mat =
-    insert_aliases pb.env !(pb.evdref) (deppat,nondeppat,d,t) pb.mat in
+  let sign, newenv, mat = insert_aliases pb.env !(pb.evdref) aliases pb.mat in
   let n = List.length sign in
-
-  (* We had Gamma1; x:current; Gamma2 |- tomatch(x) and we rebind x to get *)
-  (* Gamma1; x:current; Gamma2; typs; x':=curalias |- tomatch(x') *)
   let tomatch = lift_tomatch_stack n rest in
-  let tomatch = match kind_of_term nondeppat with
-    | Rel i ->
-	if n = 1 then regeneralize_index_tomatch (i+n) tomatch
-	else replace_tomatch i deppat tomatch
-    | _ -> (* initial terms are not dependent *) tomatch in
-
   let pb =
     {pb with
        env = newenv;
@@ -1395,7 +1395,10 @@ let build_tycon loc env tycon_env subst tycon extenv evdref t =
 	  e_new_evar evdref env ~src:(loc,ImpossibleCase) (new_Type ()) in
 	lift (n'-n) impossible_case_type
     | Some t -> abstract_tycon loc tycon_env evdref subst tycon extenv t in
-  get_judgment_of extenv !evdref t
+  try get_judgment_of extenv !evdref t
+  with Not_found | Anomaly _ ->
+    (* Quick workaround to acknowledge failure to build a well-typed pred *)
+    error "Unable to infer a well-typed return clause."
 
 (* For a multiple pattern-matching problem Xi on t1..tn with return
  * type T, [build_inversion_problem Gamma Sigma (t1..tn) T] builds a return

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -306,7 +306,8 @@ let remove_current_view_page () =
       kill_input_view c
   in
   let current = session_notebook#current_term in
-    if current.script#buffer#modified then
+    if not current.script#buffer#modified then do_remove ()
+    else
       match GToolbox.question_box ~title:"Close"
               ~buttons:["Save Buffer and Close";
                         "Close without Saving";
@@ -1680,34 +1681,42 @@ let choose_save session =
     save_dialog#show ()
  *)
 
+(* Nota: using && here has the advantage of working both under win32 and unix.
+   If someday we want the main command to be tried even if the "cd" has failed,
+   then we should use " ; " under unix but " & " under win32 (cf. #2363).
+*)
+
+let local_cd file =
+  "cd " ^ Filename.quote (Filename.dirname file) ^ " && "
+
 let do_print session =
   let av = session.analyzed_view in
-    if session.filename = ""
-    then flash_info "Cannot print: this buffer has no name"
-    else begin
-      let cmd =
-        "cd " ^ Filename.quote (Filename.dirname session.filename) ^ "; " ^
-        !current.cmd_coqdoc ^ " -ps " ^ Filename.quote (Filename.basename session.filename) ^
-        " | " ^ !current.cmd_print
-      in
-      let print_window = GWindow.window ~title:"Print" ~modal:true ~position:`CENTER ~wm_class:"CoqIDE" ~wm_name: "CoqIDE"  () in
-      let vbox_print = GPack.vbox ~spacing:10 ~border_width:10 ~packing:print_window#add () in
-      let _ = GMisc.label ~justify:`LEFT ~text:"Print using the following command:" ~packing:vbox_print#add () in
-      let print_entry = GEdit.entry ~text:cmd ~editable:true ~width_chars:80 ~packing:vbox_print#add () in
-      let hbox_print = GPack.hbox ~spacing:10 ~packing:vbox_print#add () in
-      let print_cancel_button = GButton.button ~stock:`CANCEL ~label:"Cancel" ~packing:hbox_print#add () in
-      let print_button  = GButton.button ~stock:`PRINT  ~label:"Print"  ~packing:hbox_print#add () in
-      let callback_print () =
-        let cmd = print_entry#text in
-        let s,_ = run_command av#insert_message cmd in
-          flash_info (cmd ^ if s = Unix.WEXITED 0 then " succeeded" else " failed");
-          print_window#destroy ()
-      in
-        ignore (print_cancel_button#connect#clicked ~callback:print_window#destroy) ;
-        ignore (print_button#connect#clicked ~callback:callback_print);
-        print_window#misc#show ()
-    end
-
+    match av#filename with
+      |None -> flash_info "Cannot print: this buffer has no name"
+      |Some f_name -> begin
+	  let cmd =
+	local_cd session.filename ^
+              !current.cmd_coqdoc ^ " --coqlib_path " ^ Envars.coqlib () ^
+	      " -ps " ^ Filename.quote (Filename.basename f_name) ^
+              " | " ^ !current.cmd_print
+	  in
+	  let print_window = GWindow.window ~title:"Print" ~modal:true ~position:`CENTER ~wm_class:"CoqIDE" ~wm_name: "CoqIDE"  () in
+	  let vbox_print = GPack.vbox ~spacing:10 ~border_width:10 ~packing:print_window#add () in
+	  let _ = GMisc.label ~justify:`LEFT ~text:"Print using the following command:" ~packing:vbox_print#add () in
+	  let print_entry = GEdit.entry ~text:cmd ~editable:true ~width_chars:80 ~packing:vbox_print#add () in
+	  let hbox_print = GPack.hbox ~spacing:10 ~packing:vbox_print#add () in
+	  let print_cancel_button = GButton.button ~stock:`CANCEL ~label:"Cancel" ~packing:hbox_print#add () in
+	  let print_button  = GButton.button ~stock:`PRINT  ~label:"Print"  ~packing:hbox_print#add () in
+	  let callback_print () =
+            let cmd = print_entry#text in
+            let s,_ = run_command av#insert_message cmd in
+              flash_info (cmd ^ if s = Unix.WEXITED 0 then " succeeded" else " failed");
+              print_window#destroy ()
+	  in
+            ignore (print_cancel_button#connect#clicked ~callback:print_window#destroy) ;
+            ignore (print_button#connect#clicked ~callback:callback_print);
+            print_window#misc#show ()
+	end
 
 let main files =
   (* Statup preferences *)
@@ -1956,8 +1965,11 @@ let main files =
 				  | _ -> assert false
 			    in
 			    let cmd =
-			      "cd " ^ Filename.quote (Filename.dirname f) ^ "; " ^
-				!current.cmd_coqdoc ^ " --" ^ kind ^ " -o " ^ (Filename.quote output) ^ " " ^ (Filename.quote basef)
+			      local_cd f ^
+				!current.cmd_coqdoc ^ " --coqlib_path " ^
+				Envars.coqlib () ^ " --" ^ kind ^
+				" -o " ^ (Filename.quote output) ^ " " ^
+				(Filename.quote basef)
 			    in
 			    let s,_ = run_command av#insert_message cmd in
 			      flash_info (cmd ^
@@ -2862,7 +2874,7 @@ with _ := Induction for _ Sort _.\n",61,10, Some GdkKeysyms._S);
 						    flash_info "Cannot make: this buffer has no name"
 						| Some f ->
 						    let cmd =
-						      "cd " ^ Filename.quote (Filename.dirname f) ^ "; " ^ !current.cmd_make in
+						      local_cd f ^ !current.cmd_make in
 
 						      (*
 							save_f ();
@@ -2929,7 +2941,7 @@ with _ := Induction for _ Sort _.\n",61,10, Some GdkKeysyms._S);
 						    flash_info "Cannot make makefile: this buffer has no name"
 						| Some f ->
 						    let cmd =
-						      "cd " ^ Filename.quote (Filename.dirname f) ^ "; " ^ !current.cmd_coqmakefile in
+						      local_cd f ^ !current.cmd_coqmakefile in
 						    let s,res = run_command av#insert_message cmd in
 						      flash_info
 							(!current.cmd_coqmakefile ^ if s = Unix.WEXITED 0 then " succeeded" else " failed")

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -135,7 +135,8 @@ val prterm                 : constr -> std_ppcmds (* = pr_lconstr *)
 
 (* spiwack: printer function for sets of Environ.assumption.
             It is used primarily by the Print Assumption command. *)
-val pr_assumptionset : env -> Term.types Environ.ContextObjectMap.t ->std_ppcmds
+val pr_assumptionset :
+  env -> Term.types Assumptions.ContextObjectMap.t ->std_ppcmds
 
 
 type printer_pr = {

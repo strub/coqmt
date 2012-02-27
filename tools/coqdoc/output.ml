@@ -1,7 +1,7 @@
 (* -*- compile-command: "make -C ../.. bin/coqdoc" -*- *)
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -49,6 +49,7 @@ let is_keyword =
       "Implicit Arguments"; "Add"; "Strict";
       "Typeclasses"; "Instance"; "Global Instance"; "Class"; "Instantiation";
       "subgoal";
+      "Opaque"; "Transparent";
       (* Program *)
       "Program Definition"; "Program Example"; "Program Fixpoint"; "Program Lemma";
       "Obligation"; "Obligations"; "Solve"; "using"; "Next Obligation"; "Next";

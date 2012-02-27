@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -21,9 +21,17 @@ open Environ
    either produces a wrong result or raise an anomaly. Use with care.
    It doesn't handle predicative universes too. *)
 
-val get_type_of : ?refresh:bool -> env -> evar_map -> constr -> types
-val get_sort_of : env -> evar_map -> types -> sorts
-val get_sort_family_of : env -> evar_map -> types -> sorts_family
+(** The "polyprop" optional argument is used by the extraction to
+    disable "Prop-polymorphism", cf comment in [inductive.ml] *)
+
+val get_type_of :
+  ?polyprop:bool -> ?refresh:bool -> env -> evar_map -> constr -> types
+
+val get_sort_of :
+  ?polyprop:bool -> env -> evar_map -> types -> sorts
+
+val get_sort_family_of :
+  ?polyprop:bool -> env -> evar_map -> types -> sorts_family
 
 (* Makes an assumption from a constr *)
 val get_assumption_of : env -> evar_map -> constr -> types

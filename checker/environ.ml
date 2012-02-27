@@ -111,6 +111,9 @@ let lookup_constant kn env =
   Cmap_env.find kn env.env_globals.env_constants
 
 let add_constant kn cs env =
+  if Cmap_env.mem kn env.env_globals.env_constants then
+    Printf.ksprintf anomaly "Constant %s is already defined"
+      (string_of_con kn);
   let new_constants =
     Cmap_env.add kn cs env.env_globals.env_constants in
   let new_globals =
@@ -159,6 +162,9 @@ let lookup_mind kn env =
   Mindmap_env.find kn env.env_globals.env_inductives
 
 let add_mind kn mib env =
+  if Mindmap_env.mem kn env.env_globals.env_inductives then
+    Printf.ksprintf anomaly "Inductive %s is already defined"
+      (string_of_mind kn);
   let new_inds = Mindmap_env.add kn mib env.env_globals.env_inductives in
   let kn1,kn2 =  user_mind kn,canonical_mind kn in
   let new_inds_eq = if kn1=kn2 then 
@@ -175,6 +181,9 @@ let add_mind kn mib env =
 (* Modules *)
 
 let add_modtype ln mtb env =
+  if MPmap.mem ln env.env_globals.env_modtypes then
+    Printf.ksprintf anomaly "Module type %s is already defined"
+      (string_of_mp ln);
   let new_modtypes = MPmap.add ln mtb env.env_globals.env_modtypes in
   let new_globals =
     { env.env_globals with
@@ -182,12 +191,24 @@ let add_modtype ln mtb env =
   { env with env_globals = new_globals }
 
 let shallow_add_module mp mb env =
+  if MPmap.mem mp env.env_globals.env_modules then
+    Printf.ksprintf anomaly "Module %s is already defined"
+      (string_of_mp mp);
   let new_mods = MPmap.add mp mb env.env_globals.env_modules in
   let new_globals =
     { env.env_globals with
 	env_modules = new_mods } in
   { env with env_globals = new_globals }
 
+let shallow_remove_module mp env =
+  if not (MPmap.mem mp env.env_globals.env_modules) then
+    Printf.ksprintf anomaly "Module %s is unknown"
+      (string_of_mp mp);
+  let new_mods = MPmap.remove mp env.env_globals.env_modules in
+  let new_globals =
+    { env.env_globals with
+	env_modules = new_mods } in
+  { env with env_globals = new_globals }
 
 let lookup_module mp env =
   MPmap.find mp env.env_globals.env_modules

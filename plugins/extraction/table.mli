@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -30,11 +30,11 @@ val error_inductive : global_reference -> 'a
 val error_nb_cons : unit -> 'a
 val error_module_clash : module_path -> module_path -> 'a
 val error_no_module_expr : module_path -> 'a
+val error_singleton_become_prop : identifier -> 'a
 val error_unknown_module : qualid -> 'a
 val error_scheme : unit -> 'a
 val error_not_visible : global_reference -> 'a
 val error_MPfile_as_mod : module_path -> bool -> 'a
-val error_record : global_reference -> 'a
 val check_inside_module : unit -> unit
 val check_inside_section : unit -> unit
 val check_loaded_modfile : module_path -> unit

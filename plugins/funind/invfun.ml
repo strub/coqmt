@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -501,6 +501,15 @@ and intros_with_rewrite_aux : tactic =
 			tclTHENSEQ [ h_intro id;
 				     generalize_dependent_of (destVar args.(1)) id;
 				     tclTRY (Equality.rewriteLR (mkVar id));
+				     intros_with_rewrite
+				   ]
+			  g
+		      else if isVar args.(2) 
+		      then 
+			let id = pf_get_new_id (id_of_string "y") g  in
+			tclTHENSEQ [ h_intro id;
+				     generalize_dependent_of (destVar args.(2)) id;
+				     tclTRY (Equality.rewriteRL (mkVar id));
 				     intros_with_rewrite
 				   ]
 			  g

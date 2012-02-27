@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -21,10 +21,21 @@ open Util
 open Pp
 open Miniml
 
-(** Sets and maps for [global_reference] that do _not_ work modulo
-    name equivalence (otherwise use Refset / Refmap ) *)
+(** Sets and maps for [global_reference] that work modulo equivalent
+    on the user part of the name (otherwise use Refset / Refmap ) *)
 
-module RefOrd = struct type t = global_reference let compare = compare end
+module RefOrd = struct
+  type t = global_reference
+  let compare x y =
+    let make_name = function
+      | ConstRef con -> ConstRef(constant_of_kn(user_con con))
+      | IndRef (kn,i) -> IndRef(mind_of_kn(user_mind kn),i)
+      | ConstructRef ((kn,i),j)-> ConstructRef((mind_of_kn(user_mind kn),i),j)
+      | VarRef id -> VarRef id
+    in
+    Pervasives.compare (make_name x) (make_name y)
+end
+
 module Refmap' = Map.Make(RefOrd)
 module Refset' = Set.Make(RefOrd)
 
@@ -316,6 +327,15 @@ let error_no_module_expr mp =
        ++ str "some Declare Module outside any Module Type.\n"
        ++ str "This situation is currently unsupported by the extraction.")
 
+let error_singleton_become_prop id =
+  err (str "The informative inductive type " ++ pr_id id ++
+       str " has a Prop instance.\n" ++
+       str "This happens when a sort-polymorphic singleton inductive type\n" ++
+       str "has logical parameters, such as (I,I) : (True * True) : Prop.\n" ++
+       str "The Ocaml extraction cannot handle this situation yet.\n" ++
+       str "Instead, use a sort-monomorphic type such as (True /\\ True)\n" ++
+       str "or extract to Haskell.")
+
 let error_unknown_module m =
   err (str "Module" ++ spc () ++ pr_qualid m ++ spc () ++ str "not found.")
 
@@ -334,10 +354,6 @@ let error_MPfile_as_mod mp b =
 	    ".v as a module is "^s1^".\n"^
 	    "Monolithic Extraction cannot deal with this situation.\n"^
 	    "Please "^s2^"use (Recursive) Extraction Library instead.\n"))
-
-let error_record r =
-  err (str "Record " ++ safe_pr_global r ++ str " has an anonymous field." ++
-       fnl () ++ str "To help extraction, please use an explicit name.")
 
 let msg_non_implicit r n id =
   let name = match id with

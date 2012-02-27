@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -75,7 +75,7 @@ val is_implicit_arg : hole_kind -> bool
 (* Returns the term and type for the given instance of the parameters and fields
    of the type class. *)
 
-val instance_constructor : typeclass -> constr list -> constr * types
+val instance_constructor : typeclass -> constr list -> constr option * types
 
 (* Use evar_extra for marking resolvable evars. *)
 val bool_in : bool -> Dyn.t

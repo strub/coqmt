@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -404,10 +404,18 @@ let print_one_decl struc mp decl =
 
 (*s Extraction of a ml struct to a file. *)
 
+(** For Recursive Extraction, writing directly on stdout
+    won't work with coqide, we use a buffer instead *)
+
+let buf = Buffer.create 1000
+
 let formatter dry file =
   let ft =
     if dry then Format.make_formatter (fun _ _ _ -> ()) (fun _ -> ())
-    else Pp_control.with_output_to (Option.default stdout file)
+    else
+      match file with
+	| Some f -> Pp_control.with_output_to f
+	| None -> Format.formatter_of_buffer buf
   in
   (* We never want to see ellipsis ... in extracted code *)
   Format.pp_set_max_boxes ft max_int;
@@ -421,6 +429,7 @@ let formatter dry file =
   ft
 
 let print_structure_to_file (fn,si,mo) dry struc =
+  Buffer.clear buf;
   let d = descr () in
   reset_renaming_tables AllButExternal;
   let unsafe_needs = {
@@ -463,7 +472,12 @@ let print_structure_to_file (fn,si,mo) dry struc =
 	 close_out cout; raise e
        end;
        info_file si)
-    (if dry then None else si)
+    (if dry then None else si);
+  (* Print the buffer content via Coq standard formatter (ok with coqide). *)
+  if Buffer.length buf <> 0 then begin
+    Pp.message (Buffer.contents buf);
+    Buffer.reset buf
+  end
 
 
 (*********************************************)

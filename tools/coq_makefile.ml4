@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -334,7 +334,7 @@ let rec special = function
 let custom sps =
   let pr_path (file,dependencies,com) =
     print file; print ": "; print dependencies; print "\n";
-    print "\t"; print com; print "\n\n"
+    if com <> "" then (print "\t"; print com); print "\n\n"
   in
     if sps <> [] then section "Custom targets.";
     List.iter pr_path sps
@@ -570,7 +570,7 @@ let check_overlapping_include (inc_i,inc_r) =
     | [] -> ()
     | (pdir,_,abspdir)::l ->
 	if not (is_prefix pwd abspdir) then
-	  Printf.eprintf "Warning: in option -R, %s is not a subdirectoty of the current directory\n" pdir;
+	  Printf.eprintf "Warning: in option -R, %s is not a subdirectory of the current directory\n" pdir;
 	List.iter (fun (pdir',_,abspdir') ->
 	  if is_prefix abspdir abspdir' or is_prefix abspdir' abspdir then
 	    Printf.eprintf "Warning: in options -R, %s and %s overlap\n" pdir pdir') l;

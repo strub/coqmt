@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -137,7 +137,10 @@ let subst_projection fid l c =
 	  match List.nth l (k-depth-2) with
 	    | Projection t -> lift depth t
 	    | NoProjection (Name id) -> bad_projs := id :: !bad_projs; mkRel k
-	    | NoProjection Anonymous -> assert false
+	    | NoProjection Anonymous ->
+                errorlabstrm "" (str "Field " ++ pr_id fid ++
+                  str " depends on the " ++ str (ordinal (k-depth-1)) ++ str
+                  " field which has no name.")
         else
 	  mkRel (k-lv)
     | _ -> map_constr_with_binders succ substrec depth c

@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -191,7 +191,7 @@ let declare_class_instance gr ctx params =
   let ident = make_instance_ident gr in
   let cl = Typeclasses.class_info gr in
   let (def,typ) = Typeclasses.instance_constructor cl params in
-  let (def,typ) = it_mkLambda_or_LetIn def ctx, it_mkProd_or_LetIn typ ctx in
+  let (def,typ) = it_mkLambda_or_LetIn (Option.get def) ctx, it_mkProd_or_LetIn typ ctx in
   let def = deep_refresh_universes def in
   let typ = deep_refresh_universes typ in
   let ce = Entries.DefinitionEntry

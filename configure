@@ -6,7 +6,7 @@
 # 
 ##################################
 
-VERSION=8.3pl2
+VERSION=8.3pl3
 VOMAGIC=08300
 STATEMAGIC=58300
 DATE=`LANG=C date +"%B %Y"`
@@ -321,11 +321,12 @@ fi
 
 MAKE=`which make`
 if [ "$MAKE" != "" ]; then
-  MAKEVERSION=`$MAKE -v | head -1`
-  case $MAKEVERSION in
-    "GNU Make 3.8"[12])
-      echo "You have GNU Make >= 3.81. Good!";;
-    *)
+  MAKEVERSION=`$MAKE -v | head -1 | cut -d" " -f3`
+  MAKEVERSIONMAJOR=`echo $MAKEVERSION | cut -d. -f1`
+  MAKEVERSIONMINOR=`echo $MAKEVERSION | cut -d. -f2`
+  if [ "$MAKEVERSIONMAJOR" -eq 3 -a "$MAKEVERSIONMINOR" -ge 81 ]; then
+      echo "You have GNU Make $MAKEVERSION. Good!"
+  else
       OK="no"
       if [ -x ./make ]; then
 	  MAKEVERSION=`./make -v | head -1`
@@ -346,9 +347,9 @@ if [ "$MAKE" != "" ]; then
       else
 	  echo "You have locally installed GNU Make 3.81. Good!"
       fi
-  esac
+  fi
 else
-  echo "Cannot find GNU Make 3.81."
+  echo "Cannot find GNU Make >= 3.81."
 fi
 
 # Browser command
@@ -659,7 +660,7 @@ esac
 
 if test "$with_doc" = "all" 
 then
-    for cmd in "latex" "hevea" "pngtopnm" "pnmtops" ; do
+    for cmd in "latex" "hevea" ; do
 	if test ! -x "`which $cmd`"
 	then 
 	    echo "$cmd was not found; documentation will not be available"

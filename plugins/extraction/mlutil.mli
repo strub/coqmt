@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -29,6 +29,8 @@ val instantiation : ml_schema -> ml_type
 val needs_magic : ml_type * ml_type -> bool
 val put_magic_if : bool -> ml_ast -> ml_ast
 val put_magic : ml_type * ml_type -> ml_ast -> ml_ast
+
+val generalizable : ml_ast -> bool
 
 (*s ML type environment. *)
 

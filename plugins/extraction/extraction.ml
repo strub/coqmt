@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -36,9 +36,17 @@ let current_fixpoints = ref ([] : constant list)
 
 let none = Evd.empty
 
-let type_of env c = Retyping.get_type_of env none (strip_outer_cast c)
+let type_of env c =
+  try
+    let polyprop = (lang() = Haskell) in
+    Retyping.get_type_of ~polyprop env none (strip_outer_cast c)
+  with SingletonInductiveBecomesProp id -> error_singleton_become_prop id
 
-let sort_of env c = Retyping.get_sort_family_of env none (strip_outer_cast c)
+let sort_of env c =
+  try
+    let polyprop = (lang() = Haskell) in
+    Retyping.get_sort_family_of ~polyprop env none (strip_outer_cast c)
+  with SingletonInductiveBecomesProp id -> error_singleton_become_prop id
 
 let is_axiom env kn = (Environ.lookup_constant kn env).const_body = None
 
@@ -423,17 +431,16 @@ and extract_ind env kn = (* kn is supposed to be in long form *)
 	let mp,d,_ = repr_mind kn in
 	let rec select_fields l typs = match l,typs with
 	  | [],[] -> []
-	  | (Name id)::l, typ::typs ->
-	      if isDummy (expand env typ) then select_fields l typs
-	      else
-		let knp = make_con mp d (label_of_id id) in
-		if List.for_all ((=) Keep) (type2signature env typ)
-		then
-		  projs := Cset.add knp !projs;
-		(ConstRef knp) :: (select_fields l typs)
+	  | _::l, typ::typs when isDummy (expand env typ) ->
+	      select_fields l typs
 	  | Anonymous::l, typ::typs ->
-	      if isDummy (expand env typ) then select_fields l typs
-	      else error_record r
+	      None :: (select_fields l typs)
+	  | Name id::l, typ::typs ->
+	      let knp = make_con mp d (label_of_id id) in
+	      (* Is it safe to use [id] for projections [foo.id] ? *)
+	      if List.for_all ((=) Keep) (type2signature env typ)
+	      then projs := Cset.add knp !projs;
+	      Some (ConstRef knp) :: (select_fields l typs)
 	  | _ -> assert false
 	in
 	let field_glob = select_fields field_names typ
@@ -444,10 +451,8 @@ and extract_ind env kn = (* kn is supposed to be in long form *)
 	  let n = nb_default_params env
             (Inductive.type_of_inductive env (mib,mip0))
 	  in
-	  List.iter
-	    (Option.iter
-	       (fun kn -> if Cset.mem kn !projs then add_projection n kn))
-	    (lookup_projections ip)
+	  let check_proj kn = if Cset.mem kn !projs then add_projection n kn in
+	  List.iter (Option.iter check_proj) (lookup_projections ip)
 	with Not_found -> ()
 	end;
 	Record field_glob
@@ -561,7 +566,11 @@ let rec extract_term env mle mlt c args =
 	  let a = new_meta () in
 	  let c1' = extract_term env mle a c1 [] in
 	  (* The type of [c1'] is generalized and stored in [mle]. *)
-	  let mle' = Mlenv.push_gen mle a in
+	  let mle' =
+	    if generalizable c1'
+	    then Mlenv.push_gen mle a
+	    else Mlenv.push_type mle a
+	  in
 	  MLletin (Id id, c1', extract_term env' mle' mlt c2 args')
 	with NotDefault d ->
 	  let mle' = Mlenv.push_std_type mle (Tdummy d) in

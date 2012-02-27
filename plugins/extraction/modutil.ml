@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -66,7 +66,7 @@ let struct_iter do_decl do_spec s =
 type do_ref = global_reference -> unit
 
 let record_iter_references do_term = function
-  | Record l -> List.iter do_term l
+  | Record l -> List.iter (Option.iter do_term) l
   | _ -> ()
 
 let type_iter_references do_type t =

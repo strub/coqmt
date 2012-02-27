@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -82,7 +82,9 @@ let kind_of_head env t =
         match pi2 (lookup_named id env) with
         | Some c -> aux k l c b
         | None -> NotImmediatelyComputableHead)
-  | Const cst -> on_subterm k l b (constant_head cst)
+  | Const cst ->
+      (try on_subterm k l b (constant_head cst)
+       with Not_found -> assert false)
   | Construct _ | CoFix _ ->
       if b then NotImmediatelyComputableHead else ConstructorHead
   | Sort _ | Ind _ | Prod _ -> RigidHead RigidType

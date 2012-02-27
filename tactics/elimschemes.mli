@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -16,6 +16,7 @@ val rect_scheme_kind_from_prop : individual scheme_kind
 val ind_scheme_kind_from_prop : individual scheme_kind
 val rec_scheme_kind_from_prop : individual scheme_kind
 val rect_dep_scheme_kind_from_type : individual scheme_kind
+val ind_scheme_kind_from_type : individual scheme_kind
 val ind_dep_scheme_kind_from_type : individual scheme_kind
 val rec_dep_scheme_kind_from_type : individual scheme_kind
 

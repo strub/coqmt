@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -322,6 +322,10 @@ let locate_if_isevar loc na = function
       with Not_found -> RHole (loc, Evd.BinderType na))
   | x -> x
 
+let reset_hidden_inductive_implicit_test (ltacvars,namedctxvars,ntnvars,impls) =
+  let f = function id,(Inductive _,b,c,d) -> id,(Inductive [],b,c,d) | x -> x in
+  (ltacvars,namedctxvars,ntnvars,List.map f impls)
+
 let check_hidden_implicit_parameters id (_,_,_,impls) =
   if List.exists (function
     | (_,(Inductive indparams,_,_,_)) -> List.mem id indparams
@@ -461,6 +465,19 @@ let traverse_binder (terms,_,_ as subst)
     let renaming' = if id=id' then renaming else (id,id')::renaming in
     (renaming',env), Name id'
 
+let make_letins loc = List.fold_right (fun (na,b,t) c -> RLetIn (loc,na,b,c))
+
+let rec subordinate_letins letins = function
+  (* binders come in reverse order; the non-let are returned in reverse order together *)
+  (* with the subordinated let-in in writing order *)
+  | (na,_,Some b,t)::l ->
+      subordinate_letins ((na,b,t)::letins) l
+  | (na,bk,None,t)::l ->
+      let letins',rest = subordinate_letins [] l in
+      letins',((na,bk,t),letins)::rest
+  | [] ->
+      letins,[]
+
 let rec subst_iterator y t = function
   | RVar (_,id) as x -> if id = y then t else x
   | x -> map_rawconstr (subst_iterator y t) x
@@ -505,19 +522,21 @@ let subst_aconstr_in_rawconstr loc intern lvar subst infos c =
         (* All elements of the list are in scopes (scopt,subscopes) *)
 	let (bl,(scopt,subscopes)) = List.assoc x binders in
 	let env,bl = List.fold_left (iterate_binder intern lvar) (env,[]) bl in
+	let letins,bl = subordinate_letins [] bl in
         let termin = aux subst' (renaming,env) terminator in
-	List.fold_left (fun t binder ->
+	let res = List.fold_left (fun t binder ->
           subst_iterator ldots_var t
 	    (aux (terms,Some(x,binder)) subinfos iter))
-	  termin bl
+	  termin bl in
+	make_letins loc letins res
       with Not_found ->
           anomaly "Inconsistent substitution of recursive notation")
     | AProd (Name id, AHole _, c') when option_mem_assoc id binderopt ->
-	let (na,bk,_,t) = snd (Option.get binderopt) in
-	RProd (loc,na,bk,t,aux subst' infos c')
+        let (na,bk,t),letins = snd (Option.get binderopt) in
+	RProd (loc,na,bk,t,make_letins loc letins (aux subst' infos c'))
     | ALambda (Name id,AHole _,c') when option_mem_assoc id binderopt ->
-	let (na,bk,_,t) = snd (Option.get binderopt) in
-	RLambda (loc,na,bk,t,aux subst' infos c')
+        let (na,bk,t),letins = snd (Option.get binderopt) in
+	RLambda (loc,na,bk,t,make_letins loc letins (aux subst' infos c'))
     | t ->
       rawconstr_of_aconstr_with_binders loc (traverse_binder subst)
 	(aux subst') subinfos t
@@ -846,7 +865,7 @@ let find_constructor ref f aliases pats scopes =
 	   if List.length pats < nvars then error_not_enough_arguments loc;
 	   let pats1,pats2 = list_chop nvars pats in
 	   let subst = List.map2 (fun (id,scl) a -> (id,(a,scl))) vars pats1 in
-	   let idspl1 = List.map (subst_cases_pattern loc (alias_of aliases) f (subst,[]) scopes) args in
+	   let idspl1 = List.map (subst_cases_pattern loc Anonymous f (subst,[]) scopes) args in
 	   cstr, idspl1, pats2
        | _ -> raise Not_found)
 
@@ -1242,7 +1261,9 @@ let internalize sigma globalenv env allow_patvar lvar c =
         let tms,env' = List.fold_right
           (fun citm (inds,env) ->
 	    let (tm,ind),nal = intern_case_item env citm in
-	    (tm,ind)::inds,List.fold_left (push_name_env lvar) env nal)
+	    (tm,ind)::inds,List.fold_left
+              (push_name_env (reset_hidden_inductive_implicit_test lvar))
+              env nal)
 	  tms ([],env) in
         let rtnpo = Option.map (intern_type env') rtnpo in
         let eqns' = List.map (intern_eqn (List.length tms) env) eqns in
@@ -1251,7 +1272,9 @@ let internalize sigma globalenv env allow_patvar lvar c =
 	let env' = reset_tmp_scope env in
         let ((b',(na',_)),ids) = intern_case_item env' (b,(na,None)) in
         let p' = Option.map (fun p ->
-          let env'' = List.fold_left (push_name_env lvar) env ids in
+          let env'' = List.fold_left 
+            (push_name_env (reset_hidden_inductive_implicit_test lvar))
+            env ids in
 	  intern_type env'' p) po in
         RLetTuple (loc, List.map snd nal, (na', p'), b',
                    intern (List.fold_left (push_name_env lvar) env nal) c)
@@ -1259,7 +1282,9 @@ let internalize sigma globalenv env allow_patvar lvar c =
 	let env' = reset_tmp_scope env in
         let ((c',(na',_)),ids) = intern_case_item env' (c,(na,None)) in
         let p' = Option.map (fun p ->
-          let env'' = List.fold_left (push_name_env lvar) env ids in
+          let env'' = List.fold_left
+            (push_name_env (reset_hidden_inductive_implicit_test lvar))
+            env ids in
 	  intern_type env'' p) po in
         RIf (loc, c', (na', p'), intern env b1, intern env b2)
     | CHole (loc, k) ->

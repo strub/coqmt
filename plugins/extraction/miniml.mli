@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -57,7 +57,7 @@ type inductive_kind =
   | Singleton
   | Coinductive
   | Standard
-  | Record of global_reference list
+  | Record of global_reference option list (* None for anonymous field *)
 
 (* A [ml_ind_packet] is the miniml counterpart of a [one_inductive_body].
    If the inductive is logical ([ip_logical = false]), then all other fields

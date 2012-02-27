@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -40,9 +40,25 @@ type module_info =
      variant : modvariant;
      resolver : delta_resolver;
      resolver_of_param : delta_resolver;}
-      
+
 let check_label l labset =
   if Labset.mem l labset then error_existing_label l
+
+let check_labels ls senv =
+  Labset.iter (fun l -> check_label l senv) ls
+
+let labels_of_mib mib =
+  let add,get =
+    let labels = ref Labset.empty in
+    (fun id -> labels := Labset.add (label_of_id id) !labels),
+    (fun () -> !labels)
+  in
+  let visit_mip mip =
+    add mip.mind_typename;
+    Array.iter add mip.mind_consnames
+  in
+  Array.iter visit_mip mib.mind_packets;
+  get ()
 
 let set_engagement_opt oeng env =
   match oeng with
@@ -96,22 +112,6 @@ let add_constraints cst senv =
   {senv with
     env = Environ.add_constraints cst senv.env;
     univ = Univ.Constraint.union cst senv.univ }
-
-
-(*spiwack: functions for safe retroknowledge *)
-
-(* terms which are closed under the environnement env, i.e
-   terms which only depends on constant who are themselves closed *)
-let closed env term =
-  ContextObjectMap.is_empty (assumptions full_transparent_state env term)
-
-(* the set of safe terms in an environement any recursive set of
-   terms who are known not to prove inconsistent statement. It should
-   include at least all the closed terms. But it could contain other ones
-   like the axiom of excluded middle for instance *)
-let safe =
-  closed
-
 
 
 (* universal lifting, used for the "get" operations mostly *)
@@ -232,17 +232,16 @@ let add_mind dir l mie senv =
   if l <> label_of_id id then
     anomaly ("the label of inductive packet and its first inductive"^
 	     " type do not match");
-  check_label l senv.labset;
-    (* TODO: when we will allow reorderings we will have to verify
-       all labels *)
   let mib = translate_mind senv.env mie in
+  let labels = labels_of_mib mib in
+  check_labels labels senv.labset;
   let senv' = add_constraints mib.mind_constraints senv in
   let kn = make_mind senv.modinfo.modpath dir l in
   let env'' = Environ.add_mind kn mib senv'.env in
   kn, { old = senv'.old;
 	env = env'';
 	modinfo = senv'.modinfo;
-	labset = Labset.add l senv'.labset;  (* TODO: the same as above *)
+	labset = Labset.union labels senv'.labset;
 	revstruct = (l,SFBmind mib)::senv'.revstruct;
         univ = senv'.univ;
         engagement = senv'.engagement;
@@ -493,12 +492,14 @@ let end_module l restype senv =
 	     (canonical_mind 
 		(mind_of_delta resolver (mind_of_kn kn)))
 	   in
+	   let labels = labels_of_mib mib in
+	   check_labels labels senv.labset;
 	   let senv' = add_constraints mib.mind_constraints senv in
 	   let env'' = Environ.add_mind mind mib senv'.env in
 	     { old = senv'.old;
 	       env = env'';
 	       modinfo = senv'.modinfo;
-	       labset = Labset.add l senv'.labset;
+	       labset = Labset.union labels senv'.labset;
 	       revstruct = (l,SFBmind mib)::senv'.revstruct;
                univ = senv'.univ;
                engagement = senv'.engagement;

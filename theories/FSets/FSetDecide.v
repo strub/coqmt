@@ -368,6 +368,23 @@ the above form:
       "else" tactic(t2) :=
       first [ t; first [ t1 | fail 2 ] | t2 ].
 
+    Ltac abstract_term t :=
+      if (is_var t) then fail "no need to abstract a variable"
+      else (let x := fresh "x" in set (x := t) in *; try clearbody x).
+
+    Ltac abstract_elements :=
+      repeat
+        (match goal with
+           | |- context [ singleton ?t ] => abstract_term t
+           | _ : context [ singleton ?t ] |- _ => abstract_term t
+           | |- context [ add ?t _ ] => abstract_term t
+           | _ : context [ add ?t _ ] |- _ => abstract_term t
+           | |- context [ remove ?t _ ] => abstract_term t
+           | _ : context [ remove ?t _ ] |- _ => abstract_term t
+           | |- context [ In ?t _ ] => abstract_term t
+           | _ : context [ In ?t _ ] |- _ => abstract_term t
+         end).
+
     (** [prop P holds by t] succeeds (but does not modify the
         goal or context) if the proposition [P] can be proved by
         [t] in the current context.  Otherwise, the tactic
@@ -460,9 +477,12 @@ the above form:
         tactic). *)
     Hint Constructors FSet_elt_Prop FSet_Prop : FSet_Prop.
     Ltac discard_nonFSet :=
-      decompose records;
       repeat (
         match goal with
+        | H : context [ @Logic.eq ?T ?x ?y ] |- _ =>
+          if (change T with E.t in H) then fail
+          else if (change T with t in H) then fail
+          else clear H
         | H : ?P |- _ =>
           if prop (FSet_Prop P) holds by
             (auto 100 with FSet_Prop)
@@ -481,6 +501,13 @@ the above form:
       F.empty_iff F.singleton_iff F.add_iff F.remove_iff
       F.union_iff F.inter_iff F.diff_iff
     : set_simpl.
+
+    Lemma eq_refl_iff (x : E.t) : E.eq x x <-> True.
+    Proof.
+     now split.
+    Qed.
+
+    Hint Rewrite eq_refl_iff : set_eq_simpl.
 
     (** ** Decidability of FSet Propositions *)
 
@@ -558,8 +585,10 @@ the above form:
     Ltac substFSet :=
       repeat (
         match goal with
+        | H: E.eq ?x ?x |- _ => clear H
         | H: E.eq ?x ?y |- _ => rewrite H in *; clear H
-        end).
+        end);
+      autorewrite with set_eq_simpl in *.
 
     (** ** Considering Decidability of Base Propositions
         This tactic adds assertions about the decidability of
@@ -639,13 +668,7 @@ the above form:
     (** Here is the crux of the proof search.  Recursion through
         [intuition]!  (This will terminate if I correctly
         understand the behavior of [intuition].) *)
-    Ltac fsetdec_rec :=
-      try (match goal with
-      | H: E.eq ?x ?x -> False |- _ => destruct H
-      end);
-      (reflexivity ||
-      contradiction ||
-      (progress substFSet; intuition fsetdec_rec)).
+    Ltac fsetdec_rec := progress substFSet; intuition fsetdec_rec.
 
     (** If we add [unfold Empty, Subset, Equal in *; intros;] to
         the beginning of this tactic, it will satisfy the same
@@ -653,12 +676,13 @@ the above form:
         be much slower than necessary without the pre-processing
         done by the wrapper tactic [fsetdec]. *)
     Ltac fsetdec_body :=
+      autorewrite with set_eq_simpl in *;
       inst_FSet_hypotheses;
-      autorewrite with set_simpl in *;
+      autorewrite with set_simpl set_eq_simpl in *;
       push not in * using FSet_decidability;
       substFSet;
       assert_decidability;
-      auto using E.eq_refl;
+      auto;
       (intuition fsetdec_rec) ||
       fail 1
         "because the goal is beyond the scope of this tactic".
@@ -677,6 +701,10 @@ the above form:
         [intros] to leave us with a goal of [~ P] than a goal of
         [False]. *)
     fold any not; intros;
+    (** We don't care about the value of elements : complex ones are
+        abstracted as new variables (avoiding potential dependencies,
+        see bug #2464) *)
+    abstract_elements;
     (** We remove dependencies to logical hypothesis. This way,
         later "clear" will work nicely (see bug #2136) *)
     no_logical_interdep;
@@ -876,5 +904,5 @@ Require Import FSetInterface.
     the subtyping [WS<=S], the [Decide] functor which is meant to be
     used on modules [(M:S)] can simply be an alias of [WDecide]. *)
 
-Module WDecide (M:WS) := WDecide_fun M.E M.
+Module WDecide (M:WS) := !WDecide_fun M.E M.
 Module Decide := WDecide.

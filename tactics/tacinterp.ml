@@ -1,6 +1,6 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2011     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
@@ -994,6 +994,12 @@ and intern_genarg ist x =
 	    (out_gen (rawwit_tactic n) x))
       | None ->
           lookup_genarg_glob s ist x
+
+let intern_pure_tactic ist a =
+  match intern_tactic ist a with
+  | TacArg (TacCall _ | TacExternal _ | Reference _ | TacDynamic _ | Tacexp _) as a -> a
+  | TacArg _ | TacFun _ -> error "Tactic expected."
+  | a -> a
 
 (************* End globalization ************)
 
