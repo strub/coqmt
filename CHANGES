@@ -1,3 +1,43 @@
+Changes from V8.3pl1 to V8.3pl2
+===============================
+
+Coqdoc and documentation bugs
+
+- #2470 (use "membership" instead of "appartness")
+- #2475 (documentation of the "f binders := t" notation for record fields)
+- Documentation of module String on coq.inria.fr/stdlib
+
+Tactics
+
+- #2493 (dependent pairs injection failing because of Type cumulativity missing)
+- Reduction "simpl" sometimes failing in presence of names redefined in modules
+
+Extraction
+
+- #2359 (Some unnecessary unsafe casts are now avoided (bug in the type checker)).
+- #2469 (fix Extract Inlined Constant for Haskell and Scheme)
+- #2476 (Fix indentation of default pattern in haskell case)
+- #2477 (Avoid printing unused mutual fix components)
+- #2478 (Add missing parenthesis around emulated pattern-match)
+- #2482 (Extract Inductive on singleton inductives)
+- #2484 (Avoid an assert failure with -dont-load-proofs)
+- #2497 (malformed Haskell extraction of deeply-nested match expressions)
+- #2515 (Allow extracting Ascii.ascii to native Char in Haskell)
+- #2525 (Nicer error when a toplevel module has no body)
+- Fix printing of haskell modular names
+
+Miscellaneous bug fixes
+
+- #2487 (compilation with camlp5 in strict mode)
+- #2283, #2460 (new option "Set Default Timeout n / Unset Default Timeout")
+- #2524 (In win32, the exit code of coqc should be correct now)
+- Now, vm_compute is responsive to Ctrl-C interruption, as the rest of coqtop
+- Fixed uncaught exception when vmcast used in Check
+- coqdep complies with the -R visibility discipline
+- Fixing printing of f when defined using "Notation f x := ..."
+- Fixing Unset for options setting integer values
+- Excluding admitted subgoals from Search/SearchAbout
+
 Changes from V8.3 to V8.3pl1
 ============================
 
@@ -48,6 +88,10 @@ Miscellaneous bug fixes
 - #2434 (anomaly DuringSyntaxChecking with Local/Global prefixes)
 - a few improvements in efficiency
 
+
+Extraction
+
+- The pretty-printer for Haskell now produces layout-independant code
 
 Changes from V8.2 to V8.3
 =========================

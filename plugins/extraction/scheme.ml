@@ -101,9 +101,12 @@ let rec pp_expr env args =
 	  if ids <> [] then named_lams (List.rev ids) e
 	  else dummy_lams (ast_lift 1 e) 1
 	in
-	hov 2 (str (find_custom_match pv) ++ fnl () ++
+	apply
+	  (paren
+	     (hov 2
+		(str (find_custom_match pv) ++ fnl () ++
 		 prvect (fun tr -> pp_expr env [] (mkfun tr) ++ fnl ()) pv
-	       ++ pp_expr env [] t)
+		 ++ pp_expr env [] t)))
      | MLcase (info,t, pv) ->
 	let e =
 	  if info.m_kind <> Coinductive then pp_expr env [] t
@@ -163,24 +166,29 @@ let pp_decl = function
   | Dind _ -> mt ()
   | Dtype _ -> mt ()
   | Dfix (rv, defs,_) ->
-      let ppv = Array.map (pp_global Term) rv in
-      prvect_with_sep fnl
-	(fun (pi,ti) ->
-	   hov 2
-	     (paren (str "define " ++ pi ++ spc () ++
-		     (pp_expr (empty_env ()) [] ti))
-	      ++ fnl ()))
-	(array_map2 (fun p b -> (p,b)) ppv defs) ++
-      fnl ()
+      let names = Array.map
+	(fun r -> if is_inline_custom r then mt () else pp_global Term r) rv
+      in
+      prvecti
+	(fun i r ->
+	  let void = is_inline_custom r ||
+	    (not (is_custom r) && defs.(i) = MLexn "UNUSED")
+	  in
+	  if void then mt ()
+	  else
+	    hov 2
+	      (paren (str "define " ++ names.(i) ++ spc () ++
+			(if is_custom r then str (find_custom r)
+			 else pp_expr (empty_env ()) [] defs.(i)))
+	       ++ fnl ()) ++ fnl ())
+	rv
   | Dterm (r, a, _) ->
       if is_inline_custom r then mt ()
       else
-	if is_custom r then
-	  hov 2 (paren (str "define " ++ pp_global Term r ++ spc () ++
-			  str (find_custom r))) ++ fnl () ++ fnl ()
-	else
-	  hov 2 (paren (str "define " ++ pp_global Term r ++ spc () ++
-			  pp_expr (empty_env ()) [] a)) ++ fnl () ++ fnl ()
+	hov 2 (paren (str "define " ++ pp_global Term r ++ spc () ++
+			(if is_custom r then str (find_custom r)
+			 else pp_expr (empty_env ()) [] a)))
+	++ fnl2 ()
 
 let rec pp_structure_elem = function
   | (l,SEdecl d) -> pp_decl d

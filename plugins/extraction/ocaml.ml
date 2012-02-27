@@ -120,9 +120,6 @@ let find_projections = function Record l -> l | _ -> raise NoRecord
 (*s Pretty-printing of types. [par] is a boolean indicating whether parentheses
     are needed or not. *)
 
-let mk_ind path s =
-  make_mind (MPfile (dirpath_of_string path)) empty_dirpath (mk_label s)
-
 let rec pp_type par vl t =
   let rec pp_rec par = function
     | Tmeta _ | Tvar' _ | Taxiom -> assert false
@@ -160,26 +157,6 @@ let expr_needs_par = function
   | MLcase (_,_,pv) -> not (is_ifthenelse pv)
   | _        -> false
 
-
-(** Special hack for constants of type Ascii.ascii : if an
-    [Extract Inductive ascii => char] has been declared, then
-    the constants are directly turned into chars *)
-
-let ind_ascii = mk_ind "Coq.Strings.Ascii" "ascii"
-
-let check_extract_ascii () =
-  try find_custom (IndRef (ind_ascii,0)) = "char" with Not_found -> false
-
-let is_list_cons l =
- List.for_all (function MLcons (_,ConstructRef(_,_),[]) -> true | _ -> false) l
-
-let pp_char l =
-  let rec cumul = function
-    | [] -> 0
-    | MLcons(_,ConstructRef(_,j),[])::l -> (2-j) + 2 * (cumul l)
-    | _ -> assert false
-  in str ("'"^Char.escaped (Char.chr (cumul l))^"'")
-
 let rec pp_expr par env args =
   let par' = args <> [] || par
   and apply st = pp_apply st par args in
@@ -214,10 +191,7 @@ let rec pp_expr par env args =
 	   let record = List.hd args in
 	   pp_apply (record ++ str "." ++ pp_global Term r) par (List.tl args)
 	 with _ -> apply (pp_global Term r))
-    | MLcons(_,ConstructRef ((kn,0),1),l)
-        when kn = ind_ascii && check_extract_ascii () & is_list_cons l ->
-	assert (args=[]);
-	pp_char l
+    | MLcons _ as c when is_native_char c -> assert (args=[]); pp_native_char c
     | MLcons ({c_kind = Coinductive},r,[]) ->
 	assert (args=[]);
 	pp_par par (str "lazy " ++ pp_global Cons r)
@@ -247,9 +221,12 @@ let rec pp_expr par env args =
 	  if ids <> [] then named_lams (List.rev ids) e
 	  else dummy_lams (ast_lift 1 e) 1
 	in
-	hov 2 (str (find_custom_match pv) ++ fnl () ++
+	apply
+	  (pp_par par'
+	     (hov 2
+		(str (find_custom_match pv) ++ fnl () ++
 		 prvect (fun tr -> pp_expr true env [] (mkfun tr) ++ fnl ()) pv
-	       ++ pp_expr true env [] t)
+		 ++ pp_expr true env [] t)))
     | MLcase (info, t, pv) ->
 	let expr = if info.m_kind = Coinductive then
 	  (str "Lazy.force" ++ spc () ++ pp_expr true env [] t)
@@ -291,7 +268,7 @@ let rec pp_expr par env args =
 		  (try pp_ifthenelse par' env expr pv
 		   with Not_found ->
 		     v 0 (str "match " ++ expr ++ str " with" ++ fnl () ++
-			  str "  | " ++ pp_pat env info pv))))
+			  pp_pat env info pv))))
     | MLfix (i,ids,defs) ->
 	let ids',env' = push_vars (List.rev (Array.to_list ids)) env in
       	pp_fix par env' i (Array.of_list (List.rev ids'),defs) args
@@ -355,19 +332,19 @@ and pp_pat env info pv =
   prvecti
     (fun i x -> if Intset.mem i factor_set then mt () else
        let s1,s2 = pp_one_pat env info x in
-       hov 2 (s1 ++ str " ->" ++ spc () ++ s2) ++
-       if i = last && Intset.is_empty factor_set then mt () else
-       fnl () ++ str "  | ") pv
+       hv 2 (hov 4 (str "| " ++ s1 ++ str " ->") ++ spc () ++ hov 2 s2) ++
+       if i = last && Intset.is_empty factor_set then mt () else fnl ())
+    pv
   ++
   if Intset.is_empty factor_set then mt () else
   let par = expr_needs_par factor_br in
   match info.m_same with
     | BranchFun _ ->
         let ids, env' = push_vars [anonymous_name] env in
-        hov 2 (pr_id (List.hd ids) ++ str " ->" ++ spc () ++
-		 pp_expr par env' [] factor_br)
+        hv 2 (str "| " ++ pr_id (List.hd ids) ++ str " ->" ++ spc () ++
+		 hov 2 (pp_expr par env' [] factor_br))
     | BranchCst _ ->
-        hov 2 (str "_ ->" ++ spc () ++ pp_expr par env [] factor_br)
+        hv 2 (str "| _ ->" ++ spc () ++ hov 2 (pp_expr par env [] factor_br))
     | BranchNone -> mt ()
 
 and pp_function env t =
@@ -379,11 +356,11 @@ and pp_function env t =
 	if not (ast_occurs 1 (MLcase(i,MLdummy,pv))) then
 	  pr_binding (List.rev (List.tl bl)) ++
        	  str " = function" ++ fnl () ++
-	  v 0 (str "  | " ++ pp_pat env' i pv)
+	  v 0 (pp_pat env' i pv)
 	else
           pr_binding (List.rev bl) ++
           str " = match " ++ pr_id (List.hd bl) ++ str " with" ++ fnl () ++
-	  v 0 (str "  | " ++ pp_pat env' i pv)
+	  v 0 (pp_pat env' i pv)
     | _ ->
           pr_binding (List.rev bl) ++
 	  str " =" ++ fnl () ++ str "  " ++
@@ -412,17 +389,24 @@ let pp_Dfix (rv,c,t) =
   let names = Array.map
     (fun r -> if is_inline_custom r then mt () else pp_global Term r) rv
   in
-  let rec pp sep letand i =
-    if i >= Array.length rv then mt ()
-    else if is_inline_custom rv.(i) then pp sep letand (i+1)
+  let rec pp init i =
+    if i >= Array.length rv then
+      (if init then failwith "empty phrase" else mt ())
     else
-      let def =
-	if is_custom rv.(i) then str " = " ++ str (find_custom rv.(i))
-	else pp_function (empty_env ()) c.(i)
+      let void = is_inline_custom rv.(i) ||
+	(not (is_custom rv.(i)) && c.(i) = MLexn "UNUSED")
       in
-      sep () ++ pp_val names.(i) t.(i) ++
-      str letand ++ names.(i) ++ def ++ pp fnl2 "and " (i+1)
-  in pp mt "let rec " 0
+      if void then pp init (i+1)
+      else
+	let def =
+	  if is_custom rv.(i) then str " = " ++ str (find_custom rv.(i))
+	  else pp_function (empty_env ()) c.(i)
+	in
+	(if init then mt () else fnl2 ()) ++
+	pp_val names.(i) t.(i) ++
+	str (if init then "let rec " else "and ") ++ names.(i) ++ def ++
+	pp false (i+1)
+  in pp true 0
 
 (*s Pretty-printing of inductive types declaration. *)
 
@@ -439,7 +423,7 @@ let pp_one_ind prefix ip_equiv pl name cnames ctyps =
   let pl = rename_tvars keywords pl in
   let pp_constructor i typs =
     (if i=0 then mt () else fnl ()) ++
-    hov 5 (str "  | " ++ cnames.(i) ++
+    hov 3 (str "| " ++ cnames.(i) ++
 	   (if typs = [] then mt () else str " of ") ++
 	   prlist_with_sep
 	    (fun () -> spc () ++ str "* ") (pp_type true pl) typs)

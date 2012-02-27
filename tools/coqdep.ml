@@ -41,8 +41,8 @@ let add_coqlib_known phys_dir log_dir f =
   match get_extension f [".vo"] with
     | (basename,".vo") ->
 	let name = log_dir@[basename] in
-	Hashtbl.add coqlibKnown [basename] ();
-	Hashtbl.add coqlibKnown name ()
+	let paths = suffixes name in
+        List.iter (fun f -> Hashtbl.add coqlibKnown f ()) paths
     | _ -> ()
 
 let sort () =
@@ -199,7 +199,8 @@ let coqdep () =
     let coqlib = Envars.coqlib () in
     add_rec_dir add_coqlib_known (coqlib//"theories") ["Coq"];
     add_rec_dir add_coqlib_known (coqlib//"plugins") ["Coq"];
-    add_dir add_coqlib_known (coqlib//"user-contrib") []
+    let user = coqlib//"user-contrib" in
+    if Sys.file_exists user then add_rec_dir add_coqlib_known user []
   end;
   List.iter (fun (f,d) -> add_mli_known f d) !mliAccu;
   List.iter (fun (f,d) -> add_mllib_known f d) !mllibAccu;

@@ -43,6 +43,13 @@ let pr_binding = function
   | [] -> mt ()
   | l  -> str " " ++ prlist_with_sep (fun () -> str " ") pr_id l
 
+(** By default, in module Format, you can do horizontal placing of blocks
+    even if they include newlines, as long as the number of chars in the
+    blocks are less that a line length. To avoid this awkward situation,
+    we attach a big virtual size to [fnl] newlines. *)
+
+let fnl () = stras (1000000,"") ++ fnl ()
+
 let fnl2 () = fnl () ++ fnl ()
 
 let space_if = function true -> str " " | false -> mt ()
@@ -509,8 +516,10 @@ let pp_ocaml_gen k mp rls olab =
 let pp_haskell_gen k mp rls = match rls with
   | [] -> assert false
   | s::rls' ->
-      (if base_mp mp <> top_visible_mp () then s ^ "." else "") ^
-	(if upperkind k then "" else "_") ^ pseudo_qualify rls'
+    let str = pseudo_qualify rls' in
+    let str = if is_upper str && not (upperkind k) then ("_"^str) else str in
+    let prf = if base_mp mp <> top_visible_mp () then s ^ "." else "" in
+    prf ^ str
 
 (* Main name printing function for a reference *)
 
@@ -542,4 +551,38 @@ let pp_module mp =
 	add_visible (Mod,s) l; s
     | _ -> pp_ocaml_gen Mod mp (List.rev ls) None
 
+(** Special hack for constants of type Ascii.ascii : if an
+    [Extract Inductive ascii => char] has been declared, then
+    the constants are directly turned into chars *)
 
+let mk_ind path s =
+  make_mind (MPfile (dirpath_of_string path)) empty_dirpath (mk_label s)
+
+let ind_ascii = mk_ind "Coq.Strings.Ascii" "ascii"
+
+let check_extract_ascii () =
+  try
+    let char_type = match lang () with
+      | Ocaml -> "char"
+      | Haskell -> "Char"
+      | _ -> raise Not_found
+    in
+    find_custom (IndRef (ind_ascii,0)) = char_type
+  with Not_found -> false
+
+let is_list_cons l =
+ List.for_all (function MLcons (_,ConstructRef(_,_),[]) -> true | _ -> false) l
+
+let is_native_char = function
+  | MLcons(_,ConstructRef ((kn,0),1),l) ->
+    kn = ind_ascii && check_extract_ascii () && is_list_cons l
+  | _ -> false
+
+let pp_native_char c =
+  let rec cumul = function
+    | [] -> 0
+    | MLcons(_,ConstructRef(_,j),[])::l -> (2-j) + 2 * (cumul l)
+    | _ -> assert false
+  in
+  let l = match c with MLcons(_,_,l) -> l | _ -> assert false in
+  str ("'"^Char.escaped (Char.chr (cumul l))^"'")

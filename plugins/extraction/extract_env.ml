@@ -49,11 +49,12 @@ let environment_until dir_opt =
     | [] when dir_opt = None -> [current_toplevel (), toplevel_env ()]
     | [] -> []
     | d :: l ->
-	match (Global.lookup_module (MPfile d)).mod_expr with
-	  | Some meb ->
-	      if dir_opt = Some d then [MPfile d, meb]
-	      else (MPfile d, meb) :: (parse l)
-	  | _ -> assert false
+      let mb = Global.lookup_module (MPfile d) in
+      (* If -dont-load-proof has been used, mod_expr is None,
+         we try with mod_type *)
+      let meb = Option.default mb.mod_type mb.mod_expr in
+      if dir_opt = Some d then [MPfile d, meb]
+      else (MPfile d, meb) :: (parse l)
   in parse (Library.loaded_libraries ())
 
 
@@ -327,10 +328,17 @@ and extract_seb env mp all = function
   | SEBwith (_,_) -> anomaly "Not available yet"
 
 and extract_module env mp all mb =
-  (* [mb.mod_expr <> None ], since we look at modules from outside. *)
-  (* Example of module with empty [mod_expr] is X inside a Module F [X:SIG]. *)
-  { ml_mod_expr = extract_seb env mp all (Option.get mb.mod_expr);
-    ml_mod_type = extract_seb_spec env mp (my_type_of_mb mb) }
+  (* A module has an empty [mod_expr] when :
+     - it is a module variable (for instance X inside a Module F [X:SIG])
+     - it is a module assumption (Declare Module).
+     Since we look at modules from outside, we shouldn't have variables.
+     But a Declare Module at toplevel seems legal (cf #2525). For the
+     moment we don't support this situation. *)
+  match mb.mod_expr with
+    | None -> error_no_module_expr mp
+    | Some me ->
+      { ml_mod_expr = extract_seb env mp all me;
+	ml_mod_type = extract_seb_spec env mp (my_type_of_mb mb) }
 
 
 let unpack = function MEstruct (_,sel) -> sel | _ -> assert false
@@ -397,13 +405,20 @@ let print_one_decl struc mp decl =
 (*s Extraction of a ml struct to a file. *)
 
 let formatter dry file =
-  if dry then Format.make_formatter (fun _ _ _ -> ()) (fun _ -> ())
-  else match file with
-    | None -> !Pp_control.std_ft
-    | Some cout ->
-	let ft = Pp_control.with_output_to cout in
-	Option.iter (Format.pp_set_margin ft) (Pp_control.get_margin ());
-	ft
+  let ft =
+    if dry then Format.make_formatter (fun _ _ _ -> ()) (fun _ -> ())
+    else Pp_control.with_output_to (Option.default stdout file)
+  in
+  (* We never want to see ellipsis ... in extracted code *)
+  Format.pp_set_max_boxes ft max_int;
+  (* We reuse the width information given via "Set Printing Width" *)
+  (match Pp_control.get_margin () with
+    | None -> ()
+    | Some i ->
+      Format.pp_set_margin ft i;
+      Format.pp_set_max_indent ft (i-10));
+      (* note: max_indent should be < margin above, otherwise it's ignored *)
+  ft
 
 let print_structure_to_file (fn,si,mo) dry struc =
   let d = descr () in

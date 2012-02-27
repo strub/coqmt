@@ -14,6 +14,12 @@ open Miniml
 open Mlutil
 open Pp
 
+(** By default, in module Format, you can do horizontal placing of blocks
+    even if they include newlines, as long as the number of chars in the
+    blocks are less that a line length. To avoid this awkward situation,
+    we attach a big virtual size to [fnl] newlines. *)
+
+val fnl : unit -> std_ppcmds
 val fnl2 : unit -> std_ppcmds
 val space_if : bool -> std_ppcmds
 val sec_space_if : bool -> std_ppcmds
@@ -57,3 +63,14 @@ type reset_kind = AllButExternal | Everything
 val reset_renaming_tables : reset_kind -> unit
 
 val set_keywords : Idset.t -> unit
+
+(** For instance: [mk_ind "Coq.Init.Datatypes" "nat"] *)
+
+val mk_ind : string -> string -> mutual_inductive
+
+(** Special hack for constants of type Ascii.ascii : if an
+    [Extract Inductive ascii => char] has been declared, then
+    the constants are directly turned into chars *)
+
+val is_native_char : ml_ast -> bool
+val pp_native_char : ml_ast -> std_ppcmds
